@@ -26,7 +26,9 @@ export interface World {
   outcome: Outcome
   /** Oyuncu düşmanı peşinden sürüklüyor mu (sahte çekilme / kiting). */
   isRetreating: boolean
-  /** Hilal yayının o anki yönü (atan2(dx, dz)); kümeye kilitlenir. */
+  /** Yayın gitmek istediği yön: en çok düşmanı yakalayan açı. Ayrık, sıçrayabilir. */
+  facingTarget: number
+  /** Yayın o anki yönü (atan2(dx, dz)); hedefe sınırlı hızla döner. */
   facing: number
   /** Yay şimdi tetiklense kaç düşman düşerdi — önizleme. */
   inCrescent: number
@@ -55,7 +57,9 @@ function initialWorld(): World {
     phase: 'idle',
     outcome: 'playing',
     isRetreating: false,
-    facing: Math.PI, // düşman -z'de doğuyor; yay baştan onlara baksın
+    // Düşman -z'de doğuyor; yay baştan onlara baksın.
+    facingTarget: Math.PI,
+    facing: Math.PI,
     inCrescent: 0,
     strikeTimer: 0,
     strikeOrigin: { x: 0, z: 0 },

@@ -30,6 +30,15 @@ export const HILAL_CONFIG = {
 
   /** Vuruş animasyonunun süresi (saniye). */
   strikeDuration: 0.9,
+
+  /**
+   * Yayın saniyede dönebileceği açı (radyan) — ~400°/sn.
+   * En iyi açı taraması ayrık ve histerezisli olduğu için hedef yön bir karede
+   * 100°'den fazla sıçrayabiliyor. Yay o açıya ışınlansaydı hem kendisi zıplar
+   * hem de ona bakan kamera sert geçiş yapardı. Dönüş sınırlı ama hızlı: yay
+   * mantıkla aynı değeri kullandığı için görüntü ve isabet tutarlı kalır.
+   */
+  facingTurnRate: 7,
 } as const
 
 /**
@@ -55,6 +64,16 @@ export const CRESCENT = {
 /** Açıyı -PI..PI aralığına indirger. */
 function normalizeAngle(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a))
+}
+
+/**
+ * Açıyı hedefe doğru en fazla `maxDelta` kadar döndürür; kısa yönden gider ve
+ * -PI/PI sarmasında atlamaz.
+ */
+export function approachAngle(current: number, target: number, maxDelta: number): number {
+  const diff = normalizeAngle(target - current)
+  if (Math.abs(diff) <= maxDelta) return normalizeAngle(target)
+  return normalizeAngle(current + Math.sign(diff) * maxDelta)
 }
 
 /**
@@ -202,8 +221,17 @@ export function resolvePhase(ctx: PhaseContext): HilalPhase {
 /**
  * Kuşatılabilirliğe göre enerjiyi ilerletir. Düşman düzenini toparlarsa enerji
  * sızar — oyuncuyu baskıyı sürdürmeye zorlar.
+ *
+ * Dolduktan sonra sızmaz: hilal bir kez kurulduysa kurulmuştur. Sızıyorken şu
+ * oluyordu — oyuncu enerjiyi doldurur, buton "VUR" yazar, oyuncu basmak için bir
+ * an durur, disiplin toparlanır, enerji 100'ün altına düşer ve vuruş sessizce
+ * iptal olurdu. Arayüz hazır derken tuşun çalışmaması en can sıkıcı hata sınıfı.
+ * Baskıyı sürdürme zorunluluğu zaten şarj aşamasında var; ayrıca dolu enerjiyi
+ * taşımak bedava değil, düşman bu sırada üstüne geliyor.
  */
 export function stepEnergy(energy: number, vulnerability: number, deltaTime: number): number {
+  if (energy >= HILAL_CONFIG.strikeThreshold) return energy
+
   if (vulnerability < HILAL_CONFIG.vulnerabilityFloor) {
     return Math.max(0, energy - HILAL_CONFIG.energyDecayRate * deltaTime)
   }

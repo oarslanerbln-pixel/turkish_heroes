@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
+  approachAngle,
   calcFacing,
   calcSiegeState,
   countInCrescent,
@@ -47,22 +48,34 @@ export function GameDirector() {
         world.playerHealth - calcContactDamage(world.attackers, dt),
       )
 
-      // Yay en çok düşmanı yakalayan açıya kilitlenir.
-      world.facing = calcFacing(world.enemies, world.player, world.facing, siege.centroid)
+      // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
+      // Histerezis hedef üzerinde çalışmalı, dönerken geçilen ara açılar üzerinde değil.
+      world.facingTarget = calcFacing(
+        world.enemies,
+        world.player,
+        world.facingTarget,
+        siege.centroid,
+      )
+      world.facing = approachAngle(
+        world.facing,
+        world.facingTarget,
+        HILAL_CONFIG.facingTurnRate * dt,
+      )
       world.inCrescent = countInCrescent(world.enemies, world.player, world.facing)
 
       if (world.strikeTimer > 0) {
         world.strikeTimer = Math.max(0, world.strikeTimer - dt)
+      } else if (world.strikeRequested && isStrikeReady(world.energy)) {
+        // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
+        // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
+        world.totalKills += executeStrike(world.enemies, world.player, world.facing)
+        world.strikeOrigin.x = world.player.x
+        world.strikeOrigin.z = world.player.z
+        world.strikeFacing = world.facing
+        world.strikeTimer = HILAL_CONFIG.strikeDuration
+        world.energy = 0
       } else {
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
-        if (world.strikeRequested && isStrikeReady(world.energy)) {
-          world.totalKills += executeStrike(world.enemies, world.player, world.facing)
-          world.strikeOrigin.x = world.player.x
-          world.strikeOrigin.z = world.player.z
-          world.strikeFacing = world.facing
-          world.strikeTimer = HILAL_CONFIG.strikeDuration
-          world.energy = 0
-        }
       }
 
       world.phase = resolvePhase({
