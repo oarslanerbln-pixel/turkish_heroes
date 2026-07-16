@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { HilalPhase } from '../mechanics/types'
+import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
 import { resetWorld, world } from '../sim/world'
 
@@ -19,6 +19,7 @@ export interface HudSnapshot {
   vulnerability: number // 0–1, kuşatmaya açıklık — enerjiyi bu doldurur
   enemiesAlive: number
   inCrescent: number // yay şimdi tetiklense kaç düşman düşerdi
+  refusal: StrikeRefusal // son vuruş isteği neden reddedildi
   strikeReady: boolean
   totalKills: number
 }
@@ -40,6 +41,7 @@ const INITIAL_HUD: HudSnapshot = {
   vulnerability: 0,
   enemiesAlive: 0,
   inCrescent: 0,
+  refusal: 'none',
   strikeReady: false,
   totalKills: 0,
 }

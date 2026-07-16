@@ -17,3 +17,10 @@ export interface Enemy {
 }
 
 export type HilalPhase = 'idle' | 'retreat' | 'gather' | 'strike'
+
+/**
+ * Vuruş isteği neden yerine getirilmedi?
+ * Oyuncu tuşa bastığında ekranda hiçbir şey olmaması kabul edilemez: tuşun
+ * bozuk olduğunu düşünür. Reddin sebebi her zaman söylenir.
+ */
+export type StrikeRefusal = 'none' | 'notReady' | 'noTargets'

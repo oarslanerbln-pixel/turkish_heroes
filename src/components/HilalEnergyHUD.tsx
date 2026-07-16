@@ -28,9 +28,18 @@ export function HilalEnergyHUD() {
   const vulnerability = useGameStore((s) => s.vulnerability)
   const enemiesAlive = useGameStore((s) => s.enemiesAlive)
   const inCrescent = useGameStore((s) => s.inCrescent)
+  const refusal = useGameStore((s) => s.refusal)
   const strikeReady = useGameStore((s) => s.strikeReady)
   const totalKills = useGameStore((s) => s.totalKills)
   const requestStrike = useGameStore((s) => s.requestStrike)
+
+  // Oyuncu basmadan önce durumu bilsin: şarj mı, menzil mi, yoksa hazır mı.
+  const canStrike = strikeReady && inCrescent > 0
+  const butonMetni = !strikeReady
+    ? 'KUŞAT — şarj oluyor'
+    : inCrescent === 0
+      ? 'MENZİLE AL'
+      : `VUR — SPACE (${inCrescent})`
 
   return (
     <>
@@ -99,6 +108,20 @@ export function HilalEnergyHUD() {
           pointerEvents: 'none',
         }}
       >
+        {/*
+          Tuşa basıldığında ekranda hiçbir şey olmaması kabul edilemez: oyuncu
+          tuşun bozuk olduğunu sanıyor. Ret her zaman gerekçesiyle söylenir.
+        */}
+        <div style={{ height: 18, display: 'flex', alignItems: 'center' }}>
+          {refusal !== 'none' && (
+            <div style={{ color: '#ff4400', fontSize: 12, letterSpacing: 1 }}>
+              {refusal === 'notReady'
+                ? '✕ HİLAL HAZIR DEĞİL — kuşatmayı sıkılaştır, kaçmaya devam et'
+                : '✕ MENZİLDE DÜŞMAN YOK — yayın içine al'}
+            </div>
+          )}
+        </div>
+
         <div
           style={{
             color: PHASE_COLOR[phase],
@@ -134,25 +157,28 @@ export function HilalEnergyHUD() {
           />
         </div>
 
+        {/*
+          Buton hiçbir zaman disabled değil: devre dışı buton tıklanınca hiçbir
+          şey söylemez, oyuncu da bozuk sanır. Her tık ya vurur ya gerekçe verir.
+        */}
         <button
           onClick={requestStrike}
-          disabled={!strikeReady}
           style={{
             marginTop: 4,
             padding: '8px 20px',
             fontSize: 11,
             letterSpacing: 2,
             fontFamily: 'inherit',
-            color: strikeReady ? '#1a0a00' : '#5c4a35',
-            background: strikeReady ? '#ff4400' : 'transparent',
-            border: `1px solid ${strikeReady ? '#ff4400' : '#4a3520'}`,
+            color: canStrike ? '#1a0a00' : '#5c4a35',
+            background: canStrike ? '#ff4400' : 'transparent',
+            border: `1px solid ${canStrike ? '#ff4400' : '#4a3520'}`,
             borderRadius: 4,
-            cursor: strikeReady ? 'pointer' : 'default',
+            cursor: 'pointer',
             pointerEvents: 'auto',
             transition: 'all 0.2s ease',
           }}
         >
-          {strikeReady ? 'VUR — SPACE' : 'KUŞAT'}
+          {butonMetni}
         </button>
       </div>
 

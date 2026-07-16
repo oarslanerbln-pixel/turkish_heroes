@@ -7,7 +7,7 @@
 
 import { createEnemies } from '../mechanics/enemySim'
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
-import type { Enemy, HilalPhase, Vec2 } from '../mechanics/types'
+import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 
 export interface World {
   player: Vec2
@@ -40,6 +40,10 @@ export interface World {
   strikeFacing: number
   /** HUD veya klavye tarafından set edilir, GameDirector tüketir. */
   strikeRequested: boolean
+  /** Son vuruş isteği neden reddedildi — oyuncuya gösterilir. */
+  refusal: StrikeRefusal
+  /** Ret mesajının ekranda kalacağı süre. */
+  refusalTimer: number
   totalKills: number
 }
 
@@ -65,6 +69,8 @@ function initialWorld(): World {
     strikeOrigin: { x: 0, z: 0 },
     strikeFacing: Math.PI,
     strikeRequested: false,
+    refusal: 'none',
+    refusalTimer: 0,
     totalKills: 0,
   }
 }

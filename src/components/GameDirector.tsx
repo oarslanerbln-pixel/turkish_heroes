@@ -12,7 +12,7 @@ import {
   stepEnergy,
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers, resolveOutcome } from '../mechanics/combat'
-import type { Vec2 } from '../mechanics/types'
+import type { StrikeRefusal, Vec2 } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, world } from '../sim/world'
 
@@ -28,6 +28,14 @@ const MIN_EVASION_SPEED = 1
 
 /** Bu hızdan daha sert bir yaklaşma "hücum"dur; düşmanın düzenini bozmaz. */
 const APPROACH_TOLERANCE = 1.5
+
+/** Ret mesajının ekranda kalma süresi (saniye). */
+const REFUSAL_DURATION = 1.4
+
+function refuse(reason: StrikeRefusal): void {
+  world.refusal = reason
+  world.refusalTimer = REFUSAL_DURATION
+}
 
 export function GameDirector() {
   const hudTimer = useRef(0)
@@ -63,9 +71,17 @@ export function GameDirector() {
       )
       world.inCrescent = countInCrescent(world.enemies, world.player, world.facing)
 
+      world.refusalTimer = Math.max(0, world.refusalTimer - dt)
+
       if (world.strikeTimer > 0) {
         world.strikeTimer = Math.max(0, world.strikeTimer - dt)
-      } else if (world.strikeRequested && isStrikeReady(world.energy)) {
+      } else if (world.strikeRequested && !isStrikeReady(world.energy)) {
+        refuse('notReady')
+        world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
+      } else if (world.strikeRequested && world.inCrescent === 0) {
+        // Boş havaya kapanan kuşatma anlamsız; dolu enerjiyi harcatma.
+        refuse('noTargets')
+      } else if (world.strikeRequested) {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
         world.totalKills += executeStrike(world.enemies, world.player, world.facing)
@@ -74,6 +90,8 @@ export function GameDirector() {
         world.strikeFacing = world.facing
         world.strikeTimer = HILAL_CONFIG.strikeDuration
         world.energy = 0
+        world.refusal = 'none'
+        world.refusalTimer = 0
       } else {
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
       }
@@ -107,6 +125,7 @@ export function GameDirector() {
         vulnerability: siege.vulnerability,
         enemiesAlive: siege.aliveCount,
         inCrescent: world.inCrescent,
+        refusal: world.refusalTimer > 0 ? world.refusal : 'none',
         strikeReady: isStrikeReady(world.energy),
         totalKills: world.totalKills,
       })
