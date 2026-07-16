@@ -26,10 +26,16 @@ export interface World {
   outcome: Outcome
   /** Oyuncu düşmanı peşinden sürüklüyor mu (sahte çekilme / kiting). */
   isRetreating: boolean
+  /** Hilal yayının o anki yönü (atan2(dx, dz)); kümeye kilitlenir. */
+  facing: number
+  /** Yay şimdi tetiklense kaç düşman düşerdi — önizleme. */
+  inCrescent: number
   /** Vuruş animasyonu için kalan süre; > 0 ise vuruş sürüyor. */
   strikeTimer: number
-  /** Vuruşun tetiklendiği andaki küme merkezi — efekt burada çizilir. */
-  strikeCenter: Vec2
+  /** Vuruşun tetiklendiği andaki yay merkezi (oyuncunun konumu). */
+  strikeOrigin: Vec2
+  /** Vuruşun tetiklendiği andaki yay yönü — efekt bununla çizilir. */
+  strikeFacing: number
   /** HUD veya klavye tarafından set edilir, GameDirector tüketir. */
   strikeRequested: boolean
   totalKills: number
@@ -49,8 +55,11 @@ function initialWorld(): World {
     phase: 'idle',
     outcome: 'playing',
     isRetreating: false,
+    facing: Math.PI, // düşman -z'de doğuyor; yay baştan onlara baksın
+    inCrescent: 0,
     strikeTimer: 0,
-    strikeCenter: { x: 0, z: 0 },
+    strikeOrigin: { x: 0, z: 0 },
+    strikeFacing: Math.PI,
     strikeRequested: false,
     totalKills: 0,
   }

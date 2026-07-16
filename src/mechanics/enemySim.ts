@@ -18,10 +18,19 @@ export const ENEMY_CONFIG = {
    * Disiplin tamamen bozulduğunda hız. Oyuncunun hızından (6) bilerek YÜKSEK:
    * çılgına dönen takipçi kaçandan hızlıdır. Oyunun gerilimi buna dayanıyor —
    * düşmanı ne kadar çok bozarsan o kadar hızlı üstüne gelir, yani kazandıran
-   * taktik aynı zamanda öldüren taktiktir. Düşük olsaydı kaçan oyuncuya kimse
-   * yetişemez, temas hiç yaşanmaz ve oyunda risk kalmazdı.
+   * taktik aynı zamanda öldüren taktiktir.
+   *
+   * Çok düşük olamaz: 6.15'te kaçan oyuncuya kimse yetişemiyor, küme yayın
+   * 13 birimlik menziline hiç girmiyor ve oyun bitirilemiyor (60sn'de 1 düşman
+   * kalıyor). Yani yüksek hız sadece tehlike için değil, vurabilmek için de şart.
+   *
+   * Değer headless taramayla seçildi (geniş/orta/dar çember çizen üç bot):
+   *   6.8 → %55 / ölür / ölür       (orta oyun hiç vuruş yapamıyor, uçurum)
+   *   6.6 → %82 / ölür / ölür
+   *   6.5 → %90 / kıl payı kazanır / ölür   ← seçilen gradyan
+   * İnsan botlardan kötü başlayacağı için affedici taraf tercih edildi.
    */
-  chaseSpeed: 6.8,
+  chaseSpeed: 6.5,
 
   /** Disiplin 1'ken korunan mesafe; 0'ken sıfıra iner (hücum). */
   standoffDistance: 9,

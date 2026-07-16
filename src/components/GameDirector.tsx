@@ -1,7 +1,9 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
+  calcFacing,
   calcSiegeState,
+  countInCrescent,
   executeStrike,
   HILAL_CONFIG,
   isStrikeReady,
@@ -45,14 +47,19 @@ export function GameDirector() {
         world.playerHealth - calcContactDamage(world.attackers, dt),
       )
 
+      // Yay en çok düşmanı yakalayan açıya kilitlenir.
+      world.facing = calcFacing(world.enemies, world.player, world.facing, siege.centroid)
+      world.inCrescent = countInCrescent(world.enemies, world.player, world.facing)
+
       if (world.strikeTimer > 0) {
         world.strikeTimer = Math.max(0, world.strikeTimer - dt)
       } else {
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
-        if (world.strikeRequested && isStrikeReady(world.energy) && siege.centroid) {
-          world.totalKills += executeStrike(world.enemies, siege.centroid)
-          world.strikeCenter.x = siege.centroid.x
-          world.strikeCenter.z = siege.centroid.z
+        if (world.strikeRequested && isStrikeReady(world.energy)) {
+          world.totalKills += executeStrike(world.enemies, world.player, world.facing)
+          world.strikeOrigin.x = world.player.x
+          world.strikeOrigin.z = world.player.z
+          world.strikeFacing = world.facing
           world.strikeTimer = HILAL_CONFIG.strikeDuration
           world.energy = 0
         }
@@ -86,6 +93,7 @@ export function GameDirector() {
         enemyDiscipline: siege.discipline,
         vulnerability: siege.vulnerability,
         enemiesAlive: siege.aliveCount,
+        inCrescent: world.inCrescent,
         strikeReady: isStrikeReady(world.energy),
         totalKills: world.totalKills,
       })

@@ -18,6 +18,7 @@ export interface HudSnapshot {
   enemyDiscipline: number // 0–1, formasyon disiplini
   vulnerability: number // 0–1, kuşatmaya açıklık — enerjiyi bu doldurur
   enemiesAlive: number
+  inCrescent: number // yay şimdi tetiklense kaç düşman düşerdi
   strikeReady: boolean
   totalKills: number
 }
@@ -38,6 +39,7 @@ const INITIAL_HUD: HudSnapshot = {
   enemyDiscipline: 1,
   vulnerability: 0,
   enemiesAlive: 0,
+  inCrescent: 0,
   strikeReady: false,
   totalKills: 0,
 }

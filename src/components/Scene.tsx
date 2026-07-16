@@ -1,8 +1,11 @@
 import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Stats } from '@react-three/drei'
+import { Stats } from '@react-three/drei'
 import { Arena } from './Arena'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
+import { CameraShake } from './CameraShake'
+import { CrescentPreview } from './CrescentPreview'
+import { FollowCamera } from './FollowCamera'
 import { EnemySwarm } from './EnemySwarm'
 import { GameDirector } from './GameDirector'
 import { Renderer } from './Renderer'
@@ -50,12 +53,16 @@ export function Scene() {
           <Arena />
           <MetehanPlaceholder />
           <EnemySwarm />
-          <StrikeEffect />
           <GameDirector />
+          {/* Görseller yönetmenden sonra: o karenin yönünü/sayımını kullanırlar. */}
+          <CrescentPreview />
+          <StrikeEffect />
+          {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
+          <FollowCamera />
+          <CameraShake />
           {/* Sırayı önceliklerle sabitlediğimiz için çizim bize kalıyor. */}
           <Renderer />
         </Suspense>
-        <OrbitControls makeDefault target={[0, 0, 0]} />
       </Canvas>
       <HilalEnergyHUD />
     </div>

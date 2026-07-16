@@ -27,6 +27,7 @@ export function HilalEnergyHUD() {
   const discipline = useGameStore((s) => s.enemyDiscipline)
   const vulnerability = useGameStore((s) => s.vulnerability)
   const enemiesAlive = useGameStore((s) => s.enemiesAlive)
+  const inCrescent = useGameStore((s) => s.inCrescent)
   const strikeReady = useGameStore((s) => s.strikeReady)
   const totalKills = useGameStore((s) => s.totalKills)
   const requestStrike = useGameStore((s) => s.requestStrike)
@@ -40,6 +41,7 @@ export function HilalEnergyHUD() {
         <Stat label="Kümelenme" value={`%${Math.round(density * 100)}`} />
         <Stat label="Disiplin" value={`%${Math.round(discipline * 100)}`} />
         <Stat label="Kuşatılabilirlik" value={`%${Math.round(vulnerability * 100)}`} />
+        <Stat label="Yayda" value={`${inCrescent} düşman`} highlight={inCrescent > 0} />
       </div>
 
       {/* Sol alt — Metehan'ın canı */}
@@ -158,6 +160,8 @@ export function HilalEnergyHUD() {
       <div style={{ ...panelStyle, top: 24, right: 24, textAlign: 'right' }}>
         <div style={hintStyle}>WASD — kaç, düşmanı peşinden sürükle</div>
         <div style={hintStyle}>Durursan düşman düzenini toparlar</div>
+        <div style={hintStyle}>Hilal yayı menzilini gösterir —</div>
+        <div style={hintStyle}>fazla uzaklaşırsan vuruş ıskalar</div>
         <div style={hintStyle}>SPACE — hilali kapat</div>
       </div>
 
@@ -219,11 +223,19 @@ function OutcomeOverlay({ outcome, kills }: { outcome: 'victory' | 'defeat'; kil
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string
+  value: string
+  highlight?: boolean
+}) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
       <span style={{ color: '#8b7355' }}>{label}</span>
-      <span style={{ color: '#ffd700' }}>{value}</span>
+      <span style={{ color: highlight ? '#ff6a00' : '#ffd700' }}>{value}</span>
     </div>
   )
 }
