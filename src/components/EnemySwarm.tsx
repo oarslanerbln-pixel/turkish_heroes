@@ -1,7 +1,8 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, InstancedMesh, Object3D } from 'three'
-import { ENEMY_CONFIG, stepEnemies } from '../mechanics/enemySim'
+import { stepEnemies } from '../mechanics/enemySim'
+import { MAX_WAVE_ENEMIES, waveConfig } from '../mechanics/waves'
 import { isPlaying, world } from '../sim/world'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
@@ -21,7 +22,7 @@ export function EnemySwarm() {
   useLayoutEffect(() => {
     const mesh = meshRef.current
     if (!mesh) return
-    for (let i = 0; i < ENEMY_CONFIG.count; i++) {
+    for (let i = 0; i < MAX_WAVE_ENEMIES; i++) {
       mesh.setColorAt(i, DISCIPLINED_COLOR)
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
@@ -35,8 +36,19 @@ export function EnemySwarm() {
     // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
     // yeniden başlatıldığında yeni pozisyonlar ilk karede görünür.
     if (isPlaying()) {
-      stepEnemies(world.enemies, world.player, dt, world.isRetreating)
+      stepEnemies(
+        world.enemies,
+        world.player,
+        dt,
+        world.isRetreating,
+        waveConfig(world.waveIndex).disciplineRecoveryMult,
+      )
     }
+
+    // Dalgalar arasında düşman sayısı değişir; kapasiteyi (MAX_WAVE_ENEMIES)
+    // değil, o anki dalganın gerçek uzunluğunu çiziyoruz. Aksi halde bir
+    // önceki (daha kalabalık) dalganın son matrisleri sahnede asılı kalırdı.
+    mesh.count = world.enemies.length
 
     for (let i = 0; i < world.enemies.length; i++) {
       const e = world.enemies[i]
@@ -71,7 +83,7 @@ export function EnemySwarm() {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[undefined, undefined, ENEMY_CONFIG.count]}
+      args={[undefined, undefined, MAX_WAVE_ENEMIES]}
       castShadow
       receiveShadow
       // Örnekler her kare hareket ettiği için otomatik frustum culling

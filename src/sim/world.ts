@@ -5,9 +5,10 @@
 // useFrame içinde yerinde mutate edilir; store'a yalnızca HUD'un gördüğü
 // özet değerler throttle'lanarak aktarılır (bkz. GameDirector).
 
-import { createEnemies } from '../mechanics/enemySim'
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
+import { spawnWave } from '../mechanics/waves'
+import { loadBestScore } from './score'
 
 export interface World {
   player: Vec2
@@ -17,6 +18,11 @@ export interface World {
   /** Oyuncuya temas eden düşman sayısı — HUD ve hasar için. */
   attackers: number
   enemies: Enemy[]
+  /** 0 tabanlı geçerli dalga indeksi. */
+  waveIndex: number
+  score: number
+  /** localStorage'dan yüklenir, yeni rekor kırıldığında güncellenir. */
+  bestScore: number
   energy: number
   /** 0–1. Kümenin sıkışıklığı. */
   density: number
@@ -54,7 +60,10 @@ function initialWorld(): World {
     playerVel: { x: 0, z: 0 },
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
-    enemies: createEnemies(),
+    enemies: spawnWave(0),
+    waveIndex: 0,
+    score: 0,
+    bestScore: loadBestScore(),
     energy: 0,
     density: 0,
     vulnerability: 0,
@@ -81,6 +90,8 @@ function initialWorld(): World {
 export const world: World = initialWorld()
 
 export function resetWorld(): void {
+  // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
+  // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
   Object.assign(world, initialWorld())
 }
 

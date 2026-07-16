@@ -1,5 +1,5 @@
 import { useGameStore } from '../store/gameStore'
-import { ENEMY_CONFIG } from '../mechanics/enemySim'
+import { TOTAL_WAVES } from '../mechanics/waves'
 import type { HilalPhase } from '../mechanics/types'
 
 const PHASE_LABEL: Record<HilalPhase, string> = {
@@ -31,6 +31,9 @@ export function HilalEnergyHUD() {
   const refusal = useGameStore((s) => s.refusal)
   const strikeReady = useGameStore((s) => s.strikeReady)
   const totalKills = useGameStore((s) => s.totalKills)
+  const waveIndex = useGameStore((s) => s.waveIndex)
+  const score = useGameStore((s) => s.score)
+  const bestScore = useGameStore((s) => s.bestScore)
   const requestStrike = useGameStore((s) => s.requestStrike)
 
   // Oyuncu basmadan önce durumu bilsin: şarj mı, menzil mi, yoksa hazır mı.
@@ -45,6 +48,9 @@ export function HilalEnergyHUD() {
     <>
       {/* Sol üst — saha durumu */}
       <div style={{ ...panelStyle, top: 24, left: 24 }}>
+        <Stat label="Dalga" value={`${waveIndex + 1} / ${TOTAL_WAVES}`} />
+        <Stat label="Skor" value={String(score)} highlight={score > 0 && score >= bestScore} />
+        <Stat label="Rekor" value={String(bestScore)} />
         <Stat label="Düşman" value={String(enemiesAlive)} />
         <Stat label="Düşürülen" value={String(totalKills)} />
         <Stat label="Kümelenme" value={`%${Math.round(density * 100)}`} />
@@ -191,14 +197,35 @@ export function HilalEnergyHUD() {
         <div style={hintStyle}>SPACE — hilali kapat</div>
       </div>
 
-      {outcome !== 'playing' && <OutcomeOverlay outcome={outcome} kills={totalKills} />}
+      {outcome !== 'playing' && (
+        <OutcomeOverlay
+          outcome={outcome}
+          kills={totalKills}
+          waveIndex={waveIndex}
+          score={score}
+          bestScore={bestScore}
+        />
+      )}
     </>
   )
 }
 
-function OutcomeOverlay({ outcome, kills }: { outcome: 'victory' | 'defeat'; kills: number }) {
+function OutcomeOverlay({
+  outcome,
+  kills,
+  waveIndex,
+  score,
+  bestScore,
+}: {
+  outcome: 'victory' | 'defeat'
+  kills: number
+  waveIndex: number
+  score: number
+  bestScore: number
+}) {
   const restart = useGameStore((s) => s.restart)
   const isVictory = outcome === 'victory'
+  const isNewBest = score > 0 && score >= bestScore
 
   return (
     <div
@@ -225,8 +252,14 @@ function OutcomeOverlay({ outcome, kills }: { outcome: 'victory' | 'defeat'; kil
       </div>
       <div style={{ fontSize: 13, color: '#8b7355', letterSpacing: 1 }}>
         {isVictory
-          ? `Hilal kapandı — ${kills} düşman düşürüldü.`
-          : `Kuşatma tamamlanamadı — ${kills}/${ENEMY_CONFIG.count} düşman düşürüldü.`}
+          ? `${TOTAL_WAVES} dalga da temizlendi — ${kills} düşman düşürüldü.`
+          : `${waveIndex + 1}. dalgada düştün — ${kills} düşman düşürüldü.`}
+      </div>
+      <div style={{ fontSize: 20, color: '#ffd700', letterSpacing: 2 }}>
+        SKOR {score}
+        {isNewBest && (
+          <span style={{ color: '#4a8b3a', marginLeft: 10, fontSize: 13 }}>YENİ REKOR</span>
+        )}
       </div>
       <button
         onClick={restart}

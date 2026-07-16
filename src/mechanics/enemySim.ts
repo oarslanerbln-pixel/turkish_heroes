@@ -82,17 +82,20 @@ export function createEnemies(count: number = ENEMY_CONFIG.count): Enemy[] {
 /**
  * Sürüyü bir kare ilerletir.
  * @param isPlayerRetreating Oyuncu kümeden uzaklaşıyorsa disiplin hızla düşer.
+ * @param disciplineRecoveryMult Dalga eskalasyonu için: baskı bırakılınca
+ *   disiplinin toparlanma hızına çarpan. Varsayılan 1 (tek dalgalı eski davranış).
  */
 export function stepEnemies(
   enemies: Enemy[],
   playerPos: Vec2,
   deltaTime: number,
   isPlayerRetreating: boolean,
+  disciplineRecoveryMult = 1,
 ): void {
   for (const e of enemies) {
     if (!e.alive) continue
 
-    stepDiscipline(e, isPlayerRetreating, deltaTime)
+    stepDiscipline(e, isPlayerRetreating, deltaTime, disciplineRecoveryMult)
 
     const speed = lerp(ENEMY_CONFIG.chaseSpeed, ENEMY_CONFIG.baseSpeed, e.discipline)
     const desired = seek(e, playerPos, speed)
@@ -113,11 +116,21 @@ export function stepEnemies(
   }
 }
 
-function stepDiscipline(e: Enemy, isPlayerRetreating: boolean, deltaTime: number): void {
+function stepDiscipline(
+  e: Enemy,
+  isPlayerRetreating: boolean,
+  deltaTime: number,
+  recoveryMult: number,
+): void {
   if (isPlayerRetreating) {
+    // Decay dalgayla ölçeklenmiyor: bu, oyuncunun kaçış becerisini temsil
+    // ediyor, düşmanın disiplinini değil — sabit kalmalı.
     e.discipline = Math.max(0, e.discipline - ENEMY_CONFIG.disciplineDecay * deltaTime)
   } else {
-    e.discipline = Math.min(1, e.discipline + ENEMY_CONFIG.disciplineRecovery * deltaTime)
+    e.discipline = Math.min(
+      1,
+      e.discipline + ENEMY_CONFIG.disciplineRecovery * recoveryMult * deltaTime,
+    )
   }
 }
 

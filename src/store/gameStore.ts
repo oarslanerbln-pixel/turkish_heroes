@@ -22,6 +22,9 @@ export interface HudSnapshot {
   refusal: StrikeRefusal // son vuruş isteği neden reddedildi
   strikeReady: boolean
   totalKills: number
+  waveIndex: number // 0 tabanlı
+  score: number
+  bestScore: number
 }
 
 interface GameState extends HudSnapshot {
@@ -44,6 +47,11 @@ const INITIAL_HUD: HudSnapshot = {
   refusal: 'none',
   strikeReady: false,
   totalKills: 0,
+  waveIndex: 0,
+  score: 0,
+  // İlk render, yönetmenin ilk sync'inden önce olabilir; world zaten
+  // localStorage'dan taze okumuş durumda, onu kullan.
+  bestScore: world.bestScore,
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -59,7 +67,9 @@ export const useGameStore = create<GameState>((set) => ({
   restart: () => {
     resetWorld()
     // HUD'u hemen sıfırla: yönetmenin ilk sync'ini beklerken sonuç ekranı
-    // bir kare daha görünmesin.
-    set(INITIAL_HUD)
+    // bir kare daha görünmesin. bestScore INITIAL_HUD'daki durgun değer değil,
+    // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
+    // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
+    set({ ...INITIAL_HUD, bestScore: world.bestScore })
   },
 }))

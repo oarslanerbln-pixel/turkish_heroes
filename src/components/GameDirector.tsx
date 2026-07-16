@@ -13,8 +13,10 @@ import {
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers, resolveOutcome } from '../mechanics/combat'
 import type { StrikeRefusal, Vec2 } from '../mechanics/types'
+import { spawnWave, TOTAL_WAVES, waveClearBonus } from '../mechanics/waves'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, world } from '../sim/world'
+import { saveBestScore } from '../sim/score'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -31,6 +33,11 @@ const APPROACH_TOLERANCE = 1.5
 
 /** Ret mesajının ekranda kalma süresi (saniye). */
 const REFUSAL_DURATION = 1.4
+
+/** Düşürülen düşman başına puan. */
+const SCORE_PER_KILL = 100
+/** Zaferde kalan can başına bonus — efficient/temiz oynamayı ödüllendirir. */
+const HEALTH_BONUS_PER_POINT = 5
 
 function refuse(reason: StrikeRefusal): void {
   world.refusal = reason
@@ -84,7 +91,9 @@ export function GameDirector() {
       } else if (world.strikeRequested) {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
-        world.totalKills += executeStrike(world.enemies, world.player, world.facing)
+        const kills = executeStrike(world.enemies, world.player, world.facing)
+        world.totalKills += kills
+        world.score += kills * SCORE_PER_KILL
         world.strikeOrigin.x = world.player.x
         world.strikeOrigin.z = world.player.z
         world.strikeFacing = world.facing
@@ -96,15 +105,34 @@ export function GameDirector() {
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
       }
 
+      // Vuruş sonrası düşen düşman sayısı yukarıda değişmiş olabilir; dalga
+      // temizlendi mi kontrolü bu yüzden burada, güncel sayıyla yapılır.
+      // alive sadece executeStrike ile azaldığı için tek bir noktada kontrol
+      // etmek yeterli — temas hasarı düşman öldürmüyor.
+      if (countAlive() === 0 && world.waveIndex < TOTAL_WAVES - 1) {
+        world.score += waveClearBonus(world.waveIndex)
+        world.waveIndex++
+        world.enemies = spawnWave(world.waveIndex)
+      }
+
       world.phase = resolvePhase({
         vulnerability: siege.vulnerability,
         isRetreating: world.isRetreating,
         strikeTimer: world.strikeTimer,
       })
 
-      // Vuruş sonrası düşen düşman sayısı yukarıda değişmiş olabilir; sonuç
-      // bu yüzden en sonda, güncel sayıyla belirlenir.
+      const prevOutcome = world.outcome
       world.outcome = resolveOutcome(world.playerHealth, countAlive())
+      if (world.outcome !== 'playing' && prevOutcome === 'playing') {
+        if (world.outcome === 'victory') {
+          // Son dalganın kendi temizleme bonusu yukarıdaki dalga-geçiş
+          // bloğunda verilmez (waveIndex zaten TOTAL_WAVES-1'de sabitlenip
+          // spawn edilmez); burada tamamlanıyor.
+          world.score += waveClearBonus(world.waveIndex)
+          world.score += Math.round(world.playerHealth * HEALTH_BONUS_PER_POINT)
+        }
+        world.bestScore = saveBestScore(world.score)
+      }
     }
 
     // İstek her karede tüketilir: vuruş hazır değilken basılan tuş birikip
@@ -128,6 +156,9 @@ export function GameDirector() {
         refusal: world.refusalTimer > 0 ? world.refusal : 'none',
         strikeReady: isStrikeReady(world.energy),
         totalKills: world.totalKills,
+        waveIndex: world.waveIndex,
+        score: world.score,
+        bestScore: world.bestScore,
       })
     }
   }, DIRECTOR_PRIORITY)
