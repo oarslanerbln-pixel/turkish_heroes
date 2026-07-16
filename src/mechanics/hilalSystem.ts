@@ -182,10 +182,11 @@ export function calcSiegeState(enemies: readonly Enemy[]): SiegeState {
   const centroid: Vec2 = { x: cx / n, z: cz / n }
   const discipline = disciplineSum / n
 
-  // Tek düşman merkeze sıfır uzaklıktadır; bu "kümelenme" değil.
-  if (n < 2) {
-    return { centroid, density: 0, discipline, vulnerability: 0, aliveCount: n }
-  }
+  // Not: tek düşman için meanDist = 0 → density = 1, yani en yoğun durum.
+  // Doğrusu bu: bir kişiyi kuşatmak kümeyi kuşatmaktan kolaydır. Burada eskiden
+  // "tek düşman kümelenme sayılmaz" diye density'yi 0'a sabitleyen bir istisna
+  // vardı ve oyunu KAZANILAMAZ yapıyordu — son düşman kalınca kuşatılabilirlik
+  // sonsuza dek 0 oluyor, enerji hiç dolmuyor, vuruş hiç açılmıyordu.
 
   let totalDist = 0
   for (const e of enemies) {
