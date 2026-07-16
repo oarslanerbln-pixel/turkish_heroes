@@ -9,7 +9,14 @@
 import type { Enemy, HilalPhase, Vec2 } from './types'
 
 export const HILAL_CONFIG = {
-  energyFillRate: 30, // saniyede dolacak enerji (kuşatılabilirlik 1.0'da)
+  /**
+   * Saniyede dolacak enerji (kuşatılabilirlik 1.0'da).
+   * Zorluğun ana ayarı: kuşatmayı kapatmakla düşmanın sana yetişmesi arasındaki
+   * yarışı bu belirliyor. Headless simülasyonda kusursuz kiting yapan bot
+   * 20'de %97 canla (fazla kolay), 15'te %21 canla (insan için imkânsız),
+   * 17'de %65 canla kazanıyor — insan hatasına pay bırakan değer bu.
+   */
+  energyFillRate: 17,
   strikeThreshold: 100, // vuruş için gereken minimum enerji
   retreatSpeed: 6, // çekilme fazında karakter hızı
   gatherRadius: 12, // düşmanların gruplaşma yarıçapı (birim)

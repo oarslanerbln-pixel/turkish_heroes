@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore'
+import { ENEMY_CONFIG } from '../mechanics/enemySim'
 import type { HilalPhase } from '../mechanics/types'
 
 const PHASE_LABEL: Record<HilalPhase, string> = {
@@ -18,7 +19,10 @@ const PHASE_COLOR: Record<HilalPhase, string> = {
 export function HilalEnergyHUD() {
   // Alan bazlı seçiciler: sync her seferinde tüm HUD'u yeniden çizmesin.
   const phase = useGameStore((s) => s.phase)
+  const outcome = useGameStore((s) => s.outcome)
   const hilalEnergy = useGameStore((s) => s.hilalEnergy)
+  const playerHealth = useGameStore((s) => s.playerHealth)
+  const attackers = useGameStore((s) => s.attackers)
   const density = useGameStore((s) => s.enemyClusterDensity)
   const discipline = useGameStore((s) => s.enemyDiscipline)
   const vulnerability = useGameStore((s) => s.vulnerability)
@@ -36,6 +40,47 @@ export function HilalEnergyHUD() {
         <Stat label="Kümelenme" value={`%${Math.round(density * 100)}`} />
         <Stat label="Disiplin" value={`%${Math.round(discipline * 100)}`} />
         <Stat label="Kuşatılabilirlik" value={`%${Math.round(vulnerability * 100)}`} />
+      </div>
+
+      {/* Sol alt — Metehan'ın canı */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 32,
+          left: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          pointerEvents: 'none',
+        }}
+      >
+        <div style={{ fontSize: 11, letterSpacing: 2, color: '#8b7355' }}>
+          METEHAN
+          {attackers > 0 && (
+            <span style={{ color: '#ff4400', marginLeft: 8 }}>
+              ✳ {attackers} DÜŞMAN TEMASTA
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            width: 180,
+            height: 10,
+            background: '#1a0a00',
+            border: '1px solid #4a3520',
+            borderRadius: 5,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${playerHealth}%`,
+              background: playerHealth > 40 ? '#4a8b3a' : '#c53030',
+              transition: 'width 0.12s linear, background 0.3s ease',
+            }}
+          />
+        </div>
       </div>
 
       {/* Alt orta — hilal enerjisi */}
@@ -111,11 +156,66 @@ export function HilalEnergyHUD() {
 
       {/* Sağ üst — kontroller */}
       <div style={{ ...panelStyle, top: 24, right: 24, textAlign: 'right' }}>
-        <div style={hintStyle}>WASD — çekil, düşmanı peşinden sürükle</div>
-        <div style={hintStyle}>Küme sıkıştıkça enerji dolar</div>
+        <div style={hintStyle}>WASD — kaç, düşmanı peşinden sürükle</div>
+        <div style={hintStyle}>Durursan düşman düzenini toparlar</div>
         <div style={hintStyle}>SPACE — hilali kapat</div>
       </div>
+
+      {outcome !== 'playing' && <OutcomeOverlay outcome={outcome} kills={totalKills} />}
     </>
+  )
+}
+
+function OutcomeOverlay({ outcome, kills }: { outcome: 'victory' | 'defeat'; kills: number }) {
+  const restart = useGameStore((s) => s.restart)
+  const isVictory = outcome === 'victory'
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        background: 'rgba(13, 5, 0, 0.82)',
+        pointerEvents: 'auto',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 40,
+          letterSpacing: 8,
+          color: isVictory ? '#ffd700' : '#c53030',
+        }}
+      >
+        {isVictory ? 'ZAFER' : 'YENİLGİ'}
+      </div>
+      <div style={{ fontSize: 13, color: '#8b7355', letterSpacing: 1 }}>
+        {isVictory
+          ? `Hilal kapandı — ${kills} düşman düşürüldü.`
+          : `Kuşatma tamamlanamadı — ${kills}/${ENEMY_CONFIG.count} düşman düşürüldü.`}
+      </div>
+      <button
+        onClick={restart}
+        style={{
+          marginTop: 8,
+          padding: '10px 28px',
+          fontSize: 12,
+          letterSpacing: 2,
+          fontFamily: 'inherit',
+          color: '#1a0a00',
+          background: '#ffd700',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+        }}
+      >
+        YENİDEN
+      </button>
+    </div>
   )
 }
 

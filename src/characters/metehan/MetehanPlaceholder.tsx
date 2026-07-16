@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { useKeyboard } from '../../hooks/useKeyboard'
-import { world } from '../../sim/world'
+import { isPlaying, world } from '../../sim/world'
 import { HILAL_CONFIG } from '../../mechanics/hilalSystem'
 import { ENEMY_CONFIG } from '../../mechanics/enemySim'
 
@@ -18,6 +18,12 @@ export function MetehanPlaceholder() {
     // Sekme arka plandayken delta şişer ve karakter ışınlanır.
     const dt = Math.min(delta, 0.1)
 
+    if (!isPlaying()) {
+      world.playerVel.x = 0
+      world.playerVel.z = 0
+      return
+    }
+
     let dx = 0
     let dz = 0
     if (keys.current.has('KeyW') || keys.current.has('ArrowUp')) dz -= 1
@@ -32,12 +38,17 @@ export function MetehanPlaceholder() {
       dz = (dz / len) * HILAL_CONFIG.retreatSpeed
     }
 
-    world.playerVel.x = dx
-    world.playerVel.z = dz
+    const prevX = world.player.x
+    const prevZ = world.player.z
+
     world.player.x += dx * dt
     world.player.z += dz * dt
-
     confinePlayerToArena()
+
+    // Hız, klavye niyetinden değil gerçekleşen yer değiştirmeden türetilir:
+    // arena sınırına yaslanıp tuşa basılı tutan oyuncu "kaçıyor" sayılmasın.
+    world.playerVel.x = (world.player.x - prevX) / dt
+    world.playerVel.z = (world.player.z - prevZ) / dt
 
     if (!groupRef.current) return
     groupRef.current.position.set(world.player.x, 0, world.player.z)

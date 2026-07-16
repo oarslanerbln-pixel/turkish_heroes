@@ -6,12 +6,16 @@
 // özet değerler throttle'lanarak aktarılır (bkz. GameDirector).
 
 import { createEnemies } from '../mechanics/enemySim'
+import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import type { Enemy, HilalPhase, Vec2 } from '../mechanics/types'
 
 export interface World {
   player: Vec2
-  /** Oyuncunun o karedeki hareket vektörü — çekilme tespitinde kullanılır. */
+  /** Gerçekleşen yer değiştirmeden türetilir, klavye niyetinden değil. */
   playerVel: Vec2
+  playerHealth: number
+  /** Oyuncuya temas eden düşman sayısı — HUD ve hasar için. */
+  attackers: number
   enemies: Enemy[]
   energy: number
   /** 0–1. Kümenin sıkışıklığı. */
@@ -19,7 +23,8 @@ export interface World {
   /** 0–1. Kuşatmaya açıklık: density × (1 − disiplin). Enerjiyi bu doldurur. */
   vulnerability: number
   phase: HilalPhase
-  /** Oyuncu kümeden uzaklaşıyor mu (sahte çekilme). */
+  outcome: Outcome
+  /** Oyuncu düşmanı peşinden sürüklüyor mu (sahte çekilme / kiting). */
   isRetreating: boolean
   /** Vuruş animasyonu için kalan süre; > 0 ise vuruş sürüyor. */
   strikeTimer: number
@@ -30,35 +35,37 @@ export interface World {
   totalKills: number
 }
 
-export const world: World = {
-  player: { x: 0, z: 8 },
-  playerVel: { x: 0, z: 0 },
-  enemies: createEnemies(),
-  energy: 0,
-  density: 0,
-  vulnerability: 0,
-  phase: 'idle',
-  isRetreating: false,
-  strikeTimer: 0,
-  strikeCenter: { x: 0, z: 0 },
-  strikeRequested: false,
-  totalKills: 0,
+// Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
+function initialWorld(): World {
+  return {
+    player: { x: 0, z: 8 },
+    playerVel: { x: 0, z: 0 },
+    playerHealth: COMBAT_CONFIG.playerMaxHealth,
+    attackers: 0,
+    enemies: createEnemies(),
+    energy: 0,
+    density: 0,
+    vulnerability: 0,
+    phase: 'idle',
+    outcome: 'playing',
+    isRetreating: false,
+    strikeTimer: 0,
+    strikeCenter: { x: 0, z: 0 },
+    strikeRequested: false,
+    totalKills: 0,
+  }
 }
 
+/**
+ * Modül düzeyinde tek örnek. Referans sabit kalmalı — her yer bunu import ediyor.
+ */
+export const world: World = initialWorld()
+
 export function resetWorld(): void {
-  world.player.x = 0
-  world.player.z = 8
-  world.playerVel.x = 0
-  world.playerVel.z = 0
-  world.enemies = createEnemies()
-  world.energy = 0
-  world.density = 0
-  world.vulnerability = 0
-  world.phase = 'idle'
-  world.isRetreating = false
-  world.strikeTimer = 0
-  world.strikeCenter.x = 0
-  world.strikeCenter.z = 0
-  world.strikeRequested = false
-  world.totalKills = 0
+  Object.assign(world, initialWorld())
+}
+
+/** Simülasyon yalnızca oyun sürerken ilerler (yenilgi/zafer ekranında donar). */
+export function isPlaying(): boolean {
+  return world.outcome === 'playing'
 }

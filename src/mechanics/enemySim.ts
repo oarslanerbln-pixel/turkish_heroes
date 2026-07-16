@@ -12,10 +12,16 @@ export const ENEMY_CONFIG = {
   count: 48,
   spawnRadius: 22,
 
-  /** Disiplinliyken (formasyon korunurken) hız. */
+  /** Disiplinliyken (formasyon korunurken) hız — temkinli ilerleyiş. */
   baseSpeed: 2.4,
-  /** Disiplin tamamen bozulduğunda hız. */
-  chaseSpeed: 5.4,
+  /**
+   * Disiplin tamamen bozulduğunda hız. Oyuncunun hızından (6) bilerek YÜKSEK:
+   * çılgına dönen takipçi kaçandan hızlıdır. Oyunun gerilimi buna dayanıyor —
+   * düşmanı ne kadar çok bozarsan o kadar hızlı üstüne gelir, yani kazandıran
+   * taktik aynı zamanda öldüren taktiktir. Düşük olsaydı kaçan oyuncuya kimse
+   * yetişemez, temas hiç yaşanmaz ve oyunda risk kalmazdı.
+   */
+  chaseSpeed: 6.8,
 
   /** Disiplin 1'ken korunan mesafe; 0'ken sıfıra iner (hücum). */
   standoffDistance: 9,

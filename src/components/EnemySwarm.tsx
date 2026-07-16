@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, InstancedMesh, Object3D } from 'three'
 import { ENEMY_CONFIG, stepEnemies } from '../mechanics/enemySim'
-import { world } from '../sim/world'
+import { isPlaying, world } from '../sim/world'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const ENEMY_PRIORITY = 1
@@ -32,7 +32,11 @@ export function EnemySwarm() {
     const mesh = meshRef.current
     if (!mesh) return
 
-    stepEnemies(world.enemies, world.player, dt, world.isRetreating)
+    // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
+    // yeniden başlatıldığında yeni pozisyonlar ilk karede görünür.
+    if (isPlaying()) {
+      stepEnemies(world.enemies, world.player, dt, world.isRetreating)
+    }
 
     for (let i = 0; i < world.enemies.length; i++) {
       const e = world.enemies[i]
