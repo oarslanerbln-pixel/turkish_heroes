@@ -2,14 +2,20 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Environment, Stats } from '@react-three/drei'
 import { Arena } from './Arena'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
+import { EnemySwarm } from './EnemySwarm'
+import { GameDirector } from './GameDirector'
+import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
+import { useStrikeInput } from '../hooks/useStrikeInput'
 
 export function Scene() {
+  useStrikeInput()
+
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#0d0500' }}>
       <Canvas
         shadows
-        camera={{ position: [0, 8, 16], fov: 60 }}
+        camera={{ position: [0, 18, 26], fov: 55 }}
         gl={{ antialias: true }}
       >
         <Stats />
@@ -23,7 +29,10 @@ export function Scene() {
         <Environment preset="sunset" />
         <Arena />
         <MetehanPlaceholder />
-        <OrbitControls makeDefault />
+        <EnemySwarm />
+        <StrikeEffect />
+        <GameDirector />
+        <OrbitControls makeDefault target={[0, 0, 0]} />
       </Canvas>
       <HilalEnergyHUD />
     </div>
