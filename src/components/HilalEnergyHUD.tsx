@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import type { HilalPhase } from '../mechanics/types'
+import { isTouchDevice } from '../hooks/useTouchControls'
 
 const PHASE_LABEL: Record<HilalPhase, string> = {
   idle: 'BEKLEME',
@@ -35,6 +37,7 @@ export function HilalEnergyHUD() {
   const score = useGameStore((s) => s.score)
   const bestScore = useGameStore((s) => s.bestScore)
   const requestStrike = useGameStore((s) => s.requestStrike)
+  const [touch] = useState(isTouchDevice)
 
   // Oyuncu basmadan önce durumu bilsin: şarj mı, menzil mi, yoksa hazır mı.
   const canStrike = strikeReady && inCrescent > 0
@@ -190,12 +193,42 @@ export function HilalEnergyHUD() {
 
       {/* Sağ üst — kontroller */}
       <div style={{ ...panelStyle, top: 24, right: 24, textAlign: 'right' }}>
-        <div style={hintStyle}>WASD — kaç, düşmanı peşinden sürükle</div>
+        <div style={hintStyle}>
+          {touch ? 'Sol joystick — kaç, düşmanı peşinden sürükle' : 'WASD — kaç, düşmanı peşinden sürükle'}
+        </div>
         <div style={hintStyle}>Durursan düşman düzenini toparlar</div>
         <div style={hintStyle}>Hilal yayı menzilini gösterir —</div>
         <div style={hintStyle}>fazla uzaklaşırsan vuruş ıskalar</div>
-        <div style={hintStyle}>SPACE — hilali kapat</div>
+        <div style={hintStyle}>{touch ? 'Sağ alt düğme — hilali kapat' : 'SPACE — hilali kapat'}</div>
       </div>
+
+      {/* Sağ alt — dokunmatik vuruş düğmesi. Masaüstünde SPACE zaten var,
+          alt orta düğme de her cihazda çalışıyor; bu sadece dokunmatikte
+          iki elle oynarken sağ başparmağın rahat erişebileceği bir kopya. */}
+      {touch && (
+        <button
+          onClick={requestStrike}
+          style={{
+            position: 'absolute',
+            right: 28,
+            bottom: 28,
+            width: 88,
+            height: 88,
+            borderRadius: '50%',
+            fontSize: 11,
+            letterSpacing: 1,
+            fontFamily: 'inherit',
+            color: canStrike ? '#1a0a00' : '#5c4a35',
+            background: canStrike ? '#ff4400' : 'rgba(139, 74, 0, 0.18)',
+            border: `1px solid ${canStrike ? '#ff4400' : 'rgba(255, 215, 0, 0.35)'}`,
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {strikeReady ? `VUR (${inCrescent})` : 'KUŞAT'}
+        </button>
+      )}
 
       {outcome !== 'playing' && (
         <OutcomeOverlay

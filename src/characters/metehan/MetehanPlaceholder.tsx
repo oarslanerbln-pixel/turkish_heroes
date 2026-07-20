@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { useKeyboard } from '../../hooks/useKeyboard'
+import { useTouchControls } from '../../hooks/useTouchControls'
 import { isPlaying, world } from '../../sim/world'
 import { HILAL_CONFIG } from '../../mechanics/hilalSystem'
 import { ENEMY_CONFIG } from '../../mechanics/enemySim'
@@ -13,6 +14,7 @@ const PLAYER_PRIORITY = 0
 export function MetehanPlaceholder() {
   const groupRef = useRef<Group>(null)
   const keys = useKeyboard()
+  const touch = useTouchControls()
 
   useFrame((_, delta) => {
     // Sekme arka plandayken delta şişer ve karakter ışınlanır.
@@ -31,11 +33,27 @@ export function MetehanPlaceholder() {
     if (keys.current.has('KeyA') || keys.current.has('ArrowLeft')) dx -= 1
     if (keys.current.has('KeyD') || keys.current.has('ArrowRight')) dx += 1
 
-    // Çapraz hareket hızlı olmasın.
+    // Klavye boştaysa dokunmatik joystick'e bak — iki kaynak birbirini
+    // otomatik ezer, ayrı bir "cihaz modu" seçimi gerekmez.
+    const usingTouch = dx === 0 && dz === 0 && (touch.x !== 0 || touch.z !== 0)
+    if (usingTouch) {
+      dx = touch.x
+      dz = touch.z
+    }
+
     const len = Math.hypot(dx, dz)
     if (len > 0) {
-      dx = (dx / len) * HILAL_CONFIG.retreatSpeed
-      dz = (dz / len) * HILAL_CONFIG.retreatSpeed
+      if (usingTouch) {
+        // Analog: kısmi itiş kısmi hız versin. touch.x/z zaten joystick
+        // yarıçapına göre 0–1 normalize; sadece 1'i geçmesin yeter.
+        const clampedLen = Math.min(len, 1)
+        dx = (dx / len) * clampedLen * HILAL_CONFIG.retreatSpeed
+        dz = (dz / len) * clampedLen * HILAL_CONFIG.retreatSpeed
+      } else {
+        // Klavye dijitaldir, ara değer yok — çapraz hareket hızlı olmasın.
+        dx = (dx / len) * HILAL_CONFIG.retreatSpeed
+        dz = (dz / len) * HILAL_CONFIG.retreatSpeed
+      }
     }
 
     const prevX = world.player.x

@@ -12,6 +12,7 @@ import { Renderer } from './Renderer'
 import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
+import { TouchJoystick } from '../hooks/useTouchControls'
 
 export function Scene() {
   useStrikeInput()
@@ -65,6 +66,7 @@ export function Scene() {
         </Suspense>
       </Canvas>
       <HilalEnergyHUD />
+      <TouchJoystick />
     </div>
   )
 }
