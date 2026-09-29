@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachAngle,
+  calcFacing,
   calcSiegeState,
   countInCrescent,
   CRESCENT,
@@ -48,6 +49,59 @@ describe('approachAngle', () => {
     const next = approachAngle(Math.PI - 0.1, -Math.PI + 0.1, 0.05)
     // Uzun yoldan gitseydi açı azalırdı; kısa yol sarmayı geçer.
     expect(Math.abs(next)).toBeGreaterThan(Math.PI - 0.1)
+  })
+})
+
+describe('açı sarma', () => {
+  it('atan2(sin, cos) ile aynı sonucu verir', () => {
+    // approachAngle, fark maxDelta'dan küçükse hedefin sarılmış halini döndürür.
+    for (let a = -20; a <= 20; a += 0.037) {
+      const expected = Math.atan2(Math.sin(a), Math.cos(a))
+      const actual = approachAngle(0, a, 100)
+      // ±PI'de iki gösterim de doğru; mutlak değerle karşılaştır.
+      expect(Math.abs(Math.abs(actual) - Math.abs(expected))).toBeLessThan(1e-9)
+      if (Math.abs(expected) < Math.PI - 1e-9) expect(actual).toBeCloseTo(expected, 9)
+    }
+  })
+})
+
+describe('calcFacing', () => {
+  /** Optimizasyondan önceki algoritma: her aday yön için tam sayım. */
+  function referenceFacing(enemies: Enemy[], origin: { x: number; z: number }, current: number) {
+    let bestFacing = current
+    let bestCount = countInCrescent(enemies, origin, current)
+    for (let i = 0; i < 48; i++) {
+      const angle = -Math.PI + (i / 48) * Math.PI * 2
+      const count = countInCrescent(enemies, origin, angle)
+      if (count > bestCount + 2) {
+        bestCount = count
+        bestFacing = angle
+      }
+    }
+    return bestCount > 0 ? bestFacing : null
+  }
+
+  it('optimize edilmiş tarama eski tam sayımla birebir aynı yönü seçer', () => {
+    // Deterministik sözde-rastgele üreteç: test her çalışmada aynı düzenleri görür.
+    let seed = 42
+    const rand = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)
+
+    for (let trial = 0; trial < 300; trial++) {
+      const enemies = Array.from({ length: 5 + Math.floor(rand() * 40) }, (_, i) =>
+        enemy(i, (rand() - 0.5) * 40, (rand() - 0.5) * 40, rand(), rand() > 0.15),
+      )
+      const origin = { x: (rand() - 0.5) * 20, z: (rand() - 0.5) * 20 }
+      const current = (rand() - 0.5) * Math.PI * 2
+      const expected = referenceFacing(enemies, origin, current)
+      if (expected === null) continue // menzilde kimse yok: kümeye bakma dalı, ayrı test
+
+      expect(calcFacing(enemies, origin, current, null)).toBe(expected)
+    }
+  })
+
+  it('menzilde kimse yoksa kümenin merkezine döner', () => {
+    const facing = calcFacing([enemy(0, 30, 0)], ORIGIN, 0, { x: 30, z: 0 })
+    expect(facing).toBeCloseTo(Math.PI / 2) // +x yönü: atan2(1, 0)
   })
 })
 

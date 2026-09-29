@@ -61,9 +61,15 @@ export const CRESCENT = {
   halfAngle: Math.PI * 0.22,
 } as const
 
-/** Açıyı -PI..PI aralığına indirger. */
+const TAU = Math.PI * 2
+
+/**
+ * Açıyı -PI..PI aralığına indirger.
+ * Aritmetik sarma: atan2(sin, cos) ile aynı sonucu üç trigonometrik çağrı
+ * olmadan verir. Yay testinin en sık çağrılan parçası olduğu için önemli.
+ */
 function normalizeAngle(a: number): number {
-  return Math.atan2(Math.sin(a), Math.cos(a))
+  return a - TAU * Math.round(a / TAU)
 }
 
 /**
@@ -95,6 +101,18 @@ export function isInCrescent(pos: Vec2, origin: Vec2, facing: number): boolean {
 /** Yön aranırken denenen açı sayısı (7.5°'lik adımlar). */
 const FACING_SAMPLES = 48
 
+/** calcFacing'in menzil halkasındaki düşman açıları için yeniden kullandığı tampon. */
+const ringAngles: number[] = []
+
+/** ringAngles'ın ilk n elemanından kaçı `facing` yönündeki yayın açısında. */
+function countRingAnglesWithin(n: number, facing: number): number {
+  let count = 0
+  for (let i = 0; i < n; i++) {
+    if (Math.abs(normalizeAngle(ringAngles[i] - facing)) <= CRESCENT.halfAngle) count++
+  }
+  return count
+}
+
 /**
  * Yeni bir yönün seçilmesi için mevcut yönden en az bu kadar fazla düşman
  * vurması gerekir. Olmasaydı yay, neredeyse eşit iki aday arasında her karede
@@ -120,12 +138,27 @@ export function calcFacing(
   currentFacing: number,
   centroid: Vec2 | null,
 ): number {
+  // Menzil halkasının (iç–dış yarıçap) dışındaki düşman hiçbir yönde yaya
+  // giremez; içindekilerin açısı yönden bağımsız. İkisi bir kez hesaplanıyor.
+  // Önceden her aday yön için her düşman baştan ölçülüyordu (49 × n hypot +
+  // atan2): ölçümde simülasyon karesinin %91'i buradaydı. Yüklem isInCrescent
+  // ile birebir aynı, yani sonuç da aynı (bkz. hilalSystem.test.ts).
+  let n = 0
+  for (const e of enemies) {
+    if (!e.alive) continue
+    const dx = e.pos.x - origin.x
+    const dz = e.pos.z - origin.z
+    const dist = Math.hypot(dx, dz)
+    if (dist < CRESCENT.innerRadius || dist > CRESCENT.outerRadius) continue
+    ringAngles[n++] = Math.atan2(dx, dz)
+  }
+
   let bestFacing = currentFacing
-  let bestCount = countInCrescent(enemies, origin, currentFacing)
+  let bestCount = countRingAnglesWithin(n, currentFacing)
 
   for (let i = 0; i < FACING_SAMPLES; i++) {
     const angle = -Math.PI + (i / FACING_SAMPLES) * Math.PI * 2
-    const count = countInCrescent(enemies, origin, angle)
+    const count = countRingAnglesWithin(n, angle)
     if (count > bestCount + FACING_HYSTERESIS) {
       bestCount = count
       bestFacing = angle

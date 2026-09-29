@@ -25,4 +25,12 @@ npm run build    # tip kontrolü + üretim derlemesi (dist/)
 npm run preview  # üretim derlemesini yerelde sun
 ```
 
+## Performans testi (gerçek cihaz)
+
+Grafik kalitesi FPS'e göre kendini ayarlar (düşük / orta / yüksek). Telefonda
+ölçmek için adrese parametre ekleyin:
+
+- `?perf` — FPS paneli ve o anki kalite kademesi
+- `?quality=low` (veya `medium`, `high`) — kademeyi sabitler, uyarlamayı kapatır
+
 Mimari, fazların durumu ve sonraki adımlar için: [PLAN.md](./PLAN.md).

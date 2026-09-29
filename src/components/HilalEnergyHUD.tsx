@@ -5,6 +5,8 @@ import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
 import { OutcomeScreen } from './OutcomeScreen'
 import { StartScreen } from './StartScreen'
+import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
+import type { QualityTier } from '../perf/quality'
 import './hud.css'
 
 const PHASE_LABEL: Record<HilalPhase, string> = {
@@ -108,7 +110,27 @@ function Corner() {
       >
         <SpeakerIcon muted={muted} />
       </button>
+      {PERF_OVERLAY && <PerfBadge />}
       {import.meta.env.DEV && <DevStats />}
+    </div>
+  )
+}
+
+const TIER_LABEL: Record<QualityTier, string> = { low: 'düşük', medium: 'orta', high: 'yüksek' }
+
+/** Gerçek cihaz testinde hangi kademede olunduğunu gösterir (?perf). */
+function PerfBadge() {
+  const tier = useQuality((s) => s.tier)
+  const locked = useQuality((s) => s.locked)
+  // R3F'in kullandığı değerle aynı hesap: [1, maxDpr] aralığına sıkıştırılmış.
+  const dpr = Math.min(Math.max(1, window.devicePixelRatio), QUALITY[tier].maxDpr)
+
+  return (
+    <div className="dev-stats">
+      kalite {TIER_LABEL[tier]}
+      {locked && ' (sabit)'}
+      <br />
+      dpr {dpr.toFixed(2)}
     </div>
   )
 }

@@ -135,6 +135,14 @@
   text-align: right;
 }
 
+/* drei <Stats> kendini sol üste satır içi stille sabitliyor; HUD kartının
+   üstüne binmesin diye üst ortaya alınıyor (yalnızca dev ve ?perf). */
+.perf-stats {
+  left: 50% !important;
+  top: calc(8px + var(--safe-top)) !important;
+  transform: translateX(-50%);
+}
+
 /* ---- Alt orta: hilal enerjisi ---- */
 .energy {
   position: absolute;
