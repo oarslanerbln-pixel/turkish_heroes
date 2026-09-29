@@ -1,28 +1,39 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { useKeyboard } from '../../hooks/useKeyboard'
 import { useTouchControls } from '../../hooks/useTouchControls'
-import { isPlaying, world } from '../../sim/world'
+import { isPlaying, simDelta, world } from '../../sim/world'
 import { HILAL_CONFIG } from '../../mechanics/hilalSystem'
 import { ENEMY_CONFIG } from '../../mechanics/enemySim'
+import { buildHorseGeometry, buildRiderGeometry } from '../riderGeometry'
 
-// Metehan'ın gerçek 3D modeli gelene kadar placeholder geometri.
-// Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
+// Metehan'ın gerçek 3D modeli gelene kadar ilkel şekillerden süvari
+// (bkz. riderGeometry). Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const PLAYER_PRIORITY = 0
+
+/** Dörtnal: düşmanlarla aynı ritim, kahraman biraz daha belirgin zıplar. */
+const GALLOP_RATE = 9
+const GALLOP_BOB = 0.12
+const GALLOP_PITCH = 0.07
 
 export function MetehanPlaceholder() {
   const groupRef = useRef<Group>(null)
+  const bodyRef = useRef<Group>(null)
   const keys = useKeyboard()
   const touch = useTouchControls()
+  const horse = useMemo(buildHorseGeometry, [])
+  const rider = useMemo(() => buildRiderGeometry('hero'), [])
 
-  useFrame((_, delta) => {
-    // Sekme arka plandayken delta şişer ve karakter ışınlanır.
-    const dt = Math.min(delta, 0.1)
+  useFrame(({ clock }, delta) => {
+    // Sekme arka plandayken delta şişer ve karakter ışınlanır; hitstop'ta sıfır.
+    const dt = simDelta(delta)
 
     if (!isPlaying()) {
       world.playerVel.x = 0
       world.playerVel.z = 0
+      // Menüde de doğru yerde dursun (başlangıç ekranının arkasında görünüyor).
+      groupRef.current?.position.set(world.player.x, 0, world.player.z)
       return
     }
 
@@ -63,35 +74,43 @@ export function MetehanPlaceholder() {
     world.player.z += dz * dt
     confinePlayerToArena()
 
-    // Hız, klavye niyetinden değil gerçekleşen yer değiştirmeden türetilir:
-    // arena sınırına yaslanıp tuşa basılı tutan oyuncu "kaçıyor" sayılmasın.
-    world.playerVel.x = (world.player.x - prevX) / dt
-    world.playerVel.z = (world.player.z - prevZ) / dt
+    // Hitstop'ta dt sıfır: hız bölmesi NaN üretmesin, donmuş oyuncu "duruyor".
+    if (dt > 0) {
+      // Hız, klavye niyetinden değil gerçekleşen yer değiştirmeden türetilir:
+      // arena sınırına yaslanıp tuşa basılı tutan oyuncu "kaçıyor" sayılmasın.
+      world.playerVel.x = (world.player.x - prevX) / dt
+      world.playerVel.z = (world.player.z - prevZ) / dt
+    }
 
-    if (!groupRef.current) return
-    groupRef.current.position.set(world.player.x, 0, world.player.z)
+    const group = groupRef.current
+    const body = bodyRef.current
+    if (!group || !body) return
+    group.position.set(world.player.x, 0, world.player.z)
     // Hareket varken gidiş yönüne dön.
     if (len > 0) {
-      groupRef.current.rotation.y = Math.atan2(dx, dz)
+      group.rotation.y = Math.atan2(dx, dz)
     }
+    // Dörtnal yalnızca gövdede; zemin halkası yerinde kalsın.
+    const gait = Math.min(1, Math.hypot(world.playerVel.x, world.playerVel.z) / 3)
+    const phase = clock.elapsedTime * GALLOP_RATE
+    body.position.y = Math.abs(Math.sin(phase)) * GALLOP_BOB * gait
+    body.rotation.x = Math.sin(phase) * GALLOP_PITCH * gait
   }, PLAYER_PRIORITY)
 
   return (
     <group ref={groupRef}>
-      {/* Gövde */}
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <capsuleGeometry args={[0.4, 1.2, 8, 16]} />
-        <meshStandardMaterial color="#8b4a00" roughness={0.6} metalness={0.3} />
-      </mesh>
-      {/* Baş */}
-      <mesh position={[0, 2.3, 0]} castShadow>
-        <sphereGeometry args={[0.28, 16, 16]} />
-        <meshStandardMaterial color="#c8a47a" roughness={0.8} />
-      </mesh>
-      {/* Yön göstergesi — karakterin baktığı taraf */}
-      <mesh position={[0, 1.2, 0.45]} castShadow>
-        <boxGeometry args={[0.12, 0.12, 0.5]} />
-        <meshStandardMaterial color="#ffd700" roughness={0.4} metalness={0.6} />
+      <group ref={bodyRef}>
+        <mesh geometry={horse} castShadow>
+          <meshStandardMaterial vertexColors roughness={0.8} />
+        </mesh>
+        <mesh geometry={rider} castShadow>
+          <meshStandardMaterial vertexColors roughness={0.55} metalness={0.15} />
+        </mesh>
+      </group>
+      {/* Zemin halkası: kahraman kalabalığın içinde tek bakışta bulunsun. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[0.95, 1.15, 40]} />
+        <meshBasicMaterial color="#2a9d8f" transparent opacity={0.55} depthWrite={false} />
       </mesh>
     </group>
   )

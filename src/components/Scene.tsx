@@ -3,7 +3,10 @@ import { Canvas } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
-import { Arena } from './Arena'
+import { Terrain } from './world/Terrain'
+import { Stones } from './world/Stones'
+import { Grass } from './world/Grass'
+import { StrikeSparks } from './StrikeSparks'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
 import { CameraShake } from './CameraShake'
 import { CrescentPreview } from './CrescentPreview'
@@ -17,11 +20,11 @@ import { TouchJoystick } from './TouchJoystick'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 
-// Bozkırın ufukta kaybolduğu sıcak pus. Gerçek bir gökyüzü/sis parçacık
-// sistemi yerine bilinçli tercih: fog + düz arkaplan rengi aynı işi görüyor,
-// ekstra geometri veya draw call gerektirmiyor (bkz. PLAN.md §4 — mobil
-// bütçesi). Renk zeminle (#3d2b1a) ve sınır halkasıyla (#8b4a00) uyumlu.
-const HAZE_COLOR = '#3a2211'
+// Bozkırın uzakta kaybolduğu sıcak, tozlu pus. Kamera 45° aşağı baktığı için
+// gökyüzü hiç görünmüyor; derinliği hava perspektifi veriyor: arena net, ekranın
+// üstündeki tepeler bu renge doğru soluyor. Gökyüzü kubbesi yerine bilinçli
+// tercih — görünmeyecek bir şeye çizim çağrısı harcanmaz.
+const HAZE_COLOR = '#8e7254'
 
 export function Scene() {
   useStrikeInput()
@@ -91,13 +94,14 @@ export function Scene() {
           {adaptive && (
             <PerformanceMonitor onIncline={() => step(1)} onDecline={() => step(-1)} />
           )}
-          {/* Sahnede geometri olmayan yönlerde (ufkun üstü) bu renk görünür —
-              sisle aynı renk, yoksa ufukta düz arkaplandan sise sert bir geçiş olurdu. */}
+          {/* Arena (kameradan 20–40 birim) net kalır; ekranın üst kenarındaki
+              tepeler (~65 birim) pusa doğru soluklaşır. */}
           <color attach="background" args={[HAZE_COLOR]} />
-          <fog attach="fog" args={[HAZE_COLOR, 40, 95]} />
-          <ambientLight intensity={0.45} />
+          <fog attach="fog" args={[HAZE_COLOR, 45, 125]} />
+          {/* Ortam ışığı düşük: gölgeler ve süvari siluetleri zeminden ayrılsın. */}
+          <ambientLight intensity={0.25} />
           {/* Gökyüzü/toprak ayrımı — bozkır hissini ucuza veriyor. */}
-          <hemisphereLight args={['#ffd9a0', '#3d2b1a', 0.7]} />
+          <hemisphereLight args={['#ffe2b8', '#4b3622', 0.6]} />
           {/*
             Alçak, sıcak güneş: uzun gölgeler. key: gölge haritası boyutu
             değişince ışık yeniden kurulur — three mevcut haritayı yeniden
@@ -115,16 +119,22 @@ export function Scene() {
             shadow-camera-top={35}
             shadow-camera-bottom={-35}
             shadow-camera-far={80}
+            // Düz gölgeli (flatShading) arazide gölge lekesi olmasın.
+            shadow-bias={-0.0004}
+            shadow-normalBias={0.02}
           />
           {/* Karşı yönden soğuk dolgu — siluetler tamamen kararmasın. */}
           <directionalLight position={[-14, 10, -16]} intensity={0.5} color="#6a7fa8" />
-          <Arena />
+          <Terrain />
+          <Stones />
+          <Grass />
           <MetehanPlaceholder />
           <EnemySwarm />
           <GameDirector />
           {/* Görseller yönetmenden sonra: o karenin yönünü/sayımını kullanırlar. */}
           <CrescentPreview />
           <StrikeEffect />
+          <StrikeSparks />
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
           <FollowCamera />
           <CameraShake />

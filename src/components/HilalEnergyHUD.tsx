@@ -5,6 +5,7 @@ import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
 import { OutcomeScreen } from './OutcomeScreen'
 import { StartScreen } from './StartScreen'
+import { Ornament } from './Ornament'
 import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import './hud.css'
@@ -224,6 +225,7 @@ function WaveBanner({ index }: { index: number }) {
   return (
     <div className="wave-banner">
       <h2>{index + 1}. DALGA</h2>
+      <Ornament width={200} />
       <p>{WAVE_HINT[index] ?? ''}</p>
     </div>
   )

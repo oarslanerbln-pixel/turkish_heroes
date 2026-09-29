@@ -288,7 +288,13 @@ export function isStrikeReady(energy: number): boolean {
  * bitmeden ölüyordu. Şimdi vuruş nefes aldırıyor ve döngü yeniden başlıyor:
  * kalanları tekrar boz, tekrar kuşat.
  */
-export function executeStrike(enemies: Enemy[], origin: Vec2, facing: number): number {
+export function executeStrike(
+  enemies: Enemy[],
+  origin: Vec2,
+  facing: number,
+  /** Verilirse düşenlerin konumları buna eklenir (görsel efektler için). */
+  killedAt?: Vec2[],
+): number {
   let kills = 0
 
   for (const e of enemies) {
@@ -297,6 +303,7 @@ export function executeStrike(enemies: Enemy[], origin: Vec2, facing: number): n
     if (isInCrescent(e.pos, origin, facing)) {
       e.alive = false
       kills++
+      killedAt?.push({ x: e.pos.x, z: e.pos.z })
     } else {
       e.discipline = 1
     }

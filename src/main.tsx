@@ -1,5 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Başlık yazı tipi paketle geliyor (Google Fonts'a istek yok): PWA çevrimdışı
+// da aynı görünsün. latin-ext alt kümesi Türkçe harfleri (İ, Ş, Ğ) kapsıyor.
+import '@fontsource/cinzel/600.css'
 import './index.css'
 import App from './App.tsx'
 import { world } from './sim/world'

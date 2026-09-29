@@ -72,8 +72,9 @@ export function TouchJoystick() {
         width: 112,
         height: 112,
         borderRadius: '50%',
-        background: 'rgba(139, 74, 0, 0.18)',
-        border: '1px solid rgba(255, 215, 0, 0.35)',
+        // Koyu yarı saydam zemin: aydınlık bozkırın üstünde de seçilsin.
+        background: 'rgba(16, 7, 2, 0.45)',
+        border: '1px solid rgba(241, 209, 122, 0.35)',
         touchAction: 'none',
         pointerEvents: 'auto',
       }}
@@ -86,7 +87,7 @@ export function TouchJoystick() {
           width: 48,
           height: 48,
           borderRadius: '50%',
-          background: 'rgba(255, 215, 0, 0.55)',
+          background: 'rgba(241, 209, 122, 0.7)',
           transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`,
           transition: pointerIdRef.current === null ? 'transform 0.15s ease' : 'none',
         }}

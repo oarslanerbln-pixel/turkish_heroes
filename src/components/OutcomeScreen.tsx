@@ -1,5 +1,6 @@
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
+import { Ornament } from './Ornament'
 
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
@@ -12,9 +13,10 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
 
   return (
     <div className="screen">
-      <div className="result-title" style={{ color: isVictory ? 'var(--gold)' : 'var(--danger)' }}>
+      <div className={isVictory ? 'result-title is-victory' : 'result-title is-defeat'}>
         {isVictory ? 'ZAFER' : 'YENİLGİ'}
       </div>
+      <Ornament width={240} />
       <div className="subtitle">
         {isVictory
           ? `${TOTAL_WAVES} dalganın hepsi kuşatıldı.`

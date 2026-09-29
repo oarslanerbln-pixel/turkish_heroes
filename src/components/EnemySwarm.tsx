@@ -1,26 +1,50 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Color, InstancedMesh, Object3D } from 'three'
+import { Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
 import { stepEnemies } from '../mechanics/enemySim'
 import { MAX_WAVE_ENEMIES, waveConfig } from '../mechanics/waves'
-import { isPlaying, world } from '../sim/world'
+import type { Enemy } from '../mechanics/types'
+import { isPlaying, simDelta, world } from '../sim/world'
+import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const ENEMY_PRIORITY = 1
 
-// Disiplinli (düzenli) → dağılmış (öfkeli takip) renk geçişi.
-const DISCIPLINED_COLOR = new Color('#4a5568')
-const BROKEN_COLOR = new Color('#c53030')
+// Disiplinli (düzenli) → dağılmış (öfkeli takip) renk geçişi. Oyuncunun
+// kuşatılabilirliği okuduğu asıl sinyal bu: binicinin giysisi ve kalkanı taşır.
+const DISCIPLINED_COLOR = new Color('#6b7d99')
+const BROKEN_COLOR = new Color('#d04a3a')
+
+/** Dörtnal: adım hızı (rad/sn), zıplama ve öne-arkaya yalpalama genliği. */
+const GALLOP_RATE = 9
+const GALLOP_BOB = 0.1
+const GALLOP_PITCH = 0.06
+
+/** Düşen süvari önce yana devrilir, sonra toprağa gömülür (saniye). */
+const FALL_TIME = 0.35
+const DEATH_TIME = 1.1
 
 export function EnemySwarm() {
-  const meshRef = useRef<InstancedMesh>(null)
+  const horseRef = useRef<InstancedMesh>(null)
+  const riderRef = useRef<InstancedMesh>(null)
+  const horse = useMemo(buildHorseGeometry, [])
+  const rider = useMemo(() => buildRiderGeometry('enemy'), [])
+  const horseMaterial = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), [])
+  const riderMaterial = useMemo(
+    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }),
+    [],
+  )
   // Matris/renk yazarken kullanılan tek seferlik yardımcılar.
   const dummy = useMemo(() => new Object3D(), [])
   const color = useMemo(() => new Color(), [])
+  // Yalnızca çizim durumu: her düşmanın son yönü ve ölümünden beri geçen süre.
+  const headings = useMemo(() => new Float32Array(MAX_WAVE_ENEMIES), [])
+  const deathAge = useMemo(() => new Float32Array(MAX_WAVE_ENEMIES), [])
+  const lastWave = useRef<Enemy[] | null>(null)
 
   // Renk buffer'ı ilk karede yazılmazsa örnekler siyah görünür.
   useLayoutEffect(() => {
-    const mesh = meshRef.current
+    const mesh = riderRef.current
     if (!mesh) return
     for (let i = 0; i < MAX_WAVE_ENEMIES; i++) {
       mesh.setColorAt(i, DISCIPLINED_COLOR)
@@ -28,10 +52,11 @@ export function EnemySwarm() {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [])
 
-  useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1)
-    const mesh = meshRef.current
-    if (!mesh) return
+  useFrame(({ clock }, delta) => {
+    const horseMesh = horseRef.current
+    const riderMesh = riderRef.current
+    if (!horseMesh || !riderMesh) return
+    const dt = simDelta(delta)
 
     // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
     // yeniden başlatıldığında yeni pozisyonlar ilk karede görünür.
@@ -45,53 +70,84 @@ export function EnemySwarm() {
       )
     }
 
+    // Yeni dalga ya da yeniden başlatma: çizim durumu sıfırdan. Düşman -z'de
+    // doğuyor ve oyuncuya (+z) bakıyor.
+    if (lastWave.current !== world.enemies) {
+      lastWave.current = world.enemies
+      headings.fill(0)
+      deathAge.fill(0)
+    }
+
     // Dalgalar arasında düşman sayısı değişir; kapasiteyi (MAX_WAVE_ENEMIES)
     // değil, o anki dalganın gerçek uzunluğunu çiziyoruz. Aksi halde bir
     // önceki (daha kalabalık) dalganın son matrisleri sahnede asılı kalırdı.
-    mesh.count = world.enemies.length
+    const n = world.enemies.length
+    horseMesh.count = n
+    riderMesh.count = n
+    const time = clock.elapsedTime
 
-    for (let i = 0; i < world.enemies.length; i++) {
+    for (let i = 0; i < n; i++) {
       const e = world.enemies[i]
 
-      if (!e.alive) {
-        // Ölen düşmanı sahneden çıkarmanın en ucuz yolu: sıfır ölçek.
-        dummy.scale.setScalar(0)
-        dummy.position.set(0, -100, 0)
-        dummy.rotation.y = 0
-        dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
-        continue
+      if (e.alive) {
+        const speed = Math.hypot(e.vel.x, e.vel.z)
+        // Duruyorsa kendi son yönünü korur.
+        if (speed > 0.05) headings[i] = Math.atan2(e.vel.x, e.vel.z)
+        const gait = Math.min(1, speed / 3)
+        const phase = time * GALLOP_RATE + i * 1.7
+        dummy.position.set(e.pos.x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, e.pos.z)
+        dummy.rotation.set(Math.sin(phase) * GALLOP_PITCH * gait, headings[i], 0)
+        dummy.scale.setScalar(1)
+      } else {
+        // dt hitstop'ta sıfır: vuruş anında dik durur, donma bitince devrilir.
+        deathAge[i] += dt
+        const age = deathAge[i]
+        if (age >= DEATH_TIME) {
+          // Sahneden çıkarmanın en ucuz yolu: sıfır ölçek.
+          dummy.position.set(0, -100, 0)
+          dummy.scale.setScalar(0)
+        } else {
+          const fall = Math.min(1, age / FALL_TIME)
+          const sink = Math.max(0, (age - FALL_TIME) / (DEATH_TIME - FALL_TIME))
+          const side = i % 2 === 0 ? 1 : -1
+          dummy.position.set(e.pos.x, -sink * 1.2, e.pos.z)
+          dummy.rotation.set(0, headings[i], side * fall * fall * (Math.PI / 2))
+          dummy.scale.setScalar(1)
+        }
       }
 
-      dummy.scale.setScalar(1)
-      dummy.position.set(e.pos.x, 0.9, e.pos.z)
-      // Gittiği yöne baksın; duruyorsa mevcut açıyı koru.
-      if (Math.abs(e.vel.x) + Math.abs(e.vel.z) > 0.01) {
-        dummy.rotation.y = Math.atan2(e.vel.x, e.vel.z)
-      }
       dummy.updateMatrix()
-      mesh.setMatrixAt(i, dummy.matrix)
+      horseMesh.setMatrixAt(i, dummy.matrix)
+      riderMesh.setMatrixAt(i, dummy.matrix)
 
       color.copy(DISCIPLINED_COLOR).lerp(BROKEN_COLOR, 1 - e.discipline)
-      mesh.setColorAt(i, color)
+      riderMesh.setColorAt(i, color)
     }
 
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+    horseMesh.instanceMatrix.needsUpdate = true
+    riderMesh.instanceMatrix.needsUpdate = true
+    if (riderMesh.instanceColor) riderMesh.instanceColor.needsUpdate = true
   }, ENEMY_PRIORITY)
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[undefined, undefined, MAX_WAVE_ENEMIES]}
-      castShadow
-      receiveShadow
-      // Örnekler her kare hareket ettiği için otomatik frustum culling
-      // yanlış sonuç verir; sürü zaten hep sahnede.
-      frustumCulled={false}
-    >
-      <capsuleGeometry args={[0.32, 0.9, 6, 12]} />
-      <meshStandardMaterial roughness={0.7} metalness={0.2} />
-    </instancedMesh>
+    <>
+      {/*
+        Örnekler her kare hareket ettiği için otomatik frustum culling yanlış
+        sonuç verir; sürü zaten hep sahnede. Gölgeyi yalnızca düşürürler:
+        almak binlerce piksel için ek gölge örneklemesi demek.
+      */}
+      <instancedMesh
+        ref={horseRef}
+        args={[horse, horseMaterial, MAX_WAVE_ENEMIES]}
+        castShadow
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={riderRef}
+        args={[rider, riderMaterial, MAX_WAVE_ENEMIES]}
+        castShadow
+        frustumCulled={false}
+      />
+    </>
   )
 }

@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore'
+import { Ornament } from './Ornament'
 
 /**
  * Oyunun kapısı. İki işi var:
@@ -15,6 +16,7 @@ export function StartScreen({ touch }: { touch: boolean }) {
     <div className="hud">
       <div className="screen">
         <h1>HİLAL</h1>
+        <Ornament width={260} />
         <div className="subtitle">Metehan'ın kuşatma taktiği · MÖ 209</div>
 
         <div className="steps">

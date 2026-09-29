@@ -8,6 +8,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      // Varsayılan desen yazı tipi dosyalarını önbelleğe almıyor; çevrimdışı
+      // açılışta başlıklar sistem yazı tipine düşerdi. İkonlar zaten
+      // includeAssets ve manifest üzerinden geliyor, desene eklenmez.
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2}'] },
       manifest: {
         name: 'HİLAL',
         short_name: 'HİLAL',
