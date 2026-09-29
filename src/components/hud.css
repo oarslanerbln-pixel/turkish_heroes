@@ -1,0 +1,424 @@
+/*
+ * HUD ve menü ekranları.
+ * Palet sahneyle aynı: bozkır kahvesi zemin, altın vurgu, kor turuncusu eylem.
+ */
+:root {
+  --ink: #0d0500;
+  --panel: rgba(20, 9, 2, 0.62);
+  --line: rgba(255, 215, 0, 0.18);
+  --muted: #8b7355;
+  --gold: #ffd700;
+  --ember: #ff5a1a;
+  --health: #5a9b45;
+  --danger: #d23b2b;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hud button {
+  font-family: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Sol üst: durum kartı ---- */
+.hud-card {
+  position: absolute;
+  top: calc(16px + var(--safe-top));
+  left: calc(16px + var(--safe-left));
+  width: 200px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.hud-row b {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.hud-score {
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-score.is-best {
+  color: #ffb347;
+  text-shadow: 0 0 12px rgba(255, 140, 0, 0.5);
+}
+
+.bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.12s linear, background-color 0.3s ease;
+}
+
+.contact {
+  color: var(--ember);
+  animation: blink 0.8s steps(2, start) infinite;
+}
+
+/* ---- Sağ üst: ses + geliştirici verisi ---- */
+.hud-corner {
+  position: absolute;
+  top: calc(16px + var(--safe-top));
+  right: calc(16px + var(--safe-right));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.icon-btn:hover {
+  border-color: rgba(255, 215, 0, 0.45);
+}
+
+.dev-stats {
+  padding: 8px 10px;
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--panel);
+  border-radius: 6px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+/* ---- Alt orta: hilal enerjisi ---- */
+.energy {
+  position: absolute;
+  left: 50%;
+  bottom: calc(28px + var(--safe-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(280px, 46vw);
+}
+
+.refusal {
+  min-height: 16px;
+  color: var(--ember);
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+  animation: fade-in 0.15s ease;
+}
+
+.phase {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.energy .bar {
+  width: 100%;
+  height: 12px;
+  border: 1px solid rgba(139, 74, 0, 0.8);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.energy .bar > span {
+  background: linear-gradient(90deg, #8b4a00, var(--gold));
+}
+
+.energy.is-ready .bar {
+  border-color: var(--ember);
+  animation: glow 1s ease-in-out infinite;
+}
+
+.energy.is-ready .bar > span {
+  background: var(--ember);
+}
+
+.strike-btn {
+  margin-top: 2px;
+  padding: 9px 22px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #6b563d;
+  background: transparent;
+  border: 1px solid #4a3520;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.strike-btn.is-live {
+  color: var(--ink);
+  background: var(--ember);
+  border-color: var(--ember);
+  box-shadow: 0 0 18px rgba(255, 90, 26, 0.55);
+}
+
+/* ---- Sağ alt: dokunmatik vuruş ---- */
+.strike-touch {
+  position: absolute;
+  right: calc(28px + var(--safe-right));
+  bottom: calc(28px + var(--safe-bottom));
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #8b7355;
+  background: rgba(139, 74, 0, 0.18);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  touch-action: none;
+  transition: all 0.2s ease;
+}
+
+.strike-touch.is-live {
+  color: var(--ink);
+  background: var(--ember);
+  border-color: var(--ember);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Dokunmatikte enerji bloğu iki başparmağın arasında kalır; biraz yukarıda. */
+.is-touch .energy {
+  bottom: calc(44px + var(--safe-bottom));
+}
+
+/* ---- Dalga bannerı ---- */
+.wave-banner {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  animation: banner 2.4s ease forwards;
+}
+
+.wave-banner h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(28px, 6vw, 44px);
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-shadow: 0 2px 24px rgba(255, 140, 0, 0.45);
+}
+
+.wave-banner p {
+  margin-top: 6px;
+  color: #d9c3a0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+/* ---- Tam ekran menüler: başlangıç ve sonuç ---- */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: calc(24px + var(--safe-top)) calc(24px + var(--safe-right))
+    calc(24px + var(--safe-bottom)) calc(24px + var(--safe-left));
+  background: radial-gradient(ellipse at center, rgba(40, 18, 4, 0.72), rgba(10, 4, 0, 0.94));
+  color: var(--gold);
+  text-align: center;
+  pointer-events: auto;
+  overflow-y: auto;
+  animation: fade-in 0.35s ease;
+}
+
+.screen h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(44px, 10vw, 84px);
+  letter-spacing: 0.28em;
+  margin-right: -0.28em; /* letter-spacing sağda boşluk bırakır; ortalamayı düzelt */
+  text-shadow: 0 4px 40px rgba(255, 140, 0, 0.4);
+}
+
+.screen .subtitle {
+  color: #d9c3a0;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+
+.steps {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 640px;
+}
+
+.step {
+  flex: 1 1 170px;
+  padding: 12px 14px;
+  text-align: left;
+  background: rgba(255, 215, 0, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.step b {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.step span {
+  color: #bfa888;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.controls-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.primary-btn {
+  padding: 13px 44px;
+  font-size: 14px;
+  letter-spacing: 0.24em;
+  color: var(--ink);
+  background: linear-gradient(180deg, #ffe066, #e6a800);
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(255, 170, 0, 0.3);
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.primary-btn:hover {
+  box-shadow: 0 8px 32px rgba(255, 170, 0, 0.45);
+}
+
+.primary-btn:active {
+  transform: scale(0.97);
+}
+
+.result-title {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 8vw, 64px);
+  letter-spacing: 0.3em;
+  margin-right: -0.3em;
+}
+
+.result-stats {
+  display: flex;
+  gap: 28px;
+}
+
+.result-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.result-stats b {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--gold);
+}
+
+.badge {
+  padding: 3px 10px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  background: var(--health);
+  border-radius: 999px;
+}
+
+/* Kısa ekranlı telefonlar (yatay) — menüleri sıkıştır. */
+@media (max-height: 460px) {
+  .screen { gap: 10px; }
+  .step { padding: 8px 10px; }
+  .step span { font-size: 11px; }
+  .hud-card { width: 176px; padding: 9px 11px; gap: 6px; }
+  .hud-score { font-size: 22px; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+@keyframes glow {
+  50% { box-shadow: 0 0 14px rgba(255, 90, 26, 0.7); }
+}
+
+@keyframes pulse {
+  50% { box-shadow: 0 0 0 10px rgba(255, 90, 26, 0); transform: scale(1.04); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 26, 0.5); }
+}
+
+@keyframes banner {
+  0% { opacity: 0; transform: translate(-50%, 12px); }
+  15%, 70% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact, .energy.is-ready .bar, .strike-touch.is-live { animation: none; }
+}

@@ -14,7 +14,7 @@ import { GameDirector } from './GameDirector'
 import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
-import { TouchJoystick } from '../hooks/useTouchControls'
+import { TouchJoystick } from './TouchJoystick'
 
 // Bozkırın ufukta kaybolduğu sıcak pus. Gerçek bir gökyüzü/sis parçacık
 // sistemi yerine bilinçli tercih: fog + düz arkaplan rengi aynı işi görüyor,
@@ -26,7 +26,7 @@ export function Scene() {
   useStrikeInput()
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0d0500' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#0d0500' }}>
       <Canvas
         shadows
         camera={{ position: [0, 18, 26], fov: 55 }}
@@ -40,7 +40,8 @@ export function Scene() {
           PWA'da harici varlığa bağımlılık zaten kabul edilemezdi.
         */}
         <Suspense fallback={null}>
-          <Stats />
+          {/* FPS paneli yalnızca geliştirmede — oyuncunun ekranında yeri yok. */}
+          {import.meta.env.DEV && <Stats />}
           {/* Sahnede geometri olmayan yönlerde (ufkun üstü) bu renk görünür —
               sisle aynı renk, yoksa ufukta düz arkaplandan sise sert bir geçiş olurdu. */}
           <color attach="background" args={[HAZE_COLOR]} />

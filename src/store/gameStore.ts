@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
 import { resetWorld, world } from '../sim/world'
+import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -28,9 +29,14 @@ export interface HudSnapshot {
 }
 
 interface GameState extends HudSnapshot {
+  /** Başlangıç ekranı geçildi mi — world.started'ın sunum kopyası. */
+  started: boolean
+  muted: boolean
   syncHud: (snapshot: HudSnapshot) => void
+  start: () => void
   requestStrike: () => void
   restart: () => void
+  toggleMute: () => void
 }
 
 const INITIAL_HUD: HudSnapshot = {
@@ -54,10 +60,25 @@ const INITIAL_HUD: HudSnapshot = {
   bestScore: world.bestScore,
 }
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
   ...INITIAL_HUD,
+  started: false,
+  muted: isMuted(),
 
   syncHud: (snapshot) => set(snapshot),
+
+  // Kullanıcı hareketinin içinde çağrılır: sesin kilidi burada açılır.
+  start: () => {
+    unlockAudio()
+    world.started = true
+    set({ started: true })
+  },
+
+  toggleMute: () => {
+    const muted = !get().muted
+    setMuted(muted)
+    set({ muted })
+  },
 
   // Simülasyona bayrak bırakır; GameDirector bir sonraki karede tüketir.
   requestStrike: () => {

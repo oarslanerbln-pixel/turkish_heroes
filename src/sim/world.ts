@@ -51,6 +51,12 @@ export interface World {
   /** Ret mesajının ekranda kalacağı süre. */
   refusalTimer: number
   totalKills: number
+  /**
+   * Oyuncu başlangıç ekranını geçti mi? Geçene kadar simülasyon donuk kalır —
+   * sayfa açılır açılmaz düşman yürümesin. resetWorld bunu korur: "YENİDEN"
+   * doğrudan oyuna döner, başlangıç ekranını tekrar göstermez.
+   */
+  started: boolean
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
@@ -81,6 +87,7 @@ function initialWorld(): World {
     refusal: 'none',
     refusalTimer: 0,
     totalKills: 0,
+    started: false,
   }
 }
 
@@ -92,10 +99,14 @@ export const world: World = initialWorld()
 export function resetWorld(): void {
   // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
-  Object.assign(world, initialWorld())
+  const started = world.started
+  Object.assign(world, initialWorld(), { started })
 }
 
-/** Simülasyon yalnızca oyun sürerken ilerler (yenilgi/zafer ekranında donar). */
+/**
+ * Simülasyon yalnızca oyun sürerken ilerler: başlangıç ekranında ve
+ * yenilgi/zafer ekranında donar.
+ */
 export function isPlaying(): boolean {
-  return world.outcome === 'playing'
+  return world.started && world.outcome === 'playing'
 }

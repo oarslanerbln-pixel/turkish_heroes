@@ -4,13 +4,20 @@
   box-sizing: border-box;
 }
 
+html,
 body {
+  height: 100%;
   background: #0d0500;
   overflow: hidden;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Mobilde çift dokunma yakınlaştırması ve lastik bant kaydırması oyunu bozar. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
 #root {
   width: 100vw;
+  /* dvh: mobil tarayıcı adres çubuğu açılıp kapanırken HUD kesilmesin. */
   height: 100vh;
+  height: 100dvh;
 }

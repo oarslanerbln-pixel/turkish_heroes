@@ -27,6 +27,7 @@ hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenm
 | 5 | Dalga sistemi (3 dalga: 16→26→38 düşman, can devrediliyor), skor + localStorage rekor | ✅ |
 | 6 | Dokunmatik kontrol: sol alt analog joystick (`useTouchControls.tsx`, `useKeyboard` ile simetrik arayüz), sağ altta büyük VUR düğmesi. Nişan zaten otomatikmiş (`calcFacing`), bu yüzden ayrı bir nişan kontrolüne gerek çıkmadı — kapsam buna göre daraltıldı. | ✅ |
 | 7 | Post-processing / atmosfer: ACES filmic tone mapping (native `gl.toneMapping`), Bloom (mipmapBlur, threshold 0.55/intensity 0.7), sis + arkaplan aynı ton (#3a2211), Vignette, hafif Noise. `Renderer.tsx` kaldırıldı — `EffectComposer` aynı `renderPriority` yuvasına oturup çizimi devraldı. | ✅ |
+| 8 | Cila + sağlamlaştırma: başlangıç ekranı (3 adımda taktik + BAŞLA; simülasyon `world.started` ile donuk bekliyor), HUD sadeleştirme (debug istatistikleri yalnızca dev'de, dokunmatikte can çubuğu/joystick çakışması giderildi, safe-area), dalga bannerı, WebAudio ile sentezlenmiş ses (dosya yok) + sessize alma + titreşim, hilal ikonu ve eksik PWA PNG'leri (192/512/maskable/apple-touch), vendor chunk bölme, vitest (29 test: mekanik + headless denge), şablon artıkları ve lint uyarıları temizlendi. | ✅ |
 
 **Kanıt disiplini:** Her denge kararı headless simülasyon taramasıyla
 (iyi/orta/kötü bot) ölçülmüş, her görsel/etkileşim hatası gerçek tarayıcıda
@@ -39,7 +40,7 @@ disipline devam edin.
 
 | Öncelik | İş | Not |
 |---|---|---|
-| P0 | PWA gerçek cihaz doğrulaması | `public/`'ta sadece favicon.svg + icons.svg var, 192/512 PNG manifest ikonu yok. Ana ekrana ekleme hiç test edilmedi. |
+| P0 | PWA gerçek cihaz doğrulaması | Manifest ikonları faz 8'de eklendi (önceden manifest var olmayan PNG'lere işaret ediyordu). Ana ekrana ekleme ve sesin iOS'ta açılması hâlâ gerçek cihazda test edilmedi. |
 | P1 | Mobil performans denetimi | Faz 7'de eklenen bloom/vignette/noise'in gerçek orta seviye telefonda FPS/draw-call maliyeti hiç ölçülmedi — bu artık P2'den P1'e yükseldi çünkü şu an ölçülmemiş bir maliyet var. |
 | P2 | Gerçek Metehan modeli | `src/characters/metehan/` hâlâ boş, placeholder capsule kullanılıyor. Asset dışarıdan gelmeli (Meshy/Tripo + Mixamo) — Claude 3D model üretemez. |
 
@@ -65,8 +66,14 @@ oxlint (lint)
   (`renderPriority`) üzerinden; `Renderer.tsx` kaldırıldı, aynı önceliğe
   EffectComposer oturdu. Öncelik sırası: oyuncu 0 → düşman 1 → yönetmen 2 →
   görseller 3 → kamera 5 → sarsıntı 6 → EffectComposer/çizim 10.
-- `src/hooks/` — girdi: `useKeyboard` (masaüstü), `useTouchControls.tsx`
-  (dokunmatik, aynı ref-tabanlı arayüz), `useStrikeInput` (SPACE)
+- `src/hooks/` — girdi: `useKeyboard` (masaüstü), `useTouchControls.ts`
+  (dokunmatik, aynı ref-tabanlı arayüz; bileşeni `components/TouchJoystick.tsx`),
+  `useStrikeInput` (Space vuruş, menülerde Space/Enter)
+- `src/audio/sfx.ts` — sentezlenmiş efektler. AudioContext BAŞLA tıklamasında
+  açılır (tarayıcı kuralı); efektler GameDirector'dan tetiklenir.
+- HUD: `HilalEnergyHUD` + `StartScreen` + `OutcomeScreen`, stil `hud.css`.
+- Testler: `src/mechanics/*.test.ts` (`npm test`). `balance.test.ts` mekaniğin
+  iki sözünü sabitler: durmak enerji vermez, kiting kuşatmayı kurar.
 - Karakter mesh'i geldiğinde: `src/characters/metehan/`
 
 ## 6. Token Stratejisi / Model Yönlendirme

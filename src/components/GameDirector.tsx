@@ -17,6 +17,7 @@ import { spawnWave, TOTAL_WAVES, waveClearBonus } from '../mechanics/waves'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, world } from '../sim/world'
 import { saveBestScore } from '../sim/score'
+import { haptic, play } from '../audio/sfx'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -40,6 +41,7 @@ const SCORE_PER_KILL = 100
 const HEALTH_BONUS_PER_POINT = 5
 
 function refuse(reason: StrikeRefusal): void {
+  play('refuse')
   world.refusal = reason
   world.refusalTimer = REFUSAL_DURATION
 }
@@ -80,6 +82,7 @@ export function GameDirector() {
 
       world.refusalTimer = Math.max(0, world.refusalTimer - dt)
 
+      const wasReady = isStrikeReady(world.energy)
       if (world.strikeTimer > 0) {
         world.strikeTimer = Math.max(0, world.strikeTimer - dt)
       } else if (world.strikeRequested && !isStrikeReady(world.energy)) {
@@ -91,7 +94,11 @@ export function GameDirector() {
       } else if (world.strikeRequested) {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
+        const aliveBefore = countAlive()
         const kills = executeStrike(world.enemies, world.player, world.facing)
+        // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
+        play('strike', kills / aliveBefore)
+        haptic(kills >= 5 ? [40, 30, 60] : 40)
         world.totalKills += kills
         world.score += kills * SCORE_PER_KILL
         world.strikeOrigin.x = world.player.x
@@ -105,6 +112,9 @@ export function GameDirector() {
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
       }
 
+      // Hilal kurulduğu an duyulsun: oyuncunun gözü düşmandayken de bilsin.
+      if (!wasReady && isStrikeReady(world.energy)) play('ready')
+
       // Vuruş sonrası düşen düşman sayısı yukarıda değişmiş olabilir; dalga
       // temizlendi mi kontrolü bu yüzden burada, güncel sayıyla yapılır.
       // alive sadece executeStrike ile azaldığı için tek bir noktada kontrol
@@ -113,6 +123,7 @@ export function GameDirector() {
         world.score += waveClearBonus(world.waveIndex)
         world.waveIndex++
         world.enemies = spawnWave(world.waveIndex)
+        play('wave')
       }
 
       world.phase = resolvePhase({
@@ -132,6 +143,8 @@ export function GameDirector() {
           world.score += Math.round(world.playerHealth * HEALTH_BONUS_PER_POINT)
         }
         world.bestScore = saveBestScore(world.score)
+        play(world.outcome)
+        if (world.outcome === 'defeat') haptic(200)
       }
     }
 
