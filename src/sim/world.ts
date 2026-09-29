@@ -57,6 +57,18 @@ export interface World {
    * doğrudan oyuna döner, başlangıç ekranını tekrar göstermez.
    */
   started: boolean
+  /**
+   * Vuruş anındaki donma (hitstop) için kalan süre, saniye. > 0 iken simülasyon
+   * ilerlemez: kuşatmanın kapandığı an bir nefes boyu asılı kalır.
+   */
+  hitstop: number
+  /** Son vuruşta düşenlerin konumları — kıvılcım efekti tüketip boşaltır. */
+  fxKills: Vec2[]
+  /**
+   * Dalga temizlendikten sonra yenisi doğana kadar kalan süre. Mola olmadan
+   * yeni dalga aynı karede doğuyor, son düşenlerin devrilişi yarıda kalıyordu.
+   */
+  waveBreak: number
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
@@ -88,6 +100,9 @@ function initialWorld(): World {
     refusalTimer: 0,
     totalKills: 0,
     started: false,
+    hitstop: 0,
+    fxKills: [],
+    waveBreak: 0,
   }
 }
 
@@ -109,4 +124,13 @@ export function resetWorld(): void {
  */
 export function isPlaying(): boolean {
   return world.started && world.outcome === 'playing'
+}
+
+/**
+ * Simülasyonun bu karede ilerleyeceği süre. Sekme arka plandayken şişen delta
+ * sınırlanır (karakter ışınlanmasın); hitstop sürerken sıfırdır. Oyuncu,
+ * düşmanlar ve yönetmen aynı kuralı kullansın diye tek yerde.
+ */
+export function simDelta(delta: number): number {
+  return world.hitstop > 0 ? 0 : Math.min(delta, 0.1)
 }

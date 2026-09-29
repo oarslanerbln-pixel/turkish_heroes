@@ -29,6 +29,7 @@ hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenm
 | 7 | Post-processing / atmosfer: ~~ACES filmic tone mapping (native `gl.toneMapping`)~~ (faz 9'da ölçüldü: EffectComposer renderer ton eşlemesini kapatıyor, ayar hiç etki etmiyordu — kaldırıldı, görünüm aynı), Bloom (mipmapBlur, threshold 0.55/intensity 0.7), sis + arkaplan aynı ton (#3a2211), Vignette, hafif Noise. `Renderer.tsx` kaldırıldı — `EffectComposer` aynı `renderPriority` yuvasına oturup çizimi devraldı. | ✅ |
 | 8 | Cila + sağlamlaştırma: başlangıç ekranı (3 adımda taktik + BAŞLA; simülasyon `world.started` ile donuk bekliyor), HUD sadeleştirme (debug istatistikleri yalnızca dev'de, dokunmatikte can çubuğu/joystick çakışması giderildi, safe-area), dalga bannerı, WebAudio ile sentezlenmiş ses (dosya yok) + sessize alma + titreşim, hilal ikonu ve eksik PWA PNG'leri (192/512/maskable/apple-touch), vendor chunk bölme, vitest (29 test: mekanik + headless denge), şablon artıkları ve lint uyarıları temizlendi. | ✅ |
 | 9 | Performans: 3 grafik kademesi (`src/perf/quality.ts`: DPR üst sınırı, MSAA, gölge haritası, bloom, noise) + drei `PerformanceMonitor` ile FPS'e göre otomatik kademe (salınımda 4 değişimden sonra düşükte kilit); dokunmatik ortadan, masaüstü yüksekten başlar. Menü ve sonuç ekranında çizim durur (`frameloop="demand"`). EffectComposer MSAA varsayılanı 8 → kademeye göre 4/2/0; Canvas'ın boşa çalışan MSAA'sı kapatıldı. `calcFacing` 24× hızlandı (300 → 12,5 µs; simülasyon karesi 288 → 34 µs). Gerçek cihaz testi için `?perf` (FPS + kademe) ve `?quality=low\|medium\|high`. | ✅ |
+| 10 | Görsel temel ("10 bin €'luk oyun" hissi; tasarım belgesindeki Faz A): low-poly bozkır arazisi (arena düz, dışı tepeler; gürültüyle köşe renkleri), sınırda balbal taşları, rüzgârda salınan çimen (kademeye bağlı, düşükte kapalı), kapsüller yerine at üstünde süvari (dörtnal sallanması, ölünce devrilip gömülme), Metehan'a turkuaz binici + tuğ + zemin halkası, vuruşta 40–70 ms hitstop ve altın kıvılcımlar, dalga arasında 1,5 sn mola (son düşenlerin devrilişi yarıda kalmasın), Cinzel başlık yazı tipi (paketle, çevrimdışı) + Selçuklu yıldızı süslemesi, HUD kontrastı. Hiç harici model/doku yok. | ✅ |
 
 **Kanıt disiplini:** Her denge kararı headless simülasyon taramasıyla
 (iyi/orta/kötü bot) ölçülmüş, her görsel/etkileşim hatası gerçek tarayıcıda
@@ -43,7 +44,8 @@ disipline devam edin.
 |---|---|---|
 | P0 | PWA gerçek cihaz doğrulaması | Manifest ikonları faz 8'de eklendi (önceden manifest var olmayan PNG'lere işaret ediyordu). Ana ekrana ekleme ve sesin iOS'ta açılması hâlâ gerçek cihazda test edilmedi. |
 | P1 | Gerçek telefonda performans ölçümü | Faz 9'da uyarlamalı kalite ve ölçüm araçları geldi; ölçümler SwiftShader (yazılım GPU) vekiliyle yapıldı — sıralama güvenilir, mutlak değerler değil. Orta seviye bir Android'de `?perf` ile FPS'e ve yerleşilen kademeye bakın; gerekirse `QUALITY` eşiklerini ayarlayın. 120 Hz ekranlarda 60 FPS sınırı ancak ısınma görülürse eklenmeli (90 Hz'de takılma yaratır). |
-| P2 | Gerçek Metehan modeli | `src/characters/metehan/` hâlâ boş, placeholder capsule kullanılıyor. Asset dışarıdan gelmeli (Meshy/Tripo + Mixamo; ya da Hugging Face connector'ı üzerinden Hunyuan3D/TRELLIS gibi Space'ler — iskelet/animasyon için yine Mixamo). |
+| P1 | İkinci komutan: Alp Arslan (Malazgirt 1071) | Tasarım belgesi: https://claude.ai/code/artifact/3cfcab6d-1bf9-4b66-819f-82c771cbb291 — sıradaki iş belgedeki Faz B (prototip): birlikler, taciz, hamle, akşam dönüşü. |
+| P2 | Gerçek Metehan modeli | Faz 10'da ilkel şekillerden süvari geldi (`src/characters/riderGeometry.ts`); gerçek model hâlâ dışarıdan gelmeli (Meshy/Tripo + Mixamo; ya da Hugging Face connector'ı üzerinden Hunyuan3D/TRELLIS gibi Space'ler — iskelet/animasyon için yine Mixamo). |
 | P2 | Oyuncu verisiyle denge | Denge şu an bot simülasyonuna dayanıyor. Gerçek oyuncu verisi için olay takibi (dalga başlangıcı/bitişi, ölüm nedeni, vuruş başına düşen, ret sayısı) — PostHog connector'ı ile sorgulanabilir. Soft launch öncesi şart. |
 
 **Önerilen araçlar (araştırıldı, faz 9):** Hugging Face (3D/görsel üretim
@@ -91,6 +93,19 @@ oxlint (lint)
   yok (renderer'dakini EffectComposer kapatıyor); gerçek ACES istenirse efekt
   zincirine `<ToneMapping>` eklenmeli — görünümü değiştirir, sanat kararı.
 - Kare ölçümü: `?perf` ile üretimde FPS paneli; `__world`/`__gl` yalnızca dev.
+- Dünya (`src/components/world/`): `terrainShape.ts` saf fonksiyonlar (yükseklik,
+  renk, gürültü; testli — arena r ≤ 34'te yükseklik tam sıfır, birimler y = 0'da
+  yürür). Arazi ızgarası ve çimen sayısı kademeye bağlı. Gökyüzü yok: kamera 45°
+  aşağı bakıyor, ufuk görünmüyor; derinliği sis veriyor.
+- Süvari (`src/characters/riderGeometry.ts`): ilkel şekiller köşe rengiyle
+  boyanıp birleştiriliyor. Düşmanda at ve binici iki örneklenmiş mesh (aynı
+  matris); binicinin beyaz parçaları disiplin rengini `instanceColor` ile alır.
+- Hitstop: `world.hitstop` > 0 iken `simDelta()` sıfır döner; oyuncu, düşman,
+  yönetmen ve kıvılcımlar aynı kuralı kullanır. Düşenlerin konumu
+  `world.fxKills` ile efekte aktarılır (`executeStrike`'ın isteğe bağlı parametresi).
+- Faz 10 maliyeti (SwiftShader vekili, telefon 844×390): yüksek 683 → 960 ms,
+  orta 417 → 513 ms, düşük 63 → 77 ms/kare. Gerçek GPU'da köşe maliyeti çok daha
+  düşük olmalı; `?perf` ile doğrulanmalı.
 - Karakter mesh'i geldiğinde: `src/characters/metehan/`
 
 ## 6. Token Stratejisi / Model Yönlendirme

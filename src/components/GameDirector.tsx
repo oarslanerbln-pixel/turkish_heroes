@@ -15,7 +15,7 @@ import { calcContactDamage, countAttackers, resolveOutcome } from '../mechanics/
 import type { StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave, TOTAL_WAVES, waveClearBonus } from '../mechanics/waves'
 import { useGameStore } from '../store/gameStore'
-import { isPlaying, world } from '../sim/world'
+import { isPlaying, simDelta, world } from '../sim/world'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
 
@@ -40,6 +40,13 @@ const SCORE_PER_KILL = 100
 /** Zaferde kalan can başına bonus — efficient/temiz oynamayı ödüllendirir. */
 const HEALTH_BONUS_PER_POINT = 5
 
+/** Vuruş anındaki donma süreleri (saniye). */
+const HITSTOP_SMALL = 0.04
+const HITSTOP_BIG = 0.07
+
+/** Dalga temizlendikten sonra yenisi doğmadan önceki mola (saniye). */
+const WAVE_BREAK = 1.5
+
 function refuse(reason: StrikeRefusal): void {
   play('refuse')
   world.refusal = reason
@@ -51,7 +58,7 @@ export function GameDirector() {
   const syncHud = useGameStore((s) => s.syncHud)
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1)
+    const dt = simDelta(delta)
     const siege = calcSiegeState(world.enemies)
 
     if (isPlaying()) {
@@ -95,10 +102,14 @@ export function GameDirector() {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
         const aliveBefore = countAlive()
-        const kills = executeStrike(world.enemies, world.player, world.facing)
+        world.fxKills.length = 0
+        const kills = executeStrike(world.enemies, world.player, world.facing, world.fxKills)
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
         play('strike', kills / aliveBefore)
         haptic(kills >= 5 ? [40, 30, 60] : 40)
+        // Hitstop: kuşatmanın kapandığı an kısa bir süre asılı kalır. Oyun hissi
+        // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
+        world.hitstop = kills >= 5 ? HITSTOP_BIG : HITSTOP_SMALL
         world.totalKills += kills
         world.score += kills * SCORE_PER_KILL
         world.strikeOrigin.x = world.player.x
@@ -119,11 +130,20 @@ export function GameDirector() {
       // temizlendi mi kontrolü bu yüzden burada, güncel sayıyla yapılır.
       // alive sadece executeStrike ile azaldığı için tek bir noktada kontrol
       // etmek yeterli — temas hasarı düşman öldürmüyor.
-      if (countAlive() === 0 && world.waveIndex < TOTAL_WAVES - 1) {
-        world.score += waveClearBonus(world.waveIndex)
-        world.waveIndex++
-        world.enemies = spawnWave(world.waveIndex)
-        play('wave')
+      const moreWaves = world.waveIndex < TOTAL_WAVES - 1
+      if (countAlive() === 0 && moreWaves) {
+        if (world.waveBreak === 0) {
+          // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
+          world.score += waveClearBonus(world.waveIndex)
+          world.waveBreak = WAVE_BREAK
+        } else if (dt > 0) {
+          world.waveBreak = Math.max(0, world.waveBreak - dt)
+          if (world.waveBreak === 0) {
+            world.waveIndex++
+            world.enemies = spawnWave(world.waveIndex)
+            play('wave')
+          }
+        }
       }
 
       world.phase = resolvePhase({
@@ -133,7 +153,10 @@ export function GameDirector() {
       })
 
       const prevOutcome = world.outcome
-      world.outcome = resolveOutcome(world.playerHealth, countAlive())
+      // Dalga molasında sahada kimse yok ama savaş bitmedi: sıradaki dalga
+      // da "kalan düşman" sayılır, yoksa mola anında zafer ilan edilirdi.
+      const remaining = countAlive() + (world.waveIndex < TOTAL_WAVES - 1 ? 1 : 0)
+      world.outcome = resolveOutcome(world.playerHealth, remaining)
       if (world.outcome !== 'playing' && prevOutcome === 'playing') {
         if (world.outcome === 'victory') {
           // Son dalganın kendi temizleme bonusu yukarıdaki dalga-geçiş
@@ -151,6 +174,11 @@ export function GameDirector() {
     // İstek her karede tüketilir: vuruş hazır değilken basılan tuş birikip
     // enerji dolar dolmaz kendiliğinden patlamasın.
     world.strikeRequested = false
+
+    // Hitstop gerçek zamanla erir (dt donmuşken sıfır olduğu için ona bakılmaz).
+    // Yönetmen en son çalışan simülasyon adımı: donma bir sonraki karede
+    // oyuncu ve düşmanlar için de geçerli olur.
+    if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - Math.min(delta, 0.1))
 
     hudTimer.current += dt
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
