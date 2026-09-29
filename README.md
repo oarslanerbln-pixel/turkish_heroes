@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# HİLAL
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Metehan'ın hilal (kuşatma) taktiğini oynatan, tarayıcıda ve telefonda çalışan
+3D taktik oyunu. Kurulabilir bir PWA'dır ve çevrimdışı da çalışır.
 
-Currently, two official plugins are available:
+**Taktik:** Kaçıyormuş gibi yap → peşine düşen düşmanın düzeni bozulur →
+düzensiz küme sıkışır → hilal enerjisi dolar → yayı kapat.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Kontroller
 
-## React Compiler
+| | Masaüstü | Dokunmatik |
+|---|---|---|
+| Hareket | WASD / oklar | Sol alttaki joystick |
+| Vuruş | Space | Sağ alttaki düğme |
+| Başla / Yeniden | Space veya Enter / Enter | Ekrandaki düğme |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Geliştirme
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # geliştirme sunucusu (FPS paneli ve denge verisi açık)
+npm test         # mekanik + headless denge testleri
+npm run lint
+npm run build    # tip kontrolü + üretim derlemesi (dist/)
+npm run preview  # üretim derlemesini yerelde sun
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Performans testi (gerçek cihaz)
+
+Grafik kalitesi FPS'e göre kendini ayarlar (düşük / orta / yüksek). Telefonda
+ölçmek için adrese parametre ekleyin:
+
+- `?perf` — FPS paneli ve o anki kalite kademesi
+- `?quality=low` (veya `medium`, `high`) — kademeyi sabitler, uyarlamayı kapatır
+
+Mimari, fazların durumu ve sonraki adımlar için: [PLAN.md](./PLAN.md).

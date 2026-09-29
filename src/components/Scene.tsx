@@ -1,9 +1,8 @@
-import { Suspense } from 'react'
+import { Suspense, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Stats } from '@react-three/drei'
+import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
-import { ACESFilmicToneMapping } from 'three'
 import { Arena } from './Arena'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
 import { CameraShake } from './CameraShake'
@@ -14,7 +13,9 @@ import { GameDirector } from './GameDirector'
 import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
-import { TouchJoystick } from '../hooks/useTouchControls'
+import { TouchJoystick } from './TouchJoystick'
+import { useGameStore } from '../store/gameStore'
+import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 
 // Bozkırın ufukta kaybolduğu sıcak pus. Gerçek bir gökyüzü/sis parçacık
 // sistemi yerine bilinçli tercih: fog + düz arkaplan rengi aynı işi görüyor,
@@ -24,13 +25,54 @@ const HAZE_COLOR = '#3a2211'
 
 export function Scene() {
   useStrikeInput()
+  const tier = useQuality((s) => s.tier)
+  const adaptive = useQuality((s) => !s.locked)
+  const step = useQuality((s) => s.step)
+  // Menülerde (başlangıç, sonuç) sahne yarı saydam bir katmanın arkasında donuk
+  // duruyor; saniyede 60 kez yeniden çizmek yalnızca pil ve ısı harcıyordu.
+  // 'demand' modunda R3F yalnızca gerektiğinde (ör. boyut değişince) çizer.
+  const playing = useGameStore((s) => s.started && s.outcome === 'playing')
+  const preset = QUALITY[tier]
+
+  // Efekt listesi kademe değişmedikçe aynı nesne kalsın: EffectComposer,
+  // çocukları her değiştiğinde efekt pasolarını baştan kuruyor.
+  const effects = useMemo(
+    () => (
+      <>
+        {preset.bloom && (
+          <Bloom luminanceThreshold={0.55} luminanceSmoothing={0.2} intensity={0.7} mipmapBlur />
+        )}
+        <Vignette offset={0.3} darkness={0.6} />
+        {preset.noise && <Noise opacity={0.03} blendFunction={BlendFunction.OVERLAY} />}
+      </>
+    ),
+    [preset.bloom, preset.noise],
+  )
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0d0500' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#0d0500' }}>
       <Canvas
         shadows
+        dpr={[1, preset.maxDpr]}
+        frameloop={playing ? 'always' : 'demand'}
         camera={{ position: [0, 18, 26], fov: 55 }}
-        gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
+        gl={{
+          // Kenar yumuşatmayı EffectComposer'ın MSAA'sı yapıyor. Canvas'ın kendi
+          // MSAA'sı yalnızca son tam ekran üçgenine uygulanıyordu: bedeli
+          // ödenip hiçbir kenara faydası olmayan bir tampon.
+          antialias: false,
+          stencil: false,
+          powerPreference: 'high-performance',
+          // Not: burada eskiden ACES ton eşlemesi vardı. EffectComposer
+          // renderer'ın ton eşlemesini kapatıyor ve ölçüldüğünde (ACES açık /
+          // kapalı) çıktı piksel parlaklığı birebir aynıydı — ayar hiç etki
+          // etmiyordu, yalnızca pencere boyutu değişince açılıp kapanıyordu.
+          // Gerçek ACES istenirse efekt zincirine <ToneMapping> eklenmeli; bu
+          // görünümü değiştirir, bilinçli bir sanat kararı olarak yapılmalı.
+        }}
+        onCreated={({ gl }) => {
+          if (import.meta.env.DEV) Object.assign(globalThis, { __gl: gl })
+        }}
       >
         {/*
           Işıklandırma tamamen yerel. Daha önce drei'nin <Environment preset="sunset" />
@@ -40,7 +82,15 @@ export function Scene() {
           PWA'da harici varlığa bağımlılık zaten kabul edilemezdi.
         */}
         <Suspense fallback={null}>
-          <Stats />
+          {/* FPS paneli: geliştirmede ve ?perf ile — gerçek cihazda ölçmek için. */}
+          {PERF_OVERLAY && <Stats className="perf-stats" />}
+          {/*
+            FPS'i izleyip kademeyi bir basamak indirir/kaldırır (~2,5 sn'lik
+            pencereler). Menüde kare çizilmediği için ölçüm de yapılmaz.
+          */}
+          {adaptive && (
+            <PerformanceMonitor onIncline={() => step(1)} onDecline={() => step(-1)} />
+          )}
           {/* Sahnede geometri olmayan yönlerde (ufkun üstü) bu renk görünür —
               sisle aynı renk, yoksa ufukta düz arkaplandan sise sert bir geçiş olurdu. */}
           <color attach="background" args={[HAZE_COLOR]} />
@@ -48,13 +98,18 @@ export function Scene() {
           <ambientLight intensity={0.45} />
           {/* Gökyüzü/toprak ayrımı — bozkır hissini ucuza veriyor. */}
           <hemisphereLight args={['#ffd9a0', '#3d2b1a', 0.7]} />
-          {/* Alçak, sıcak güneş: uzun gölgeler. */}
+          {/*
+            Alçak, sıcak güneş: uzun gölgeler. key: gölge haritası boyutu
+            değişince ışık yeniden kurulur — three mevcut haritayı yeniden
+            boyutlamıyor; eski ışık (ve haritası) R3F tarafından dispose edilir.
+          */}
           <directionalLight
+            key={preset.shadowMapSize}
             position={[18, 22, 12]}
             intensity={2.2}
             color="#ffd9a0"
             castShadow
-            shadow-mapSize={[2048, 2048]}
+            shadow-mapSize={[preset.shadowMapSize, preset.shadowMapSize]}
             shadow-camera-left={-35}
             shadow-camera-right={35}
             shadow-camera-top={35}
@@ -77,18 +132,15 @@ export function Scene() {
             Sırayı önceliklerle sabitlediğimiz için çizimi kendimiz tetikliyoruz
             (bkz. eski Renderer.tsx'in notu) — EffectComposer bunu renderPriority
             ile aynı şekilde devralıyor, aynı zamanda son çıktıyı efekt zincirinden
-            geçiriyor. Işık pasoları hafif tutuldu (mipmapBlur bloom, tek noise
-            pasosu) — mobil bütçesini zorlamasın diye.
+            geçiriyor. multisampling varsayılanı 8'di; bkz. perf/quality.ts.
+
+            DPR değişince composer tamponları da küçülüyor: kademe değişimi
+            Canvas'ı yeniden render ediyor, R3F bu sırada boyutu yeniden
+            yazıyor ve EffectComposer boyut değişiminde tamponlarını kuruyor
+            (ölçüldü: 1266×585 → 844×390). Elle senkron gerekmiyor.
           */}
-          <EffectComposer renderPriority={10}>
-            <Bloom
-              luminanceThreshold={0.55}
-              luminanceSmoothing={0.2}
-              intensity={0.7}
-              mipmapBlur
-            />
-            <Vignette offset={0.3} darkness={0.6} />
-            <Noise opacity={0.03} blendFunction={BlendFunction.OVERLAY} />
+          <EffectComposer renderPriority={10} multisampling={SESSION_MULTISAMPLING}>
+            {effects}
           </EffectComposer>
         </Suspense>
       </Canvas>

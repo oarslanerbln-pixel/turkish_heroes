@@ -1,41 +1,23 @@
 import { useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-
-/**
- * Sol alt sanal joystick için normalize hareket vektörü.
- *
- * useKeyboard'ın ref'iyle aynı rolü oynar: modül seviyesinde tek örnek,
- * useFrame doğrudan okur, React re-render tetiklemez. Klavyeden farkı —
- * dijital değil analog: kısmi itiş kısmi hız versin diye uzunluk 0–1
- * arasında (joystick yarıçapına göre normalize), asla tam 1'e sabitlenmez.
- */
-export const touchMove = { x: 0, z: 0 }
-
-/** useKeyboard() ile simetrik: MetehanPlaceholder aynı şekilde tüketir. */
-export function useTouchControls() {
-  return touchMove
-}
-
-/** Cihaz dokunmatik mi? Bir kere hesaplanır — çalışma anında değişmez varsayılır. */
-export function isTouchDevice(): boolean {
-  if (typeof window === 'undefined') return false
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0
-}
+import { isTouchDevice, touchMove } from '../hooks/useTouchControls'
+import { useGameStore } from '../store/gameStore'
 
 const JOYSTICK_RADIUS = 52 // px — kolun gidebileceği en uzak mesafe
 const DEAD_ZONE = 6 // px — ufak titremeyi/yanlışlıkla dokunmayı yok say
 
 /**
- * Sol altta sabit, sadece dokunmatik cihazda görünen sanal joystick.
- * Basılı tutulduğu sürece touchMove'u günceller, bırakılınca sıfırlar.
+ * Sol altta sabit, sadece dokunmatik cihazda ve oyun sürerken görünen sanal
+ * joystick. Basılı tutulduğu sürece touchMove'u günceller, bırakılınca sıfırlar.
  */
 export function TouchJoystick() {
   const [show] = useState(isTouchDevice)
+  const started = useGameStore((s) => s.started)
   const originRef = useRef<{ x: number; y: number } | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })
 
-  if (!show) return null
+  if (!show || !started) return null
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -85,8 +67,8 @@ export function TouchJoystick() {
       onPointerCancel={release}
       style={{
         position: 'absolute',
-        left: 28,
-        bottom: 28,
+        left: 'calc(28px + env(safe-area-inset-left))',
+        bottom: 'calc(28px + env(safe-area-inset-bottom))',
         width: 112,
         height: 112,
         borderRadius: '50%',

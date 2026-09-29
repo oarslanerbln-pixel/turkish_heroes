@@ -13,7 +13,7 @@ Türk askeri tarihinin komutanlarını, gerçek tarihi taktiklerini oyun
 mekaniğine dönüştürerek oynatan, mobilde çalışan 3D PWA. MVP: Metehan'ın
 hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenme → vuruş.
 
-## 2. Durum (16-20 Temmuz 2026 itibarıyla)
+## 2. Durum (29 Eylül 2026 itibarıyla)
 
 **Tamamlanan (commit geçmişinden doğrulanmış):**
 
@@ -26,7 +26,9 @@ hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenm
 | — | Bug fix'ler: SPACE'in sessizce iptali, kamera sert geçişi, vuruş reddinde geri bildirim yokluğu, son düşman softlock'u, siyah ekran (R3F priority render) | ✅ |
 | 5 | Dalga sistemi (3 dalga: 16→26→38 düşman, can devrediliyor), skor + localStorage rekor | ✅ |
 | 6 | Dokunmatik kontrol: sol alt analog joystick (`useTouchControls.tsx`, `useKeyboard` ile simetrik arayüz), sağ altta büyük VUR düğmesi. Nişan zaten otomatikmiş (`calcFacing`), bu yüzden ayrı bir nişan kontrolüne gerek çıkmadı — kapsam buna göre daraltıldı. | ✅ |
-| 7 | Post-processing / atmosfer: ACES filmic tone mapping (native `gl.toneMapping`), Bloom (mipmapBlur, threshold 0.55/intensity 0.7), sis + arkaplan aynı ton (#3a2211), Vignette, hafif Noise. `Renderer.tsx` kaldırıldı — `EffectComposer` aynı `renderPriority` yuvasına oturup çizimi devraldı. | ✅ |
+| 7 | Post-processing / atmosfer: ~~ACES filmic tone mapping (native `gl.toneMapping`)~~ (faz 9'da ölçüldü: EffectComposer renderer ton eşlemesini kapatıyor, ayar hiç etki etmiyordu — kaldırıldı, görünüm aynı), Bloom (mipmapBlur, threshold 0.55/intensity 0.7), sis + arkaplan aynı ton (#3a2211), Vignette, hafif Noise. `Renderer.tsx` kaldırıldı — `EffectComposer` aynı `renderPriority` yuvasına oturup çizimi devraldı. | ✅ |
+| 8 | Cila + sağlamlaştırma: başlangıç ekranı (3 adımda taktik + BAŞLA; simülasyon `world.started` ile donuk bekliyor), HUD sadeleştirme (debug istatistikleri yalnızca dev'de, dokunmatikte can çubuğu/joystick çakışması giderildi, safe-area), dalga bannerı, WebAudio ile sentezlenmiş ses (dosya yok) + sessize alma + titreşim, hilal ikonu ve eksik PWA PNG'leri (192/512/maskable/apple-touch), vendor chunk bölme, vitest (29 test: mekanik + headless denge), şablon artıkları ve lint uyarıları temizlendi. | ✅ |
+| 9 | Performans: 3 grafik kademesi (`src/perf/quality.ts`: DPR üst sınırı, MSAA, gölge haritası, bloom, noise) + drei `PerformanceMonitor` ile FPS'e göre otomatik kademe (salınımda 4 değişimden sonra düşükte kilit); dokunmatik ortadan, masaüstü yüksekten başlar. Menü ve sonuç ekranında çizim durur (`frameloop="demand"`). EffectComposer MSAA varsayılanı 8 → kademeye göre 4/2/0; Canvas'ın boşa çalışan MSAA'sı kapatıldı. `calcFacing` 24× hızlandı (300 → 12,5 µs; simülasyon karesi 288 → 34 µs). Gerçek cihaz testi için `?perf` (FPS + kademe) ve `?quality=low\|medium\|high`. | ✅ |
 
 **Kanıt disiplini:** Her denge kararı headless simülasyon taramasıyla
 (iyi/orta/kötü bot) ölçülmüş, her görsel/etkileşim hatası gerçek tarayıcıda
@@ -39,9 +41,16 @@ disipline devam edin.
 
 | Öncelik | İş | Not |
 |---|---|---|
-| P0 | PWA gerçek cihaz doğrulaması | `public/`'ta sadece favicon.svg + icons.svg var, 192/512 PNG manifest ikonu yok. Ana ekrana ekleme hiç test edilmedi. |
-| P1 | Mobil performans denetimi | Faz 7'de eklenen bloom/vignette/noise'in gerçek orta seviye telefonda FPS/draw-call maliyeti hiç ölçülmedi — bu artık P2'den P1'e yükseldi çünkü şu an ölçülmemiş bir maliyet var. |
-| P2 | Gerçek Metehan modeli | `src/characters/metehan/` hâlâ boş, placeholder capsule kullanılıyor. Asset dışarıdan gelmeli (Meshy/Tripo + Mixamo) — Claude 3D model üretemez. |
+| P0 | PWA gerçek cihaz doğrulaması | Manifest ikonları faz 8'de eklendi (önceden manifest var olmayan PNG'lere işaret ediyordu). Ana ekrana ekleme ve sesin iOS'ta açılması hâlâ gerçek cihazda test edilmedi. |
+| P1 | Gerçek telefonda performans ölçümü | Faz 9'da uyarlamalı kalite ve ölçüm araçları geldi; ölçümler SwiftShader (yazılım GPU) vekiliyle yapıldı — sıralama güvenilir, mutlak değerler değil. Orta seviye bir Android'de `?perf` ile FPS'e ve yerleşilen kademeye bakın; gerekirse `QUALITY` eşiklerini ayarlayın. 120 Hz ekranlarda 60 FPS sınırı ancak ısınma görülürse eklenmeli (90 Hz'de takılma yaratır). |
+| P2 | Gerçek Metehan modeli | `src/characters/metehan/` hâlâ boş, placeholder capsule kullanılıyor. Asset dışarıdan gelmeli (Meshy/Tripo + Mixamo; ya da Hugging Face connector'ı üzerinden Hunyuan3D/TRELLIS gibi Space'ler — iskelet/animasyon için yine Mixamo). |
+| P2 | Oyuncu verisiyle denge | Denge şu an bot simülasyonuna dayanıyor. Gerçek oyuncu verisi için olay takibi (dalga başlangıcı/bitişi, ölüm nedeni, vuruş başına düşen, ret sayısı) — PostHog connector'ı ile sorgulanabilir. Soft launch öncesi şart. |
+
+**Önerilen araçlar (araştırıldı, faz 9):** Hugging Face (3D/görsel üretim
+Space'leri), Splice (telifsiz ses/müzik örnekleri), PostHog (oynanış
+analitiği), Sentry (gerçek cihaz hataları, WebGL bağlam kaybı), Figma (kurulu,
+yeniden bağlanmalı — HUD/menü tasarımı). Skill'ler: `mobile-game-dev`,
+`psikoloji-bilimleri` (akış/motivasyon), Anthropic `design` eklentisi.
 
 ## 4. Teknoloji Yığını (gerçek, package.json'dan)
 
@@ -65,8 +74,23 @@ oxlint (lint)
   (`renderPriority`) üzerinden; `Renderer.tsx` kaldırıldı, aynı önceliğe
   EffectComposer oturdu. Öncelik sırası: oyuncu 0 → düşman 1 → yönetmen 2 →
   görseller 3 → kamera 5 → sarsıntı 6 → EffectComposer/çizim 10.
-- `src/hooks/` — girdi: `useKeyboard` (masaüstü), `useTouchControls.tsx`
-  (dokunmatik, aynı ref-tabanlı arayüz), `useStrikeInput` (SPACE)
+- `src/hooks/` — girdi: `useKeyboard` (masaüstü), `useTouchControls.ts`
+  (dokunmatik, aynı ref-tabanlı arayüz; bileşeni `components/TouchJoystick.tsx`),
+  `useStrikeInput` (Space vuruş, menülerde Space/Enter)
+- `src/audio/sfx.ts` — sentezlenmiş efektler. AudioContext BAŞLA tıklamasında
+  açılır (tarayıcı kuralı); efektler GameDirector'dan tetiklenir.
+- HUD: `HilalEnergyHUD` + `StartScreen` + `OutcomeScreen`, stil `hud.css`.
+- Testler: `src/mechanics/*.test.ts`, `src/perf/*.test.ts` (`npm test`).
+  `balance.test.ts` mekaniğin iki sözünü sabitler: durmak enerji vermez,
+  kiting kuşatmayı kurar.
+- Performans (`src/perf/quality.ts`): sahne hafif (~29 draw call); maliyet
+  piksel doldurmada. Kademeler yalnızca DPR/MSAA/gölge/bloom/noise çevirir.
+  MSAA oturum boyunca sabit (EffectComposer'ı yeniden kurdurmak eskisini
+  dispose etmiyor). DPR değişince composer tamponları kendiliğinden küçülüyor
+  (Canvas yeniden render → R3F boyutu yeniden yazıyor; ölçüldü). Ton eşlemesi
+  yok (renderer'dakini EffectComposer kapatıyor); gerçek ACES istenirse efekt
+  zincirine `<ToneMapping>` eklenmeli — görünümü değiştirir, sanat kararı.
+- Kare ölçümü: `?perf` ile üretimde FPS paneli; `__world`/`__gl` yalnızca dev.
 - Karakter mesh'i geldiğinde: `src/characters/metehan/`
 
 ## 6. Token Stratejisi / Model Yönlendirme

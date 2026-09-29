@@ -3,347 +3,241 @@ import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
+import { OutcomeScreen } from './OutcomeScreen'
+import { StartScreen } from './StartScreen'
+import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
+import type { QualityTier } from '../perf/quality'
+import './hud.css'
 
 const PHASE_LABEL: Record<HilalPhase, string> = {
-  idle: 'BEKLEME',
-  retreat: 'SAHTE ÇEKİLME',
-  gather: 'KUŞATMA',
-  strike: 'VURUŞ',
+  idle: 'Bekleme',
+  retreat: 'Sahte çekilme',
+  gather: 'Kuşatma',
+  strike: 'Vuruş',
 }
 
 const PHASE_COLOR: Record<HilalPhase, string> = {
   idle: '#8b7355',
   retreat: '#ffd700',
   gather: '#ff8c00',
-  strike: '#ff4400',
+  strike: '#ff5a1a',
 }
 
+/** Dalga bannerının alt satırı — oyuncuya neyin değiştiğini söyler. */
+const WAVE_HINT = [
+  'Düşmanı peşine tak, düzenini boz',
+  'Düşman artık daha çabuk toparlanıyor',
+  'Son dalga — ordunun tamamı karşında',
+]
+
+/**
+ * Oyun içi arayüz. Bilinçli olarak az bilgi: skor, dalga, can ve hilal
+ * enerjisi. Mekaniğin iç değişkenleri (kümelenme, disiplin…) yalnızca
+ * geliştirme modunda sağ üstte görünür.
+ */
 export function HilalEnergyHUD() {
-  // Alan bazlı seçiciler: sync her seferinde tüm HUD'u yeniden çizmesin.
-  const phase = useGameStore((s) => s.phase)
+  const started = useGameStore((s) => s.started)
   const outcome = useGameStore((s) => s.outcome)
-  const hilalEnergy = useGameStore((s) => s.hilalEnergy)
-  const playerHealth = useGameStore((s) => s.playerHealth)
+  const waveIndex = useGameStore((s) => s.waveIndex)
+  const [touch] = useState(isTouchDevice)
+
+  if (!started) return <StartScreen touch={touch} />
+
+  return (
+    <div className={touch ? 'hud is-touch' : 'hud'}>
+      <StatusCard />
+      <Corner />
+      <EnergyPanel touch={touch} />
+      {touch && <TouchStrikeButton />}
+      {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
+      {outcome === 'playing' && <WaveBanner key={waveIndex} index={waveIndex} />}
+      {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
+    </div>
+  )
+}
+
+function StatusCard() {
+  const waveIndex = useGameStore((s) => s.waveIndex)
+  const enemiesAlive = useGameStore((s) => s.enemiesAlive)
+  const score = useGameStore((s) => s.score)
+  const bestScore = useGameStore((s) => s.bestScore)
+  const health = useGameStore((s) => s.playerHealth)
   const attackers = useGameStore((s) => s.attackers)
+
+  return (
+    <div className="hud-card">
+      <div className="hud-row">
+        <span>
+          Dalga <b>{waveIndex + 1}/{TOTAL_WAVES}</b>
+        </span>
+        <span>
+          Düşman <b>{enemiesAlive}</b>
+        </span>
+      </div>
+      <div className={score > 0 && score >= bestScore ? 'hud-score is-best' : 'hud-score'}>
+        {score}
+      </div>
+      <div className="hud-row">
+        <span>Rekor {bestScore}</span>
+      </div>
+      <div className="hud-row">
+        <span>Metehan</span>
+        {attackers > 0 && <span className="contact">{attackers} temasta</span>}
+      </div>
+      <div className="bar">
+        <span
+          style={{
+            width: `${health}%`,
+            backgroundColor: health > 40 ? 'var(--health)' : 'var(--danger)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function Corner() {
+  const muted = useGameStore((s) => s.muted)
+  const toggleMute = useGameStore((s) => s.toggleMute)
+
+  return (
+    <div className="hud-corner">
+      <button
+        className="icon-btn"
+        onClick={toggleMute}
+        aria-label={muted ? 'Sesi aç' : 'Sesi kapat'}
+        title={muted ? 'Sesi aç' : 'Sesi kapat'}
+      >
+        <SpeakerIcon muted={muted} />
+      </button>
+      {PERF_OVERLAY && <PerfBadge />}
+      {import.meta.env.DEV && <DevStats />}
+    </div>
+  )
+}
+
+const TIER_LABEL: Record<QualityTier, string> = { low: 'düşük', medium: 'orta', high: 'yüksek' }
+
+/** Gerçek cihaz testinde hangi kademede olunduğunu gösterir (?perf). */
+function PerfBadge() {
+  const tier = useQuality((s) => s.tier)
+  const locked = useQuality((s) => s.locked)
+  // R3F'in kullandığı değerle aynı hesap: [1, maxDpr] aralığına sıkıştırılmış.
+  const dpr = Math.min(Math.max(1, window.devicePixelRatio), QUALITY[tier].maxDpr)
+
+  return (
+    <div className="dev-stats">
+      kalite {TIER_LABEL[tier]}
+      {locked && ' (sabit)'}
+      <br />
+      dpr {dpr.toFixed(2)}
+    </div>
+  )
+}
+
+/** Denge ayarı yaparken bakılan iç değişkenler — oyuncuya gösterilmez. */
+function DevStats() {
   const density = useGameStore((s) => s.enemyClusterDensity)
   const discipline = useGameStore((s) => s.enemyDiscipline)
   const vulnerability = useGameStore((s) => s.vulnerability)
-  const enemiesAlive = useGameStore((s) => s.enemiesAlive)
   const inCrescent = useGameStore((s) => s.inCrescent)
+  const pct = (v: number) => `%${Math.round(v * 100)}`
+
+  return (
+    <div className="dev-stats">
+      kümelenme {pct(density)}
+      <br />
+      disiplin {pct(discipline)}
+      <br />
+      kuşatılabilirlik {pct(vulnerability)}
+      <br />
+      yayda {inCrescent}
+    </div>
+  )
+}
+
+function EnergyPanel({ touch }: { touch: boolean }) {
+  const phase = useGameStore((s) => s.phase)
+  const energy = useGameStore((s) => s.hilalEnergy)
   const refusal = useGameStore((s) => s.refusal)
   const strikeReady = useGameStore((s) => s.strikeReady)
-  const totalKills = useGameStore((s) => s.totalKills)
-  const waveIndex = useGameStore((s) => s.waveIndex)
-  const score = useGameStore((s) => s.score)
-  const bestScore = useGameStore((s) => s.bestScore)
+  const inCrescent = useGameStore((s) => s.inCrescent)
   const requestStrike = useGameStore((s) => s.requestStrike)
-  const [touch] = useState(isTouchDevice)
 
   // Oyuncu basmadan önce durumu bilsin: şarj mı, menzil mi, yoksa hazır mı.
   const canStrike = strikeReady && inCrescent > 0
-  const butonMetni = !strikeReady
-    ? 'KUŞAT — şarj oluyor'
+  const label = !strikeReady
+    ? 'Kuşat — şarj oluyor'
     : inCrescent === 0
-      ? 'MENZİLE AL'
-      : `VUR — SPACE (${inCrescent})`
+      ? 'Menzile al'
+      : `Vur — Space (${inCrescent})`
 
   return (
-    <>
-      {/* Sol üst — saha durumu */}
-      <div style={{ ...panelStyle, top: 24, left: 24 }}>
-        <Stat label="Dalga" value={`${waveIndex + 1} / ${TOTAL_WAVES}`} />
-        <Stat label="Skor" value={String(score)} highlight={score > 0 && score >= bestScore} />
-        <Stat label="Rekor" value={String(bestScore)} />
-        <Stat label="Düşman" value={String(enemiesAlive)} />
-        <Stat label="Düşürülen" value={String(totalKills)} />
-        <Stat label="Kümelenme" value={`%${Math.round(density * 100)}`} />
-        <Stat label="Disiplin" value={`%${Math.round(discipline * 100)}`} />
-        <Stat label="Kuşatılabilirlik" value={`%${Math.round(vulnerability * 100)}`} />
-        <Stat label="Yayda" value={`${inCrescent} düşman`} highlight={inCrescent > 0} />
+    <div className={strikeReady ? 'energy is-ready' : 'energy'}>
+      {/*
+        Tuşa basıldığında ekranda hiçbir şey olmaması kabul edilemez: oyuncu
+        tuşun bozuk olduğunu sanıyor. Ret her zaman gerekçesiyle söylenir.
+      */}
+      <div className="refusal" key={refusal}>
+        {refusal === 'notReady' && '✕ Hilal hazır değil — kaçmaya devam et'}
+        {refusal === 'noTargets' && '✕ Menzilde düşman yok — yayın içine al'}
       </div>
-
-      {/* Sol alt — Metehan'ın canı */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 32,
-          left: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          pointerEvents: 'none',
-        }}
-      >
-        <div style={{ fontSize: 11, letterSpacing: 2, color: '#8b7355' }}>
-          METEHAN
-          {attackers > 0 && (
-            <span style={{ color: '#ff4400', marginLeft: 8 }}>
-              ✳ {attackers} DÜŞMAN TEMASTA
-            </span>
-          )}
-        </div>
-        <div
-          style={{
-            width: 180,
-            height: 10,
-            background: '#1a0a00',
-            border: '1px solid #4a3520',
-            borderRadius: 5,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              height: '100%',
-              width: `${playerHealth}%`,
-              background: playerHealth > 40 ? '#4a8b3a' : '#c53030',
-              transition: 'width 0.12s linear, background 0.3s ease',
-            }}
-          />
-        </div>
+      <div className="phase" style={{ color: PHASE_COLOR[phase] }}>
+        Hilal — {PHASE_LABEL[phase]}
       </div>
-
-      {/* Alt orta — hilal enerjisi */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 32,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-          pointerEvents: 'none',
-        }}
-      >
-        {/*
-          Tuşa basıldığında ekranda hiçbir şey olmaması kabul edilemez: oyuncu
-          tuşun bozuk olduğunu sanıyor. Ret her zaman gerekçesiyle söylenir.
-        */}
-        <div style={{ height: 18, display: 'flex', alignItems: 'center' }}>
-          {refusal !== 'none' && (
-            <div style={{ color: '#ff4400', fontSize: 12, letterSpacing: 1 }}>
-              {refusal === 'notReady'
-                ? '✕ HİLAL HAZIR DEĞİL — kuşatmayı sıkılaştır, kaçmaya devam et'
-                : '✕ MENZİLDE DÜŞMAN YOK — yayın içine al'}
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            color: PHASE_COLOR[phase],
-            fontSize: 12,
-            letterSpacing: 2,
-            textTransform: 'uppercase',
-            transition: 'color 0.3s ease',
-          }}
-        >
-          Hilal Enerjisi — {PHASE_LABEL[phase]}
-        </div>
-
-        <div
-          style={{
-            width: 240,
-            height: 12,
-            background: '#1a0a00',
-            border: `1px solid ${strikeReady ? '#ff4400' : '#8b4a00'}`,
-            borderRadius: 6,
-            overflow: 'hidden',
-            transition: 'border-color 0.3s ease',
-          }}
-        >
-          <div
-            style={{
-              height: '100%',
-              width: `${hilalEnergy}%`,
-              background: strikeReady
-                ? '#ff4400'
-                : 'linear-gradient(90deg, #8b4a00, #ffd700)',
-              transition: 'width 0.12s linear, background 0.3s ease',
-            }}
-          />
-        </div>
-
-        {/*
-          Buton hiçbir zaman disabled değil: devre dışı buton tıklanınca hiçbir
-          şey söylemez, oyuncu da bozuk sanır. Her tık ya vurur ya gerekçe verir.
-        */}
-        <button
-          onClick={requestStrike}
-          style={{
-            marginTop: 4,
-            padding: '8px 20px',
-            fontSize: 11,
-            letterSpacing: 2,
-            fontFamily: 'inherit',
-            color: canStrike ? '#1a0a00' : '#5c4a35',
-            background: canStrike ? '#ff4400' : 'transparent',
-            border: `1px solid ${canStrike ? '#ff4400' : '#4a3520'}`,
-            borderRadius: 4,
-            cursor: 'pointer',
-            pointerEvents: 'auto',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {butonMetni}
-        </button>
+      <div className="bar">
+        <span style={{ width: `${energy}%` }} />
       </div>
-
-      {/* Sağ üst — kontroller */}
-      <div style={{ ...panelStyle, top: 24, right: 24, textAlign: 'right' }}>
-        <div style={hintStyle}>
-          {touch ? 'Sol joystick — kaç, düşmanı peşinden sürükle' : 'WASD — kaç, düşmanı peşinden sürükle'}
-        </div>
-        <div style={hintStyle}>Durursan düşman düzenini toparlar</div>
-        <div style={hintStyle}>Hilal yayı menzilini gösterir —</div>
-        <div style={hintStyle}>fazla uzaklaşırsan vuruş ıskalar</div>
-        <div style={hintStyle}>{touch ? 'Sağ alt düğme — hilali kapat' : 'SPACE — hilali kapat'}</div>
-      </div>
-
-      {/* Sağ alt — dokunmatik vuruş düğmesi. Masaüstünde SPACE zaten var,
-          alt orta düğme de her cihazda çalışıyor; bu sadece dokunmatikte
-          iki elle oynarken sağ başparmağın rahat erişebileceği bir kopya. */}
-      {touch && (
-        <button
-          onClick={requestStrike}
-          style={{
-            position: 'absolute',
-            right: 28,
-            bottom: 28,
-            width: 88,
-            height: 88,
-            borderRadius: '50%',
-            fontSize: 11,
-            letterSpacing: 1,
-            fontFamily: 'inherit',
-            color: canStrike ? '#1a0a00' : '#5c4a35',
-            background: canStrike ? '#ff4400' : 'rgba(139, 74, 0, 0.18)',
-            border: `1px solid ${canStrike ? '#ff4400' : 'rgba(255, 215, 0, 0.35)'}`,
-            pointerEvents: 'auto',
-            touchAction: 'none',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {strikeReady ? `VUR (${inCrescent})` : 'KUŞAT'}
+      {/*
+        Buton hiçbir zaman disabled değil: devre dışı buton tıklanınca hiçbir
+        şey söylemez, oyuncu da bozuk sanır. Her tık ya vurur ya gerekçe verir.
+        Dokunmatikte sağ alttaki büyük düğme bu işi görüyor.
+      */}
+      {!touch && (
+        <button className={canStrike ? 'strike-btn is-live' : 'strike-btn'} onClick={requestStrike}>
+          {label.toUpperCase()}
         </button>
       )}
-
-      {outcome !== 'playing' && (
-        <OutcomeOverlay
-          outcome={outcome}
-          kills={totalKills}
-          waveIndex={waveIndex}
-          score={score}
-          bestScore={bestScore}
-        />
-      )}
-    </>
+    </div>
   )
 }
 
-function OutcomeOverlay({
-  outcome,
-  kills,
-  waveIndex,
-  score,
-  bestScore,
-}: {
-  outcome: 'victory' | 'defeat'
-  kills: number
-  waveIndex: number
-  score: number
-  bestScore: number
-}) {
-  const restart = useGameStore((s) => s.restart)
-  const isVictory = outcome === 'victory'
-  const isNewBest = score > 0 && score >= bestScore
+/** Sağ başparmağın rahat erişeceği büyük vuruş düğmesi. */
+function TouchStrikeButton() {
+  const strikeReady = useGameStore((s) => s.strikeReady)
+  const inCrescent = useGameStore((s) => s.inCrescent)
+  const requestStrike = useGameStore((s) => s.requestStrike)
+  const canStrike = strikeReady && inCrescent > 0
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        background: 'rgba(13, 5, 0, 0.82)',
-        pointerEvents: 'auto',
-      }}
+    <button
+      className={canStrike ? 'strike-touch is-live' : 'strike-touch'}
+      // pointerdown: click'in ~100 ms'lik gecikmesi vuruş hissini öldürüyor.
+      onPointerDown={requestStrike}
     >
-      <div
-        style={{
-          fontSize: 40,
-          letterSpacing: 8,
-          color: isVictory ? '#ffd700' : '#c53030',
-        }}
-      >
-        {isVictory ? 'ZAFER' : 'YENİLGİ'}
-      </div>
-      <div style={{ fontSize: 13, color: '#8b7355', letterSpacing: 1 }}>
-        {isVictory
-          ? `${TOTAL_WAVES} dalga da temizlendi — ${kills} düşman düşürüldü.`
-          : `${waveIndex + 1}. dalgada düştün — ${kills} düşman düşürüldü.`}
-      </div>
-      <div style={{ fontSize: 20, color: '#ffd700', letterSpacing: 2 }}>
-        SKOR {score}
-        {isNewBest && (
-          <span style={{ color: '#4a8b3a', marginLeft: 10, fontSize: 13 }}>YENİ REKOR</span>
-        )}
-      </div>
-      <button
-        onClick={restart}
-        style={{
-          marginTop: 8,
-          padding: '10px 28px',
-          fontSize: 12,
-          letterSpacing: 2,
-          fontFamily: 'inherit',
-          color: '#1a0a00',
-          background: '#ffd700',
-          border: 'none',
-          borderRadius: 4,
-          cursor: 'pointer',
-        }}
-      >
-        YENİDEN
-      </button>
-    </div>
+      {canStrike ? `VUR (${inCrescent})` : strikeReady ? 'MENZİL' : 'KUŞAT'}
+    </button>
   )
 }
 
-function Stat({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string
-  value: string
-  highlight?: boolean
-}) {
+function WaveBanner({ index }: { index: number }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-      <span style={{ color: '#8b7355' }}>{label}</span>
-      <span style={{ color: highlight ? '#ff6a00' : '#ffd700' }}>{value}</span>
+    <div className="wave-banner">
+      <h2>{index + 1}. DALGA</h2>
+      <p>{WAVE_HINT[index] ?? ''}</p>
     </div>
   )
 }
 
-const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-  fontSize: 12,
-  letterSpacing: 1,
-  pointerEvents: 'none',
-  minWidth: 140,
-}
-
-const hintStyle: React.CSSProperties = {
-  color: '#5c4a35',
-  fontSize: 11,
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" />
+      {muted ? (
+        <path d="m23 9-6 6M17 9l6 6" />
+      ) : (
+        <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
+      )}
+    </svg>
+  )
 }
