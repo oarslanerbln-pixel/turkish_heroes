@@ -398,16 +398,14 @@
   letter-spacing: 0.08em;
 }
 
-.commander em {
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-style: normal;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: var(--gold-deep);
-  border-radius: 999px;
+.hud .commander.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.commander.is-locked b::before {
+  content: '🔒 ';
+  font-size: 12px;
 }
 
 .hud .commander.is-selected {

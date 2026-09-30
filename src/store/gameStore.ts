@@ -4,6 +4,7 @@ import type { Outcome } from '../mechanics/combat'
 import { parseCommander, type CommanderId } from '../mechanics/scenario'
 import { resetWorld, world } from '../sim/world'
 import { loadBestScore } from '../sim/score'
+import { isUnlocked } from '../sim/progress'
 import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
 
 /**
@@ -81,9 +82,15 @@ const INITIAL_HUD: HudSnapshot = {
   emperorCaptured: false,
 }
 
-// ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır.
+// ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır
+// ve kilidi atlar.
 const urlCommander = typeof window !== 'undefined' ? parseCommander(window.location.search) : null
 if (urlCommander) resetWorld(urlCommander)
+
+/** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
+export function isCommanderAvailable(id: CommanderId): boolean {
+  return id === urlCommander || isUnlocked(id)
+}
 
 export const useGameStore = create<GameState>((set, get) => ({
   ...INITIAL_HUD,
@@ -95,7 +102,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   syncHud: (snapshot) => set(snapshot),
 
   selectCommander: (id) => {
-    if (id === world.commander) return
+    if (id === world.commander || !isCommanderAvailable(id)) return
     // Sahne arkada seçilen savaşı göstersin: ordu, ordugah, oyuncunun yeri.
     resetWorld(id)
     set({ commander: id, bestScore: loadBestScore(id) })

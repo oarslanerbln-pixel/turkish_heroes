@@ -9,6 +9,8 @@ import { Grass } from './world/Grass'
 import { StrikeSparks } from './StrikeSparks'
 import { Camp } from './world/Camp'
 import { CorpsBanners } from './CorpsBanners'
+import { ChargeWarnings } from './ChargeWarnings'
+import { ArrowVolley } from './ArrowVolley'
 import { DayCycle } from './DayCycle'
 import { TuningPanel } from './TuningPanel'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
@@ -122,7 +124,13 @@ export function Scene() {
           <CrescentPreview />
           <StrikeEffect />
           <StrikeSparks />
-          {commander === 'alp-arslan' && <CorpsBanners />}
+          {commander === 'alp-arslan' && (
+            <>
+              <CorpsBanners />
+              <ChargeWarnings />
+              <ArrowVolley />
+            </>
+          )}
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
           <FollowCamera />
           <CameraShake />

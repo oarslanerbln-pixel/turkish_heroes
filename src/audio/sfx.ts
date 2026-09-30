@@ -16,6 +16,8 @@ export type Sfx =
   | 'defeat'
   | 'charge'
   | 'dusk'
+  | 'horn'
+  | 'volley'
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
@@ -105,6 +107,16 @@ export function play(sfx: Sfx, intensity = 1): void {
       // Hamle uyarısı: sert, alçak Bizans borusu + nal gürültüsü.
       tone(t, 'sawtooth', 147, 139, 0.45, 0.22, 700)
       noise(t, 0.5, 300, 120, 0.35)
+      break
+    case 'horn':
+      // Selçuklu borusu: yükselen üç nota — "imparator korumasız".
+      horn(t, 196, 0.22)
+      horn(t + 0.2, 262, 0.22)
+      horn(t + 0.4, 392, 0.7)
+      break
+    case 'volley':
+      // Ok yağmuru: kısa, yüksek frekanslı vızıltı; intensity ok sayısını izler.
+      noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
       break
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.

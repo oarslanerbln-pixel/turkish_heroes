@@ -68,6 +68,11 @@ export interface World {
    * ilerlemez: kuşatmanın kapandığı an bir nefes boyu asılı kalır.
    */
   hitstop: number
+  /**
+   * Ağır çekimin kalan süresi (gerçek zaman, sn). > 0 iken simülasyon
+   * SLOWMO_SCALE hızında ilerler: ilk hamle ve akşam dönüşü gibi anlar okunsun.
+   */
+  slowmo: number
   /** Son vuruşta düşenlerin konumları — kıvılcım efekti tüketip boşaltır. */
   fxKills: Vec2[]
   /**
@@ -78,6 +83,8 @@ export interface World {
   /** Tek satırlık duyuru ("Güneş batıyor") ve ekranda kalacağı süre. */
   announcement: string
   announceTimer: number
+  /** Sırada bekleyen duyurular: aynı karede gelenler üst üste yazılmasın. */
+  announceQueue: string[]
   /** Kazanılan yıldız (0–3); yalnızca yıldızlı senaryolarda, sonuçta set edilir. */
   stars: number
 }
@@ -119,10 +126,12 @@ function initialWorld(commander: CommanderId): World {
     totalKills: 0,
     started: false,
     hitstop: 0,
+    slowmo: 0,
     fxKills: [],
     waveBreak: 0,
     announcement: '',
     announceTimer: 0,
+    announceQueue: [],
     stars: 0,
   }
 }
@@ -140,9 +149,26 @@ export function resetWorld(commander: CommanderId = world.commander): void {
   Object.assign(world, initialWorld(commander), { started })
 }
 
-export function announce(text: string, seconds = 2.2): void {
+/** Duyuru ekranda kalma süresi (sn). */
+export const ANNOUNCE_SECONDS = 2.2
+
+/** Tek satırlık duyuru; ekranda başka biri varsa sıraya girer. */
+export function announce(text: string): void {
+  if (world.announceTimer > 0) {
+    world.announceQueue.push(text)
+    return
+  }
   world.announcement = text
-  world.announceTimer = seconds
+  world.announceTimer = ANNOUNCE_SECONDS
+}
+
+/** Duyuru süresini gerçek zamanla eritir, bitince sıradakine geçer. */
+export function stepAnnouncements(realDelta: number): void {
+  if (world.announceTimer > 0) world.announceTimer = Math.max(0, world.announceTimer - realDelta)
+  if (world.announceTimer === 0 && world.announceQueue.length > 0) {
+    world.announcement = world.announceQueue.shift()!
+    world.announceTimer = ANNOUNCE_SECONDS
+  }
 }
 
 /**
@@ -159,5 +185,10 @@ export function isPlaying(): boolean {
  * düşmanlar ve yönetmen aynı kuralı kullansın diye tek yerde.
  */
 export function simDelta(delta: number): number {
-  return world.hitstop > 0 ? 0 : Math.min(delta, 0.1)
+  if (world.hitstop > 0) return 0
+  const dt = Math.min(delta, 0.1)
+  return world.slowmo > 0 ? dt * SLOWMO_SCALE : dt
 }
+
+/** Ağır çekimde simülasyonun hızı. */
+export const SLOWMO_SCALE = 0.3
