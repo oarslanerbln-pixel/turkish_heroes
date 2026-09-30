@@ -12,7 +12,7 @@ import {
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import { BATTLE_CONFIG } from '../mechanics/corps'
-import type { StrikeRefusal, Vec2 } from '../mechanics/types'
+import type { Vec2 } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
 import { recordBattleEnd, recordVictory } from '../sim/progress'
@@ -20,6 +20,8 @@ import { scenarioOf, SCORE_PER_KILL } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
 import { duck, setBattleMusic } from '../audio/ambience'
+import type { Refusal } from '../telemetry/summary'
+import { advanceClock, battleActive, nextAttempt, track } from '../telemetry/track'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -41,8 +43,9 @@ const REFUSAL_DURATION = 1.4
 const HITSTOP_SMALL = 0.04
 const HITSTOP_BIG = 0.07
 
-function refuse(reason: StrikeRefusal): void {
+function refuse(reason: Refusal): void {
   play('refuse')
+  track({ type: 'strike_refused', reason })
   world.refusal = reason
   world.refusalTimer = REFUSAL_DURATION
 }
@@ -57,6 +60,9 @@ export function GameDirector() {
     const siege = scenario.siege(world)
 
     if (isPlaying()) {
+      if (!battleActive()) {
+        track({ type: 'battle_start', commander: world.commander, attempt: nextAttempt(world.commander) })
+      }
       world.density = siege.density
       world.vulnerability = siege.vulnerability
       world.isRetreating = siege.centroid ? detectRetreat(siege.centroid) : false
@@ -113,6 +119,7 @@ export function GameDirector() {
           scenario.fallFilter(world),
         )
         scenario.afterStrike(world)
+        track({ type: 'strike', kills, alive: aliveBefore })
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
         const share = kills / Math.max(1, aliveBefore)
         play('strike', share)
@@ -155,6 +162,15 @@ export function GameDirector() {
         }
         if (world.battle) recordBattleEnd()
         world.bestScore = saveBestScore(world.commander, world.score)
+        track({
+          type: 'battle_end',
+          outcome: world.outcome,
+          cause: world.outcome === 'defeat' ? (world.battle?.reachedCamp ? 'camp' : 'health') : null,
+          score: world.score,
+          stars: world.stars,
+          health: Math.round(world.playerHealth),
+          wave: world.waveIndex,
+        })
         play(world.outcome)
         if (world.outcome === 'defeat') haptic(200)
       }
@@ -174,7 +190,10 @@ export function GameDirector() {
     if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - realDelta)
     // Ağır çekim ve duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
     else if (world.slowmo > 0) world.slowmo = Math.max(0, world.slowmo - realDelta)
-    if (isPlaying()) stepAnnouncements(realDelta)
+    if (isPlaying()) {
+      stepAnnouncements(realDelta)
+      advanceClock(realDelta)
+    }
 
     hudTimer.current += dt
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
