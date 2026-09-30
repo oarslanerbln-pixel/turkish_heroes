@@ -1,51 +1,208 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { TOTAL_WAVES } from '../mechanics/waves'
+import { commanderInfo } from '../mechanics/scenario'
+import type { Debrief, TimelineMark } from '../debrief/debrief'
 import { Ornament } from './Ornament'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 
+/**
+ * Sonuç ekranı: oyuncunun "bir daha" kararını verdiği yer (Kapı B). Solda
+ * sonuç, sağda savaş karnesi (bkz. debrief/debrief.ts). Tavsiye bilerek eylem
+ * düğmelerinin hemen üstünde: "bir dahakine şunu yapacağım" niyeti YENİDEN'e
+ * basmadan hemen önce kurulsun.
+ */
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
   const backToMenu = useGameStore((s) => s.backToMenu)
+  const playCommander = useGameStore((s) => s.playCommander)
   const kills = useGameStore((s) => s.totalKills)
   const score = useGameStore((s) => s.score)
   const bestScore = useGameStore((s) => s.bestScore)
-  const battle = useGameStore((s) => s.commander === 'alp-arslan')
+  const commander = useGameStore((s) => s.commander)
+  const battle = commander !== 'metehan'
+  const stars = useGameStore((s) => s.stars)
+  const captured = useGameStore((s) => s.emperorCaptured)
+  const report = useGameStore((s) => s.debrief)
+  const unlocked = useGameStore((s) => s.unlocked)
   const isVictory = outcome === 'victory'
   const isNewBest = score > 0 && score >= bestScore
+  // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
+  // bir sonraki yıldızın "az kaldı"sı için.
+  const showClose = report?.close && (battle || !isVictory)
 
   return (
-    <div className="screen">
-      <div className={isVictory ? 'result-title is-victory' : 'result-title is-defeat'}>
-        {isVictory ? 'ZAFER' : 'YENİLGİ'}
-      </div>
-      <Ornament width={240} />
-      {battle ? <BattleSummary isVictory={isVictory} /> : <WaveSummary isVictory={isVictory} />}
-
-      <div className="result-stats">
-        <div>
-          Skor <b>{score}</b>
+    <div className="screen outcome">
+      <div className="outcome-main">
+        <div className={isVictory ? 'result-title is-victory' : 'result-title is-defeat'}>
+          {isVictory ? 'ZAFER' : 'YENİLGİ'}
         </div>
-        <div>
-          Düşürülen <b>{kills}</b>
+        <Ornament width={240} />
+        {battle && isVictory && <Stars count={stars} />}
+        <div className="subtitle">
+          {showClose && <span className="close-chip">AZ KALDI</span>}
+          {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
         </div>
-        <div>
-          Rekor <b>{bestScore}</b>
+        {captured && <div className="epilogue">{EPILOGUE[commander]}</div>}
+
+        <div className="result-stats">
+          <div>
+            Skor <b>{score}</b>
+          </div>
+          <div>
+            Düşürülen <b>{kills}</b>
+          </div>
+          <div>
+            Rekor <b>{bestScore}</b>
+          </div>
         </div>
-      </div>
-
-      {isNewBest && <div className="badge">YENİ REKOR</div>}
-
-      <div className="result-actions">
-        <button className="primary-btn" onClick={restart} autoFocus>
-          YENİDEN
-        </button>
-        <button className="secondary-btn" onClick={backToMenu}>
-          KOMUTANLAR
-        </button>
+        {isNewBest && <div className="badge">YENİ REKOR</div>}
       </div>
 
-      {TELEMETRY_DEBUG && <TelemetryExport />}
+      <div className="outcome-side">
+        {/* Kilit açıldıysa tek çağrı yeni komutan: tavsiye onu gölgelemesin. */}
+        {report && <Karne report={report} battle={battle} advice={!unlocked} />}
+
+        {unlocked ? (
+          <div className="unlock">
+            <span className="unlock-label">YENİ KOMUTAN</span>
+            <b>{commanderInfo(unlocked).name}</b>
+            <span>{commanderInfo(unlocked).battle}</span>
+            <button className="primary-btn" onClick={() => playCommander(unlocked)} autoFocus>
+              SAVAŞA GİR
+            </button>
+          </div>
+        ) : null}
+
+        <div className="result-actions">
+          <button
+            className={unlocked ? 'secondary-btn' : 'primary-btn'}
+            onClick={restart}
+            autoFocus={!unlocked}
+          >
+            YENİDEN
+          </button>
+          <button className="secondary-btn" onClick={backToMenu}>
+            KOMUTANLAR
+          </button>
+        </div>
+
+        {TELEMETRY_DEBUG && <TelemetryExport />}
+      </div>
+    </div>
+  )
+}
+
+/** Üç yıldızın (imparator / Manuel) tarihteki sonucu. */
+const EPILOGUE: Partial<Record<string, string>> = {
+  'alp-arslan': 'Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.',
+  kilicarslan:
+    "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
+}
+
+function Stars({ count }: { count: number }) {
+  return (
+    <div className="stars" aria-label={`${count} yıldız`}>
+      {[1, 2, 3].map((n) => (
+        <span key={n} className={n <= count ? 'is-earned' : undefined}>
+          ★
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Savaş karnesi: savaşın zaman çizelgesi, en iyi an, bir sonraki hedef ve tek
+ * bir tavsiye. Sıra bilinçli: önce ne oldu (çizelge), sonra en iyi an (zirve),
+ * sonra ne kadar yaklaştın (hedef), en son ne yapmalı (tavsiye → düğmeler).
+ */
+function Karne({ report, battle, advice: showAdvice }: { report: Debrief; battle: boolean; advice: boolean }) {
+  const { goal, peak, advice, timeline } = report
+  const progress = goal ? Math.min(1, goal.value / Math.max(1, goal.target)) : 0
+
+  return (
+    <section className="karne" aria-label="Savaş karnesi">
+      {/* Boş şerit bir şey anlatmaz: hiç vuruş ya da olay yoksa gösterilmez. */}
+      {timeline.marks.length > 0 && (
+        <Timeline marks={timeline.marks} dusk={timeline.dusk} battle={battle} />
+      )}
+      {peak && <div className="karne-peak">{peak}</div>}
+      {goal && (
+        <div className="karne-goal">
+          <div className="karne-goal-row">
+            <span>{goal.label}</span>
+            <b>
+              {goal.value} / {goal.target} {goal.unit}
+            </b>
+          </div>
+          <div className="bar">
+            <span style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      {showAdvice && (
+        <div className="karne-advice">
+          <span>SONRAKİ HAMLE</span>
+          {advice.text}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Vuruş noktasının çapı (px): düşen sayısıyla büyür, üst sınırlı. */
+function strikeSize(kills: number): number {
+  return Math.round(6 + Math.min(12, kills * 0.5))
+}
+
+/**
+ * Savaşın şeridi: altın noktalar vuruşlar (büyüklüğü düşen sayısı), kırmızı
+ * çentikler hamleler, dikey çizgiler dalga sonları. Malazgirt'te şerit gün
+ * batımında geceye döner — hilali nerede harcadığın bir bakışta görünsün.
+ */
+function Timeline({
+  marks,
+  dusk,
+  battle,
+}: {
+  marks: TimelineMark[]
+  dusk: number | null
+  battle: boolean
+}) {
+  const best = marks.reduce((m, x) => (x.kind === 'strike' && (x.size ?? 0) > (m?.size ?? 0) ? x : m), null as TimelineMark | null)
+  return (
+    <div className="timeline">
+      <div
+        className={dusk === null ? 'tl-track' : 'tl-track has-dusk'}
+        style={dusk === null ? undefined : ({ '--dusk': `${dusk * 100}%` } as CSSProperties)}
+      >
+        {marks.map((m, i) => (
+          <i
+            key={i}
+            className={`tl-${m.kind}`}
+            style={
+              {
+                left: `${m.at * 100}%`,
+                '--size': m.kind === 'strike' ? `${strikeSize(m.size ?? 0)}px` : undefined,
+              } as CSSProperties
+            }
+          >
+            {m === best && <em>{m.size}</em>}
+          </i>
+        ))}
+      </div>
+      <div className="tl-legend">
+        <span className="tl-key-strike">vuruş</span>
+        {battle ? (
+          <>
+            <span className="tl-key-charge">hamle</span>
+            {dusk !== null && <span className="tl-key-dusk">gün batımı</span>}
+            {marks.some((m) => m.kind === 'block') && <span className="tl-key-block">yol kesildi</span>}
+          </>
+        ) : (
+          <span className="tl-key-wave">dalga sonu</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -69,60 +226,5 @@ function TelemetryExport() {
           ? 'KOPYALANAMADI'
           : `VERİYİ KOPYALA · ${loggedBattles()} SAVAŞ`}
     </button>
-  )
-}
-
-function WaveSummary({ isVictory }: { isVictory: boolean }) {
-  const waveIndex = useGameStore((s) => s.waveIndex)
-  return (
-    <div className="subtitle">
-      {isVictory
-        ? `${TOTAL_WAVES} dalganın hepsi kuşatıldı.`
-        : `${waveIndex + 1}. dalgada düştün. Düşmanı daha uzun peşinde sürükle.`}
-    </div>
-  )
-}
-
-/**
- * Malazgirt sonucu: yıldızlar ve neden. Yenilginin iki sebebi farklı ders
- * veriyor — ordugaha varış "daha erken yıprat", can "hamleden kaç".
- */
-function BattleSummary({ isVictory }: { isVictory: boolean }) {
-  const stars = useGameStore((s) => s.stars)
-  const captured = useGameStore((s) => s.emperorCaptured)
-  const cause = useGameStore((s) => s.defeatCause)
-
-  if (!isVictory) {
-    return (
-      <div className="subtitle">
-        {cause === 'camp'
-          ? 'Bizans ordusu ordugaha ulaştı. Birlikleri daha erken taciz et.'
-          : 'Ağır süvari seni çiğnedi. Kırmızıyı görünce menzilden çık.'}
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <div className="stars" aria-label={`${stars} yıldız`}>
-        {[1, 2, 3].map((n) => (
-          <span key={n} className={n <= stars ? 'is-earned' : undefined}>
-            ★
-          </span>
-        ))}
-      </div>
-      <div className="subtitle">
-        {captured
-          ? 'İmparator Romanos Diogenes esir alındı; ordu teslim oldu.'
-          : stars >= 2
-            ? 'Gece çöktü. Bizans ordusunun yarısından fazlası düştü.'
-            : 'Gece çöktü; ordu ordugaha ulaşamadı. Akşam dönüşünü kolla.'}
-      </div>
-      {captured && (
-        <div className="epilogue">
-          Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.
-        </div>
-      )}
-    </>
   )
 }

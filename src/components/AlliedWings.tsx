@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { terrainHeight } from './world/terrainShape'
 import { useFrame } from '@react-three/fiber'
 import { InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
 import type { BattleState } from '../mechanics/corps'
@@ -180,7 +181,9 @@ export function AlliedWings() {
 
       const gait = Math.min(1, speed[n] / 3)
       const phase = time * GALLOP_RATE + n * 1.3
-      dummy.position.set(x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, z)
+      // Geçitte kollar yamaçta: süvari duvarın üstünde durur.
+      const ground = b.layout.pass ? terrainHeight(x, z, true) : 0
+      dummy.position.set(x, ground + Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, z)
       dummy.rotation.set(Math.sin(phase) * GALLOP_PITCH * gait, heading[n], 0)
       dummy.updateMatrix()
       horseMesh.setMatrixAt(n, dummy.matrix)

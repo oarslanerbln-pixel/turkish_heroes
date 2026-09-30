@@ -5,10 +5,10 @@
 // mekaniği, kamera ve arayüz iskeleti ortak; senaryoya özgü kurallar
 // sim/scenarios.ts'teki uygulamalarda. Senaryolar birbirini bilmez.
 
-import { BATTLE_SIZE } from './corps'
+import { armySize, MALAZGIRT, MIRYOKEFALON, type BattleLayout } from './corps'
 import { MAX_WAVE_ENEMIES } from './waves'
 
-export type CommanderId = 'metehan' | 'alp-arslan'
+export type CommanderId = 'metehan' | 'alp-arslan' | 'kilicarslan'
 
 export interface CommanderInfo {
   id: CommanderId
@@ -17,6 +17,8 @@ export interface CommanderInfo {
   battle: string
   /** Başlangıç ekranındaki üç adım. */
   steps: readonly { title: string; text: string }[]
+  /** Bu komutanla zafer kazanınca açılır; yoksa hep açık. */
+  unlockedBy?: CommanderId
 }
 
 export const COMMANDERS: readonly CommanderInfo[] = [
@@ -34,10 +36,22 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     id: 'alp-arslan',
     name: 'Alp Arslan',
     battle: 'Malazgirt · 1071',
+    unlockedBy: 'metehan',
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
       { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },
       { title: '3 · Akşamı bekle', text: 'Gün batınca ordu döner. Çözülen hattı kuşat, imparatoru esir al.' },
+    ],
+  },
+  {
+    id: 'kilicarslan',
+    name: 'II. Kılıçarslan',
+    battle: 'Miryokefalon · 1176',
+    unlockedBy: 'alp-arslan',
+    steps: [
+      { title: '1 · Yolu kes', text: 'Kol geçide girerken boğazın hemen ötesinde YOLU KES. Kolun başı durur.' },
+      { title: '2 · Sıkıştır', text: 'Arkadan gelen üst üste biner; darda düzen tutulmaz. Öncüyü taciz et, yığını temizlemesin.' },
+      { title: '3 · Kuşat', text: 'Sıkışan birliği hilalle kapat. Manuel açıkta kalınca savaş biter.' },
     ],
   },
 ]
@@ -52,5 +66,12 @@ export function parseCommander(search: string): CommanderId | null {
   return COMMANDERS.some((c) => c.id === value) ? (value as CommanderId) : null
 }
 
+/** Ordu düzeninde savaşan komutanın savaş alanı; dalgalı savaşta null. */
+export function battleLayout(id: CommanderId): BattleLayout | null {
+  if (id === 'alp-arslan') return MALAZGIRT
+  if (id === 'kilicarslan') return MIRYOKEFALON
+  return null
+}
+
 /** instancedMesh kapasitesi: tüm senaryoların en kalabalık sahnesi. */
-export const ENEMY_CAPACITY = Math.max(MAX_WAVE_ENEMIES, BATTLE_SIZE)
+export const ENEMY_CAPACITY = Math.max(MAX_WAVE_ENEMIES, armySize(MALAZGIRT), armySize(MIRYOKEFALON))

@@ -6,22 +6,23 @@ import {
   countInCrescent,
   executeStrike,
   HILAL_CONFIG,
+  isRetreatingFrom,
   isStrikeReady,
   resolvePhase,
   stepEnergy,
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
-import { BATTLE_CONFIG } from '../mechanics/corps'
-import type { Vec2 } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
-import { recordBattleEnd, recordVictory } from '../sim/progress'
-import { scenarioOf, SCORE_PER_KILL } from '../sim/scenarios'
+import { isUnlocked, recordBattleEnd, recordLadder, recordVictory } from '../sim/progress'
+import { scenarioOf, SCORE_PER_KILL, type Scenario } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
 import { duck, setBattleMusic } from '../audio/ambience'
-import type { Refusal } from '../telemetry/summary'
-import { advanceClock, battleActive, nextAttempt, track } from '../telemetry/track'
+import { COMMANDERS } from '../mechanics/scenario'
+import { debrief } from '../debrief/debrief'
+import type { Refusal, TelemetryEvent } from '../telemetry/summary'
+import { advanceClock, battleActive, nextAttempt, projectEnd, track } from '../telemetry/track'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -29,12 +30,6 @@ const DIRECTOR_PRIORITY = 2
 
 /** HUD'u 60Hz yerine ~12Hz güncelle — enerji çubuğu CSS ile yumuşatılıyor. */
 const HUD_SYNC_INTERVAL = 0.08
-
-/** Bu hızın altında hareket eden oyuncu kaçmıyor, hattını tutuyordur. */
-const MIN_EVASION_SPEED = 1
-
-/** Bu hızdan daha sert bir yaklaşma "hücum"dur; düşmanın düzenini bozmaz. */
-const APPROACH_TOLERANCE = 1.5
 
 /** Ret mesajının ekranda kalma süresi (saniye). */
 const REFUSAL_DURATION = 1.4
@@ -50,6 +45,44 @@ function refuse(reason: Refusal): void {
   world.refusalTimer = REFUSAL_DURATION
 }
 
+/**
+ * Savaş bitti: puan, ilerleme (kilit, Metehan merdiveni), rekor, karne ve
+ * olay kaydı. Karne kayıttan önce hesaplanır: gösterilen tavsiye de
+ * battle_end'in içinde kayda geçsin ("tavsiye işe yarıyor mu" sorusu için).
+ */
+function finishBattle(scenario: Scenario): void {
+  const victory = world.outcome === 'victory'
+  const locked = COMMANDERS.filter((c) => !isUnlocked(c.id)).map((c) => c.id)
+  if (victory) {
+    world.score += scenario.victoryBonus(world)
+    recordVictory(world.commander)
+  }
+  if (world.battle) recordBattleEnd(world.commander)
+  else recordLadder(victory)
+  world.unlocked = locked.find((id) => isUnlocked(id)) ?? null
+  world.bestScore = saveBestScore(world.commander, world.score)
+
+  const end: Extract<TelemetryEvent, { type: 'battle_end' }> = {
+    type: 'battle_end',
+    outcome: victory ? 'victory' : 'defeat',
+    cause: victory ? null : world.battle?.reachedCamp ? 'camp' : 'health',
+    score: world.score,
+    stars: world.stars,
+    health: Math.round(world.playerHealth),
+    wave: world.waveIndex,
+    // Bozguna uğrayıp kaçmakta olan artık savaşmıyor.
+    remaining: world.enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0),
+    // Malazgirt'in saati gün çizgisininki: battle.time.
+    simTime: world.battle?.time ?? world.time,
+  }
+  const summary = projectEnd(end)
+  world.debrief = summary ? debrief(summary, { best: world.bestScore }) : null
+  track({ ...end, advice: world.debrief?.advice.id })
+
+  play(victory ? 'victory' : 'defeat')
+  if (!victory) haptic(200)
+}
+
 export function GameDirector() {
   const hudTimer = useRef(0)
   const syncHud = useGameStore((s) => s.syncHud)
@@ -61,16 +94,24 @@ export function GameDirector() {
 
     if (isPlaying()) {
       if (!battleActive()) {
-        track({ type: 'battle_start', commander: world.commander, attempt: nextAttempt(world.commander) })
+        track({
+          type: 'battle_start',
+          commander: world.commander,
+          attempt: nextAttempt(world.commander),
+          assist: scenario.assist(world),
+        })
       }
+      world.time += dt
       world.density = siege.density
       world.vulnerability = siege.vulnerability
-      world.isRetreating = siege.centroid ? detectRetreat(siege.centroid) : false
+      world.isRetreating = siege.centroid
+        ? isRetreatingFrom(world.player, world.playerVel, siege.centroid)
+        : false
 
       world.attackers = countAttackers(world.enemies, world.player)
       world.playerHealth = Math.max(
         0,
-        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage()),
+        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage(world)),
       )
 
       // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
@@ -155,25 +196,7 @@ export function GameDirector() {
 
       const prevOutcome = world.outcome
       world.outcome = scenario.outcome(world)
-      if (world.outcome !== 'playing' && prevOutcome === 'playing') {
-        if (world.outcome === 'victory') {
-          world.score += scenario.victoryBonus(world)
-          recordVictory(world.commander)
-        }
-        if (world.battle) recordBattleEnd()
-        world.bestScore = saveBestScore(world.commander, world.score)
-        track({
-          type: 'battle_end',
-          outcome: world.outcome,
-          cause: world.outcome === 'defeat' ? (world.battle?.reachedCamp ? 'camp' : 'health') : null,
-          score: world.score,
-          stars: world.stars,
-          health: Math.round(world.playerHealth),
-          wave: world.waveIndex,
-        })
-        play(world.outcome)
-        if (world.outcome === 'defeat') haptic(200)
-      }
+      if (world.outcome !== 'playing' && prevOutcome === 'playing') finishBattle(scenario)
     }
 
     // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
@@ -219,37 +242,19 @@ export function GameDirector() {
         announcement: world.announceTimer > 0 ? world.announcement : '',
         stars: world.stars,
         battleTime: b?.time ?? 0,
-        campDistance: b ? Math.max(0, BATTLE_CONFIG.campZ - b.frontZ) : 0,
+        campDistance: b ? Math.max(0, b.layout.objectiveZ - b.frontZ) : 0,
         corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
         wingOrders: b ? b.wings.map((w) => w.order) : [],
         wingStrength: b ? b.wings.map((w) => w.strength) : [],
         defeatCause: b?.reachedCamp ? 'camp' : 'health',
         emperorCaptured: b?.emperorCaptured ?? false,
+        debrief: world.debrief,
+        unlocked: world.unlocked,
+        canBlock: !!b?.layout.pass && !b.blockadeUsed,
+        blockade: b?.blockade?.strength ?? 0,
       })
     }
   }, DIRECTOR_PRIORITY)
 
   return null
-}
-
-/**
- * Oyuncu düşmanı peşinden sürüklüyor mu?
- *
- * Yalnızca "merkezden uzaklaşma" aransaydı çember çizerek kaçmak (atlı okçunun
- * asıl taktiği) sayılmazdı; teğetsel harekette uzaklaşma bileşeni sıfırdır.
- * Kural bu yüzden iki koşula dayanır: oyuncu gerçekten hareket ediyor ve
- * kümenin üstüne yürümüyor. Durmak hat tutmaktır, hücum etmek de kaçmak değildir.
- */
-function detectRetreat(centroid: Vec2): boolean {
-  const speed = Math.hypot(world.playerVel.x, world.playerVel.z)
-  if (speed < MIN_EVASION_SPEED) return false
-
-  const awayX = world.player.x - centroid.x
-  const awayZ = world.player.z - centroid.z
-  const len = Math.hypot(awayX, awayZ)
-  if (len < 0.001) return false
-
-  // Hareket vektörünün "merkezden uzaklaşma" yönündeki bileşeni.
-  const speedAway = (world.playerVel.x * awayX + world.playerVel.z * awayZ) / len
-  return speedAway > -APPROACH_TOLERANCE
 }

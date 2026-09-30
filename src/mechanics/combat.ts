@@ -33,7 +33,8 @@ export function countAttackers(enemies: readonly Enemy[], playerPos: Vec2): numb
   const rSq = COMBAT_CONFIG.contactRadius ** 2
 
   for (const e of enemies) {
-    if (!e.alive) continue
+    // Bozguna uğrayan kaçıyor, vurmuyor.
+    if (!e.alive || e.routed) continue
     const dx = e.pos.x - playerPos.x
     const dz = e.pos.z - playerPos.z
     if (dx * dx + dz * dz <= rSq) n++

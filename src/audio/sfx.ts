@@ -20,6 +20,8 @@ export type Sfx =
   | 'volley'
   | 'order'
   | 'wingCharge'
+  | 'rout'
+  | 'rockslide'
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
@@ -146,6 +148,16 @@ export function play(sfx: Sfx, intensity = 1): void {
       horn(t, 262, 0.2)
       horn(t + 0.16, 392, 0.5)
       noise(t, 0.9, 380, 140, 0.45)
+      break
+    case 'rockslide':
+      // Kaya yığını: alçak gürleme + ardışık darbeler.
+      noise(t, 1.1, 260, 60, 0.55)
+      for (let i = 0; i < 4; i++) tone(t + 0.08 + i * 0.13, 'sine', 80 - i * 8, 35, 0.3, 0.5)
+      break
+    case 'rout':
+      // Bozgun: düşmanın borusu düşerek susar, nal sesi uzaklaşır.
+      tone(t, 'sawtooth', 220, 147, 0.7, 0.16, 800)
+      noise(t + 0.1, 1.3, 420, 110, 0.3)
       break
   }
 }

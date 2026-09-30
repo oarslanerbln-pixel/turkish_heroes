@@ -76,13 +76,17 @@ export interface WingState {
   presence: number
   /** Bu hücumun ilk darbesi vuruldu mu — emir değişince sıfırlanır. */
   shocked: boolean
+  /** Pusu yeri (sağ kol için; sol kol x'in tersinde). Savaş alanına göre. */
+  home: Vec2
 }
 
-export function createWings(): WingState[] {
+/** @param home Pusu yeri (sağ kolunki); verilmezse Malazgirt ordugahının yanı. */
+export function createWings(home: Vec2 = { x: WING_CONFIG.homeX, z: WING_CONFIG.homeZ }): WingState[] {
   return ([-1, 1] as const).map((side) => ({
     side,
+    home: { x: side * home.x, z: home.z },
     order: 'ambush' as WingOrder,
-    pos: { x: side * WING_CONFIG.homeX, z: WING_CONFIG.homeZ },
+    pos: { x: side * home.x, z: home.z },
     strength: 1,
     target: -1,
     presence: 0,
@@ -108,8 +112,8 @@ export function orderWing(w: WingState, order: WingOrder): boolean {
  */
 export function moveWing(w: WingState, anchor: Vec2 | null, dt: number): void {
   const cfg = WING_CONFIG
-  let px = w.side * cfg.homeX
-  let pz = cfg.homeZ
+  let px = w.home.x
+  let pz = w.home.z
   if (w.order !== 'ambush' && anchor) {
     px = anchor.x + w.side * (w.order === 'harass' ? cfg.harassOffset : cfg.chargeOffset)
     pz = anchor.z
@@ -139,8 +143,7 @@ export function moveWing(w: WingState, anchor: Vec2 | null, dt: number): void {
 /** Pusu yerine varmış mı (dinlenme yalnızca orada). */
 export function isResting(w: WingState): boolean {
   if (w.order !== 'ambush') return false
-  const home = w.side * WING_CONFIG.homeX
-  return Math.hypot(w.pos.x - home, w.pos.z - WING_CONFIG.homeZ) < WING_CONFIG.arriveNear
+  return Math.hypot(w.pos.x - w.home.x, w.pos.z - w.home.z) < WING_CONFIG.arriveNear
 }
 
 /**

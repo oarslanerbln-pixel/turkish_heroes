@@ -8,6 +8,7 @@ import { Stones } from './world/Stones'
 import { Grass } from './world/Grass'
 import { StrikeSparks } from './StrikeSparks'
 import { Camp } from './world/Camp'
+import { Blockade } from './world/Blockade'
 import { CorpsBanners } from './CorpsBanners'
 import { AlliedWings } from './AlliedWings'
 import { ChargeWarnings } from './ChargeWarnings'
@@ -123,6 +124,7 @@ export function Scene() {
           <Grass />
           <SteppeWind />
           {commander === 'alp-arslan' && <Camp />}
+          {commander === 'kilicarslan' && <Blockade />}
           <MetehanPlaceholder />
           <EnemySwarm />
           <GameDirector />
@@ -131,7 +133,7 @@ export function Scene() {
           <StrikeEffect />
           <StrikeSparks />
           <DustTrails />
-          {commander === 'alp-arslan' && (
+          {commander !== 'metehan' && (
             <>
               <CorpsBanners />
               <AlliedWings />

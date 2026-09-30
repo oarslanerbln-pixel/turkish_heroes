@@ -6,6 +6,7 @@
 // yaklaşık 60 birim öteyi görüyor: tepeler savaş alanını bir vadi gibi çerçeveler.
 
 import { Color } from 'three'
+import { passHalfWidth } from '../../mechanics/pass'
 
 /** Bu yarıçapın içinde yükseklik tam sıfır (oyuncu sınırı 29'da). */
 export const FLAT_RADIUS = 34
@@ -47,11 +48,26 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t)
 }
 
-/** Arazinin (x, z) noktasındaki yüksekliği. Arenada tam sıfır. */
-export function terrainHeight(x: number, z: number): number {
-  const rise = smoothstep(FLAT_RADIUS, 110, Math.hypot(x, z))
+/**
+ * Geçidin (Miryokefalon) duvarları: taban kenarından 3,5 birimde dikleşip
+ * 7–14 birime yükselir. Taban (|x| ≤ yarı genişlik) tam sıfır: birimler y = 0'da
+ * yürümeye devam eder, yalnızca yamaçtaki kollar duvarın üstünde durur.
+ */
+export function passWallHeight(x: number, z: number): number {
+  const edge = passHalfWidth(z)
+  const rise = smoothstep(edge, edge + 3.5, Math.abs(x))
   if (rise === 0) return 0
-  return rise * (5 + 16 * fbm(x * 0.025 + 7.3, z * 0.025 - 2.1))
+  return rise * (7 + 7 * fbm(x * 0.09 + 3.1, z * 0.09 - 5.7))
+}
+
+/**
+ * Arazinin (x, z) noktasındaki yüksekliği. Arenada tam sıfır; geçitte
+ * (`pass`) taban dışı duvar.
+ */
+export function terrainHeight(x: number, z: number, pass = false): number {
+  const rise = smoothstep(FLAT_RADIUS, 110, Math.hypot(x, z))
+  const hills = rise === 0 ? 0 : rise * (5 + 16 * fbm(x * 0.025 + 7.3, z * 0.025 - 2.1))
+  return pass ? Math.max(hills, passWallHeight(x, z)) : hills
 }
 
 // Renkler three'nin çalışma uzayında (doğrusal) karıştırılıyor; Color hex'i
@@ -60,16 +76,22 @@ const EARTH = new Color('#5c4428')
 const STRAW = new Color('#98793f')
 const HILL = new Color('#6b683c')
 const TRACK = new Color('#42301d')
+const ROCK = new Color('#6e6254')
 
-/** (x, z) noktasının zemin rengini `out` içine yazar. */
-export function terrainColor(x: number, z: number, out: Color): Color {
+/** (x, z) noktasının zemin rengini `out` içine yazar; geçitte duvarlar kaya. */
+export function terrainColor(x: number, z: number, out: Color, pass = false): Color {
   const r = Math.hypot(x, z)
   // Kuru ot öbekleri ile çıplak toprak lekeleri.
   out.copy(EARTH).lerp(STRAW, smoothstep(0.35, 0.72, fbm(x * 0.08, z * 0.08)))
   // Tepeler biraz daha yeşilimsi: derinlik hissi.
   out.lerp(HILL, smoothstep(FLAT_RADIUS, 75, r) * 0.6)
-  // Aşınmış çevre yolu: sınırı bir çizgi yerine arazinin kendisi gösterir.
-  out.lerp(TRACK, (1 - smoothstep(0, 1.8, Math.abs(r - TRACK_RADIUS))) * 0.55)
+  if (pass) {
+    // Geçitte sınırı duvarlar gösterir: çevre yolu yok, yamaçlar kaya.
+    out.lerp(ROCK, smoothstep(0.4, 3, passWallHeight(x, z)) * 0.85)
+  } else {
+    // Aşınmış çevre yolu: sınırı bir çizgi yerine arazinin kendisi gösterir.
+    out.lerp(TRACK, (1 - smoothstep(0, 1.8, Math.abs(r - TRACK_RADIUS))) * 0.55)
+  }
   // İnce ayrıntı: aynı renkte geniş alanlar plastik görünür.
   out.multiplyScalar(0.9 + 0.2 * valueNoise(x * 0.7, z * 0.7))
   return out

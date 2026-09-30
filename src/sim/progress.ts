@@ -2,33 +2,45 @@
 // gördü. localStorage'da tek anahtar; gizli sekmede okuma/yazma atabilir, o
 // zaman ilerleme o oturumla sınırlı kalır (oyun yine oynanır).
 
-import type { CommanderId } from '../mechanics/scenario'
+import { commanderInfo, type CommanderId } from '../mechanics/scenario'
+import { LADDER_TOP, nextLadderStep } from '../mechanics/waves'
 import { loadBestScore } from './score'
 
 const STORAGE_KEY = 'hilal_progress'
 
-export type HintId = 'harass' | 'charge' | 'dusk' | 'wings' | 'wingsDusk'
+export type HintId = 'harass' | 'charge' | 'dusk' | 'wings' | 'wingsDusk' | 'blockade' | 'jam'
 
 interface Progress {
   /** Zafer kazanılan komutanlar. */
   won: CommanderId[]
   /** Bir kez gösterilip bir daha gösterilmeyecek ipuçları. */
   hints: HintId[]
-  /** Bitirilen (kazanılan ya da kaybedilen) Malazgirt savaşı sayısı. */
-  battlesPlayed: number
+  /** Komutan başına bitirilen (kazanılan ya da kaybedilen) ordu savaşı sayısı. */
+  battles: Partial<Record<CommanderId, number>>
+  /** Metehan'ın zorluk merdivenindeki basamak (bkz. waves.ts DAMAGE_LADDER). */
+  ladder: number
 }
 
 function load(): Progress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
-      const p = JSON.parse(raw) as Partial<Progress>
-      return { won: p.won ?? [], hints: p.hints ?? [], battlesPlayed: p.battlesPlayed ?? 0 }
+      const p = JSON.parse(raw) as Partial<Progress> & { battlesPlayed?: number }
+      const won = p.won ?? []
+      return {
+        won,
+        hints: p.hints ?? [],
+        // Eski kayıt yalnızca Malazgirt savaşlarını sayıyordu.
+        battles: p.battles ?? { 'alp-arslan': p.battlesPlayed ?? 0 },
+        // Merdivenden önce Metehan'ı zaten kazanmış oyuncu tam hasarda başlar:
+        // o zorluğu yenmiş, kolaylaştırılmış savaş ona hediye değil.
+        ladder: p.ladder ?? (won.includes('metehan') ? LADDER_TOP : 0),
+      }
     }
   } catch {
     // Bozuk kayıt ya da erişilemeyen depolama: sıfırdan başla.
   }
-  return { won: [], hints: [], battlesPlayed: 0 }
+  return { won: [], hints: [], battles: {}, ladder: 0 }
 }
 
 let progress = load()
@@ -42,13 +54,14 @@ function save(): void {
 }
 
 /**
- * Komutan açık mı? Metehan hep açık; Alp Arslan, Metehan kazanılınca.
- * İlerleme kaydı bu sürümle geldi: Alp Arslan'ı prototipte zaten oynamış
- * (rekoru olan) oyuncunun kilidi geri kapanmasın.
+ * Komutan açık mı? Zincir: Metehan → Alp Arslan → II. Kılıçarslan; bir
+ * öncekiyle zafer kazanınca açılır. Rekoru olan (prototipte zaten oynamış)
+ * oyuncunun kilidi geri kapanmasın.
  */
 export function isUnlocked(id: CommanderId): boolean {
-  if (id === 'metehan') return true
-  return progress.won.includes('metehan') || loadBestScore(id) > 0
+  const by = commanderInfo(id).unlockedBy
+  if (!by) return true
+  return progress.won.includes(by) || loadBestScore(id) > 0
 }
 
 export function recordVictory(id: CommanderId): void {
@@ -57,17 +70,30 @@ export function recordVictory(id: CommanderId): void {
   save()
 }
 
-export function recordBattleEnd(): void {
-  progress = { ...progress, battlesPlayed: progress.battlesPlayed + 1 }
+/** Ordu savaşı bitti (kazanılan ya da kaybedilen). */
+export function recordBattleEnd(id: CommanderId): void {
+  progress = { ...progress, battles: { ...progress.battles, [id]: (progress.battles[id] ?? 0) + 1 } }
+  save()
+}
+
+/** Metehan'ın zorluk merdivenindeki basamak. */
+export function ladderStep(): number {
+  return progress.ladder
+}
+
+/** Metehan savaşı bitti: merdivende bir basamak yukarı ya da aşağı. */
+export function recordLadder(victory: boolean): void {
+  progress = { ...progress, ladder: nextLadderStep(progress.ladder, victory) }
   save()
 }
 
 /**
- * İlk savaş mı? Tasarım belgesi: ilk ödül 30 sn içinde gelmeli ve ilk
- * oynayışta hamle hasarı yarıya iner; zorluk tekrar oynayışta yıldızlarla gelir.
+ * Bu komutanla ilk savaş mı? Tasarım belgesi: ilk ödül 30 sn içinde gelmeli
+ * ve ilk oynayışta hamle hasarı yarıya iner; zorluk tekrar oynayışta
+ * yıldızlarla gelir.
  */
-export function isFirstBattle(): boolean {
-  return progress.battlesPlayed === 0
+export function isFirstBattle(id: CommanderId): boolean {
+  return (progress.battles[id] ?? 0) === 0
 }
 
 /** İpucu daha önce gösterilmediyse işaretler ve true döner. */

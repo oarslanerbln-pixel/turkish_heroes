@@ -53,6 +53,8 @@ export const ENEMY_CONFIG = {
   steerLerp: 4,
   /** Arena sınırı — düşmanlar buranın dışına çıkamaz. */
   arenaRadius: 29,
+  /** Bozguna uğrayanın kaçış hızı: kimse yetişemesin, sahne çabuk boşalsın. */
+  routSpeed: 9,
 } as const
 
 export function createEnemies(count: number = ENEMY_CONFIG.count): Enemy[] {
@@ -94,6 +96,10 @@ export function stepEnemies(
 ): void {
   for (const e of enemies) {
     if (!e.alive) continue
+    if (e.routed) {
+      stepRout(e, enemies, playerPos, deltaTime)
+      continue
+    }
 
     stepDiscipline(e, isPlayerRetreating, deltaTime, disciplineRecoveryMult)
 
@@ -134,6 +140,32 @@ export function steerToward(
   e.pos.z += e.vel.z * deltaTime
 
   confineToArena(e)
+}
+
+/** Kaçış hedefi — her askere yeni nesne ayrılmasın. */
+const routTarget: Vec2 = { x: 0, z: 0 }
+
+/**
+ * Bozgun: oyuncudan uzağa ve dışarı doğru, sınıra kadar. Dışa doğru bileşen
+ * kaçışın her durumda sınırda bitmesini garanti eder (oyuncunun çevresinde
+ * dönüp durmasın). Sınıra varan savaş alanını terk etmiş sayılır.
+ */
+function stepRout(e: Enemy, enemies: readonly Enemy[], player: Vec2, deltaTime: number): void {
+  e.discipline = 0
+  const ax = e.pos.x - player.x
+  const az = e.pos.z - player.z
+  const al = Math.hypot(ax, az) || 1
+  const r = Math.hypot(e.pos.x, e.pos.z) || 1
+  const dx = ax / al + e.pos.x / r
+  const dz = az / al + e.pos.z / r
+  const dl = Math.hypot(dx, dz) || 1
+  routTarget.x = e.pos.x + (dx / dl) * 10
+  routTarget.z = e.pos.z + (dz / dl) * 10
+  steerToward(e, enemies, routTarget, ENEMY_CONFIG.routSpeed, 0, deltaTime)
+  if (Math.hypot(e.pos.x, e.pos.z) >= ENEMY_CONFIG.arenaRadius - 0.3) {
+    e.alive = false
+    e.fled = true
+  }
 }
 
 function stepDiscipline(
