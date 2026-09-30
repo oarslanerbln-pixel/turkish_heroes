@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
-import { world } from '../sim/world'
+import { isPlaying, world, type CameraCue } from '../sim/world'
+import { shotDone, shotWeight } from './cameraShots'
+import { nearFadeStrength } from './world/nearFade'
 
 // Görsellerden (3) sonra, sarsıntıdan (6) ve çizimden (10) önce.
 const CAMERA_PRIORITY = 5
@@ -27,6 +29,20 @@ const LERP_SPEED = 3.5
 const SNAP_DISTANCE = 25
 
 /**
+ * Açılış: ordugahın ardından, alçaktan ufka. Ordugah ön planı çerçeveler,
+ * oyuncu ortada, düşman ordusu gökyüzüne karşı. Oyuncuya göre.
+ */
+const INTRO_OFFSET = new Vector3(6, 5.5, 14)
+const INTRO_LOOK = new Vector3(-6, 2, -36)
+
+/**
+ * Gün batımı: kamera alçalıp ufka kalkar — batan güneş ordunun ardında.
+ * Bakış noktasına göre; oyuncu kadrajın altında kalır.
+ */
+const DUSK_OFFSET = new Vector3(0, 9, 24)
+const DUSK_LOOK = new Vector3(0, 4, -6)
+
+/**
  * Kamerayı oyuncuya kilitler.
  *
  * Daha önce kamera [0,18,26]'da sabitti ve OrbitControls hep orijine bakıyordu;
@@ -46,6 +62,10 @@ export function FollowCamera() {
    */
   const smooth = useMemo(() => new Vector3(), [])
   const başlatıldı = useMemo(() => ({ value: false }), [])
+  const shot = useMemo(() => ({ cue: null as CameraCue | null, t: 0 }), [])
+  const cinePos = useMemo(() => new Vector3(), [])
+  const cineLook = useMemo(() => new Vector3(), [])
+  const look = useMemo(() => new Vector3(), [])
 
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.1)
@@ -66,8 +86,36 @@ export function FollowCamera() {
       smooth.lerp(desired, 1 - Math.exp(-LERP_SPEED * dt))
     }
 
+    // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
+    if (world.cameraCue && isPlaying()) {
+      shot.cue = world.cameraCue
+      shot.t = 0
+      world.cameraCue = null
+    }
+
     camera.position.copy(smooth).add(OFFSET)
-    camera.lookAt(smooth)
+    look.copy(smooth)
+
+    let weight = 0
+    if (shot.cue) {
+      // Gerçek zaman: gün batımının ağır çekimi çekimi uzatmasın.
+      shot.t += dt
+      weight = shotWeight(shot.cue, shot.t)
+      if (shot.cue === 'intro') {
+        cinePos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
+        cineLook.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+      } else {
+        cinePos.copy(smooth).add(DUSK_OFFSET)
+        cineLook.copy(smooth).add(DUSK_LOOK)
+      }
+      camera.position.lerp(cinePos, weight)
+      look.lerp(cineLook, weight)
+      if (shotDone(shot.cue, shot.t)) shot.cue = null
+    }
+    // Sinematik kadrajda ordugah ön planı çerçeveler; taktikte HUD'un arkasında incelir.
+    nearFadeStrength.value = 1 - weight
+
+    camera.lookAt(look)
   }, CAMERA_PRIORITY)
 
   return null

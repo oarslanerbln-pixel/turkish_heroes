@@ -1,9 +1,11 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, Vector3 } from 'three'
 import { BATTLE_CONFIG } from '../mechanics/corps'
 import { world } from '../sim/world'
 import { useQuality, QUALITY } from '../perf/quality'
+import { SkyDome } from './world/SkyDome'
+import { createSkyUniforms } from './world/skyUniforms'
 
 // Sahnenin ışığı ve havası; Alp Arslan savaşında gün saatine göre değişir.
 //
@@ -16,7 +18,11 @@ interface Keyframe {
   sun: Color
   sunIntensity: number
   sunPos: Vector3
+  /** Ufuk ve sis rengi: uzak arazi gökyüzüne karışır. */
   haze: Color
+  zenith: Color
+  /** Gökyüzündeki diskin yönü. Işıktan ayrı: disk kamera alçalınca kadrajda olsun. */
+  disc: Vector3
   sky: Color
   ground: Color
   hemi: number
@@ -27,19 +33,24 @@ const NOON: Keyframe = {
   sun: new Color('#ffd9a0'),
   sunIntensity: 2.2,
   sunPos: new Vector3(18, 22, 12),
-  haze: new Color('#8e7254'),
+  haze: new Color('#c9ab80'),
+  zenith: new Color('#5b83b3'),
+  disc: new Vector3(0.3, 0.75, -0.6).normalize(),
   sky: new Color('#ffe2b8'),
   ground: new Color('#4b3622'),
   hemi: 0.6,
   ambient: 0.25,
 }
 
-// Alçak batı güneşi: uzun gölgeler, sıcak kontrast.
+// Alçak güneş Bizans ordusunun ardında batar: uzun gölgeler oyuncuya doğru
+// düşer, ordu kızıl ufka karşı siluet olur.
 const SUNSET: Keyframe = {
   sun: new Color('#ff7a3d'),
   sunIntensity: 2.0,
-  sunPos: new Vector3(30, 9, -4),
-  haze: new Color('#8a5238'),
+  sunPos: new Vector3(22, 9, -20),
+  haze: new Color('#d98553'),
+  zenith: new Color('#3d4b7a'),
+  disc: new Vector3(0.42, 0.06, -0.9).normalize(),
   sky: new Color('#ffb07a'),
   ground: new Color('#3b2418'),
   hemi: 0.5,
@@ -51,7 +62,10 @@ const NIGHT: Keyframe = {
   sun: new Color('#8fa3d0'),
   sunIntensity: 0.9,
   sunPos: new Vector3(-12, 20, 10),
-  haze: new Color('#232a40'),
+  haze: new Color('#252c44'),
+  zenith: new Color('#0a0f22'),
+  // Ay.
+  disc: new Vector3(-0.35, 0.3, -0.88).normalize(),
   sky: new Color('#4a5a88'),
   ground: new Color('#1a1a24'),
   hemi: 0.4,
@@ -75,6 +89,7 @@ export function DayCycle() {
   const hemiRef = useRef<HemisphereLight>(null)
   const ambientRef = useRef<AmbientLight>(null)
   const lastTime = useRef(-1)
+  const sky = useMemo(createSkyUniforms, [])
 
   useFrame(() => {
     const time = world.battle?.time ?? 0
@@ -100,9 +115,13 @@ export function DayCycle() {
     hemi.intensity = mix(mix(NOON.hemi, SUNSET.hemi, toSunset), NIGHT.hemi, toNight)
     ambient.intensity = mix(mix(NOON.ambient, SUNSET.ambient, toSunset), NIGHT.ambient, toNight)
 
-    const haze = scene.background instanceof Color ? scene.background : null
-    haze?.copy(NOON.haze).lerp(SUNSET.haze, toSunset).lerp(NIGHT.haze, toNight)
-    if (scene.fog instanceof Fog && haze) scene.fog.color.copy(haze)
+    const haze = sky.uHorizon.value
+    haze.copy(NOON.haze).lerp(SUNSET.haze, toSunset).lerp(NIGHT.haze, toNight)
+    if (scene.background instanceof Color) scene.background.copy(haze)
+    if (scene.fog instanceof Fog) scene.fog.color.copy(haze)
+    sky.uZenith.value.copy(NOON.zenith).lerp(SUNSET.zenith, toSunset).lerp(NIGHT.zenith, toNight)
+    sky.uSunDir.value.copy(NOON.disc).lerp(SUNSET.disc, toSunset).lerp(NIGHT.disc, toNight).normalize()
+    sky.uSunColor.value.copy(sun.color).multiplyScalar(mix(1, 0.35, toNight))
   })
 
   return (
@@ -111,6 +130,7 @@ export function DayCycle() {
           tepeler (~65 birim) pusa doğru soluklaşır. */}
       <color attach="background" args={[NOON.haze]} />
       <fog attach="fog" args={[NOON.haze, 45, 125]} />
+      <SkyDome uniforms={sky} />
       {/* Ortam ışığı düşük: gölgeler ve süvari siluetleri zeminden ayrılsın. */}
       <ambientLight ref={ambientRef} intensity={NOON.ambient} />
       {/* Gökyüzü/toprak ayrımı — bozkır hissini ucuza veriyor. */}

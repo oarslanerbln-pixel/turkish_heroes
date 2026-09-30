@@ -12,6 +12,9 @@ import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
 import { loadBestScore } from './score'
 
+/** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
+export type CameraCue = 'intro' | 'dusk'
+
 export interface World {
   /** Oynanan komutan; senaryo kuralları buna göre seçilir (sim/scenarios.ts). */
   commander: CommanderId
@@ -92,6 +95,11 @@ export interface World {
   announceQueue: string[]
   /** Kazanılan yıldız (0–3); yalnızca yıldızlı senaryolarda, sonuçta set edilir. */
   stars: number
+  /**
+   * Sinematik çekim isteği: savaş açılışı ya da gün batımı. Kamera tüketip
+   * boşaltır (fxKills gibi); simülasyonu etkilemez.
+   */
+  cameraCue: CameraCue | null
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
@@ -139,6 +147,7 @@ function initialWorld(commander: CommanderId): World {
     announceTimer: 0,
     announceQueue: [],
     stars: 0,
+    cameraCue: null,
   }
 }
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react'
-import { ConeGeometry, CylinderGeometry, SphereGeometry } from 'three'
+import { ConeGeometry, CylinderGeometry, MeshStandardMaterial, SphereGeometry } from 'three'
 import { BATTLE_CONFIG } from '../../mechanics/corps'
 import { merge, paint } from '../../characters/riderGeometry'
+import { applyNearFade } from './nearFade'
 
 // Selçuklu ordugahı: Bizans ordusunun gündüz varmaması gereken yer.
 //
@@ -57,13 +58,27 @@ function buildCamp() {
   return merge(parts)
 }
 
+/**
+ * Taktik kamera ~28 birim geride. Oyuncu ordugahın önündeyken çadırlar
+ * kameraya ~20 birim kalıyor ve ekranın altını kaplıyor: o mesafede incelir.
+ */
+const FADE_NEAR = 20
+const FADE_FAR = 23
+
 export function Camp() {
   const geometry = useMemo(buildCamp, [])
-  useEffect(() => () => geometry.dispose(), [geometry])
-
-  return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial vertexColors roughness={0.9} flatShading />
-    </mesh>
+  const material = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true })
+    applyNearFade(m, FADE_NEAR, FADE_FAR)
+    return m
+  }, [])
+  useEffect(
+    () => () => {
+      geometry.dispose()
+      material.dispose()
+    },
+    [geometry, material],
   )
+
+  return <mesh geometry={geometry} material={material} castShadow receiveShadow />
 }
