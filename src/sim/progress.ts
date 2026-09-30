@@ -2,6 +2,7 @@
 // gördü. localStorage'da tek anahtar; gizli sekmede okuma/yazma atabilir, o
 // zaman ilerleme o oturumla sınırlı kalır (oyun yine oynanır).
 
+import type { LoreId } from '../lore/lore'
 import { commanderInfo, type CommanderId } from '../mechanics/scenario'
 import { LADDER_TOP, nextLadderStep } from '../mechanics/waves'
 import { loadBestScore } from './score'
@@ -19,6 +20,8 @@ interface Progress {
   battles: Partial<Record<CommanderId, number>>
   /** Metehan'ın zorluk merdivenindeki basamak (bkz. waves.ts DAMAGE_LADDER). */
   ladder: number
+  /** Kazanılan tarih notları, kazanılma sırasıyla (bkz. lore/lore.ts). */
+  lore: LoreId[]
 }
 
 function load(): Progress {
@@ -35,12 +38,13 @@ function load(): Progress {
         // Merdivenden önce Metehan'ı zaten kazanmış oyuncu tam hasarda başlar:
         // o zorluğu yenmiş, kolaylaştırılmış savaş ona hediye değil.
         ladder: p.ladder ?? (won.includes('metehan') ? LADDER_TOP : 0),
+        lore: p.lore ?? [],
       }
     }
   } catch {
     // Bozuk kayıt ya da erişilemeyen depolama: sıfırdan başla.
   }
-  return { won: [], hints: [], battles: {}, ladder: 0 }
+  return { won: [], hints: [], battles: {}, ladder: 0, lore: [] }
 }
 
 let progress = load()
@@ -102,4 +106,15 @@ export function takeHint(id: HintId): boolean {
   progress = { ...progress, hints: [...progress.hints, id] }
   save()
   return true
+}
+
+/** Kazanılan tarih notları. */
+export function earnedLore(): readonly LoreId[] {
+  return progress.lore
+}
+
+export function recordLore(id: LoreId): void {
+  if (progress.lore.includes(id)) return
+  progress = { ...progress, lore: [...progress.lore, id] }
+  save()
 }

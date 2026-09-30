@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
 import type { Debrief } from '../debrief/debrief'
+import type { LoreCard } from '../lore/lore'
 import { parseCommander, type CommanderId } from '../mechanics/scenario'
 import { announce, isPlaying, resetWorld, world } from '../sim/world'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
@@ -45,6 +46,7 @@ export interface HudSnapshot {
   emperorCaptured: boolean
   debrief: Debrief | null // savaş bitince karne; sürerken null
   unlocked: CommanderId | null // bu zaferle kilidi açılan komutan
+  lore: LoreCard | null // bu savaşta kazanılan yeni tarih notu
   canBlock: boolean // geçit: YOLU KES henüz kullanılmadı
   blockade: number // geçit: kaya yığınının kalan sağlamlığı 0–1 (yoksa 0)
 }
@@ -108,6 +110,7 @@ const INITIAL_HUD: HudSnapshot = {
   emperorCaptured: false,
   debrief: null,
   unlocked: null,
+  lore: null,
   canBlock: false,
   blockade: 0,
 }

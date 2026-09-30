@@ -9,6 +9,7 @@ import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import { createBattle, type BattleState } from '../mechanics/corps'
 import { battleLayout, type CommanderId } from '../mechanics/scenario'
 import type { Debrief } from '../debrief/debrief'
+import type { LoreCard } from '../lore/lore'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
 import { loadBestScore } from './score'
@@ -110,6 +111,8 @@ export interface World {
   debrief: Debrief | null
   /** Bu zaferle kilidi açılan komutan — sonuç ekranı onu doğrudan önerir. */
   unlocked: CommanderId | null
+  /** Bu savaşta kazanılan yeni tarih notu (bkz. lore/lore.ts); yoksa null. */
+  lore: LoreCard | null
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
@@ -162,6 +165,7 @@ function initialWorld(commander: CommanderId): World {
     cameraCue: null,
     debrief: null,
     unlocked: null,
+    lore: null,
   }
 }
 

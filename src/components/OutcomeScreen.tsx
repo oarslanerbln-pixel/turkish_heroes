@@ -2,6 +2,8 @@ import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { commanderInfo } from '../mechanics/scenario'
 import type { Debrief, TimelineMark } from '../debrief/debrief'
+import { LORE, type LoreCard } from '../lore/lore'
+import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 
@@ -24,6 +26,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const captured = useGameStore((s) => s.emperorCaptured)
   const report = useGameStore((s) => s.debrief)
   const unlocked = useGameStore((s) => s.unlocked)
+  const lore = useGameStore((s) => s.lore)
   const isVictory = outcome === 'victory'
   const isNewBest = score > 0 && score >= bestScore
   // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
@@ -56,6 +59,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           </div>
         </div>
         {isNewBest && <div className="badge">YENİ REKOR</div>}
+        {lore && <LoreNote card={lore} />}
       </div>
 
       <div className="outcome-side">
@@ -97,6 +101,26 @@ const EPILOGUE: Partial<Record<string, string>> = {
   'alp-arslan': 'Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.',
   kilicarslan:
     "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
+}
+
+/**
+ * Bu savaşta kazanılan tarih notu: oyuncunun az önce yaptığı hamlenin
+ * tarihteki karşılığı (bkz. lore/lore.ts). Sayaç koleksiyonu hatırlatır.
+ */
+function LoreNote({ card }: { card: LoreCard }) {
+  return (
+    <aside className="lore-note" aria-label="Tarih notu">
+      <span className="lore-label">
+        TARİH NOTU · YENİ
+        <em>
+          {earnedLore().length} / {LORE.length}
+        </em>
+      </span>
+      <b>{card.title}</b>
+      <p>{card.text}</p>
+      <cite>{card.source}</cite>
+    </aside>
+  )
 }
 
 function Stars({ count }: { count: number }) {
