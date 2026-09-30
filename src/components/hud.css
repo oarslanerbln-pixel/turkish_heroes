@@ -506,6 +506,33 @@
   animation: announce 2.2s ease forwards;
 }
 
+/*
+  Dikey ekranda düşman ekranın üstünden gelir: üst şerit dar tutulur.
+  Gün çizgisi kartla köşe düğmeleri arasına sığar, duyuru kartın altına iner.
+*/
+@media (max-aspect-ratio: 1/1) {
+  .hud-card { width: 156px; padding: 8px 10px; gap: 5px; }
+  .hud-row { font-size: 10px; flex-wrap: wrap; column-gap: 6px; }
+  .hud-score { font-size: 22px; }
+  .day-line {
+    left: calc(16px + 156px + 12px + var(--safe-left));
+    right: calc(16px + 40px + 12px + var(--safe-right));
+    width: auto;
+    max-width: 300px;
+    margin-inline: auto;
+    transform: none;
+  }
+  .day-label { letter-spacing: 0.08em; }
+  .announce {
+    top: calc(96px + var(--safe-top));
+    width: max-content;
+    max-width: calc(100% - 32px);
+    white-space: normal;
+    text-align: center;
+    font-size: 13px;
+  }
+}
+
 /* ---- Ana menü: savaş seçimi ----
  * Arkada seçilen savaşın açılış karesi (FollowCamera). Menü onu örtmez:
  * iki panel sahnenin iki yanında, ortada kahraman ve ufuktaki ordu. Temel

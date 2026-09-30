@@ -3,7 +3,6 @@ import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import { BATTLE_CONFIG, COLUMN_CONFIG } from '../mechanics/corps'
 import { WING_CONFIG, type WingOrder } from '../mechanics/wings'
-import { commanderInfo } from '../mechanics/scenario'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
 import { OutcomeScreen } from './OutcomeScreen'
@@ -123,14 +122,14 @@ function StatusCard() {
           Düşman <b>{enemiesAlive}</b>
         </span>
       </div>
-      <div className={score > 0 && score >= bestScore ? 'hud-score is-best' : 'hud-score'}>
-        {score}
-      </div>
+      {/*
+        Rekor ve komutan adı savaşta yer tutmuyor: rekor sonuç ekranında,
+        komutan menüde. Dikey ekranda kart düşmanın geldiği yönü kapatıyordu.
+      */}
       <div className="hud-row">
-        <span>Rekor {bestScore}</span>
-      </div>
-      <div className="hud-row">
-        <span>{commanderInfo(commander).name}</span>
+        <span className={score > 0 && score >= bestScore ? 'hud-score is-best' : 'hud-score'}>
+          {score}
+        </span>
         {attackers > 0 && <span className="contact">{attackers} temasta</span>}
       </div>
       <div className="bar">
