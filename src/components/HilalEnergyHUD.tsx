@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
+import { BATTLE_CONFIG } from '../mechanics/corps'
+import { commanderInfo } from '../mechanics/scenario'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
 import { OutcomeScreen } from './OutcomeScreen'
@@ -40,6 +42,7 @@ export function HilalEnergyHUD() {
   const started = useGameStore((s) => s.started)
   const outcome = useGameStore((s) => s.outcome)
   const waveIndex = useGameStore((s) => s.waveIndex)
+  const battle = useGameStore((s) => s.commander === 'alp-arslan')
   const [touch] = useState(isTouchDevice)
 
   if (!started) return <StartScreen touch={touch} />
@@ -50,8 +53,11 @@ export function HilalEnergyHUD() {
       <Corner />
       <EnergyPanel touch={touch} />
       {touch && <TouchStrikeButton />}
+      {battle && outcome === 'playing' && <DayLine />}
+      {outcome === 'playing' && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
-      {outcome === 'playing' && <WaveBanner key={waveIndex} index={waveIndex} />}
+      {outcome === 'playing' &&
+        (battle ? <BattleBanner /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
       {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
     </div>
   )
@@ -64,13 +70,31 @@ function StatusCard() {
   const bestScore = useGameStore((s) => s.bestScore)
   const health = useGameStore((s) => s.playerHealth)
   const attackers = useGameStore((s) => s.attackers)
+  const commander = useGameStore((s) => s.commander)
+  const battleTime = useGameStore((s) => s.battleTime)
+  const campDistance = useGameStore((s) => s.campDistance)
+  const battle = commander === 'alp-arslan'
+  const isDay = battleTime < BATTLE_CONFIG.dayLength
 
   return (
     <div className="hud-card">
       <div className="hud-row">
-        <span>
-          Dalga <b>{waveIndex + 1}/{TOTAL_WAVES}</b>
-        </span>
+        {battle ? (
+          // Gündüz asıl tehdit ordunun ordugaha varması; akşam artık yok.
+          <span className={isDay && campDistance < 6 ? 'contact' : undefined}>
+            {isDay ? (
+              <>
+                Ordugaha <b>{Math.ceil(campDistance)}</b>
+              </>
+            ) : (
+              'Ordu dönüyor'
+            )}
+          </span>
+        ) : (
+          <span>
+            Dalga <b>{waveIndex + 1}/{TOTAL_WAVES}</b>
+          </span>
+        )}
         <span>
           Düşman <b>{enemiesAlive}</b>
         </span>
@@ -82,7 +106,7 @@ function StatusCard() {
         <span>Rekor {bestScore}</span>
       </div>
       <div className="hud-row">
-        <span>Metehan</span>
+        <span>{commanderInfo(commander).name}</span>
         {attackers > 0 && <span className="contact">{attackers} temasta</span>}
       </div>
       <div className="bar">
@@ -182,6 +206,7 @@ function EnergyPanel({ touch }: { touch: boolean }) {
       <div className="refusal" key={refusal}>
         {refusal === 'notReady' && '✕ Hilal hazır değil — kaçmaya devam et'}
         {refusal === 'noTargets' && '✕ Menzilde düşman yok — yayın içine al'}
+        {refusal === 'steady' && '✕ Düzenleri sağlam — önce taciz et'}
       </div>
       <div className="phase" style={{ color: PHASE_COLOR[phase] }}>
         Hilal — {PHASE_LABEL[phase]}
@@ -218,6 +243,51 @@ function TouchStrikeButton() {
     >
       {canStrike ? `VUR (${inCrescent})` : strikeReady ? 'MENZİL' : 'KUŞAT'}
     </button>
+  )
+}
+
+/**
+ * Gün çizgisi: güneş öğleden gün batımına, oradan geceye kayar. Savaşın
+ * saati oyuncunun asıl kararını belirliyor (şimdi mi vurmalı, akşamı mı
+ * beklemeli), o yüzden her an görünür.
+ */
+function DayLine() {
+  const time = useGameStore((s) => s.battleTime)
+  const { dayLength, nightAt } = BATTLE_CONFIG
+  const isDay = time < dayLength
+  const left = Math.max(0, Math.ceil((isDay ? dayLength : nightAt) - time))
+  const pct = (Math.min(time, nightAt) / nightAt) * 100
+
+  return (
+    <div className="day-line">
+      <div className="day-track" style={{ '--dusk': `${(dayLength / nightAt) * 100}%` } as CSSProperties}>
+        <span className={isDay ? 'sun' : 'sun is-moon'} style={{ left: `${pct}%` }} />
+      </div>
+      <div className="day-label">
+        {isDay ? `Gün batımına ${left}` : `Gece çökmesine ${left}`}
+      </div>
+    </div>
+  )
+}
+
+/** Tek satırlık duyuru ("Güneş batıyor"); key ile her yeni metinde yeniden canlanır. */
+function Announcement() {
+  const text = useGameStore((s) => s.announcement)
+  if (!text) return null
+  return (
+    <div className="announce" key={text}>
+      {text}
+    </div>
+  )
+}
+
+function BattleBanner() {
+  return (
+    <div className="wave-banner">
+      <h2>MALAZGİRT</h2>
+      <Ornament width={200} />
+      <p>26 Ağustos 1071 — Bizans ordusu ufukta</p>
+    </div>
   )
 }
 

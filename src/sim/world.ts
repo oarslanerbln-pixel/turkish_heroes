@@ -6,11 +6,17 @@
 // özet değerler throttle'lanarak aktarılır (bkz. GameDirector).
 
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
+import { createBattle, type BattleState } from '../mechanics/corps'
+import type { CommanderId } from '../mechanics/scenario'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
 import { loadBestScore } from './score'
 
 export interface World {
+  /** Oynanan komutan; senaryo kuralları buna göre seçilir (sim/scenarios.ts). */
+  commander: CommanderId
+  /** Alp Arslan savaşının durumu; dalgalı senaryoda null. */
+  battle: BattleState | null
   player: Vec2
   /** Gerçekleşen yer değiştirmeden türetilir, klavye niyetinden değil. */
   playerVel: Vec2
@@ -69,19 +75,31 @@ export interface World {
    * yeni dalga aynı karede doğuyor, son düşenlerin devrilişi yarıda kalıyordu.
    */
   waveBreak: number
+  /** Tek satırlık duyuru ("Güneş batıyor") ve ekranda kalacağı süre. */
+  announcement: string
+  announceTimer: number
+  /** Kazanılan yıldız (0–3); yalnızca yıldızlı senaryolarda, sonuçta set edilir. */
+  stars: number
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
-function initialWorld(): World {
+function initialWorld(commander: CommanderId): World {
+  // Her savaş biraz farklı dizilişle başlasın; kurallar aynı.
+  const battle =
+    commander === 'alp-arslan' ? createBattle(Math.floor(Math.random() * 2 ** 31)) : null
+
   return {
-    player: { x: 0, z: 8 },
+    commander,
+    battle: battle?.battle ?? null,
+    // Alp Arslan ordugahın önünde başlar; ordu ufukta, -z'de.
+    player: battle ? { x: 0, z: 16 } : { x: 0, z: 8 },
     playerVel: { x: 0, z: 0 },
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
-    enemies: spawnWave(0),
+    enemies: battle?.enemies ?? spawnWave(0),
     waveIndex: 0,
     score: 0,
-    bestScore: loadBestScore(),
+    bestScore: loadBestScore(commander),
     energy: 0,
     density: 0,
     vulnerability: 0,
@@ -103,19 +121,28 @@ function initialWorld(): World {
     hitstop: 0,
     fxKills: [],
     waveBreak: 0,
+    announcement: '',
+    announceTimer: 0,
+    stars: 0,
   }
 }
 
 /**
  * Modül düzeyinde tek örnek. Referans sabit kalmalı — her yer bunu import ediyor.
  */
-export const world: World = initialWorld()
+export const world: World = initialWorld('metehan')
 
-export function resetWorld(): void {
+/** @param commander Verilmezse aynı komutanla yeniden başlar. */
+export function resetWorld(commander: CommanderId = world.commander): void {
   // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
   const started = world.started
-  Object.assign(world, initialWorld(), { started })
+  Object.assign(world, initialWorld(commander), { started })
+}
+
+export function announce(text: string, seconds = 2.2): void {
+  world.announcement = text
+  world.announceTimer = seconds
 }
 
 /**

@@ -98,22 +98,42 @@ export function stepEnemies(
     stepDiscipline(e, isPlayerRetreating, deltaTime, disciplineRecoveryMult)
 
     const speed = lerp(ENEMY_CONFIG.chaseSpeed, ENEMY_CONFIG.baseSpeed, e.discipline)
-    const desired = seek(e, playerPos, speed)
-    applySeparation(e, enemies, desired)
-    // Normalize etmek yerine sınırla: hattını tutan düşmanın "durma" isteği
-    // (sıfıra yakın vektör) hıza yükseltilmesin.
-    clampMagnitude(desired, speed)
-
-    // Ani yön değişimi yerine mevcut hızdan hedefe yumuşak geçiş.
-    const t = Math.min(1, ENEMY_CONFIG.steerLerp * deltaTime)
-    e.vel.x = lerp(e.vel.x, desired.x, t)
-    e.vel.z = lerp(e.vel.z, desired.z, t)
-
-    e.pos.x += e.vel.x * deltaTime
-    e.pos.z += e.vel.z * deltaTime
-
-    confineToArena(e)
+    const standoff = ENEMY_CONFIG.standoffDistance * e.discipline
+    steerToward(e, enemies, playerPos, speed, standoff, deltaTime)
   }
+}
+
+/**
+ * Tek düşmanı bir hedef noktaya yönlendirip bir kare ilerletir: yaklaşma,
+ * komşulardan ayrılma, yumuşak dönüş ve arena sınırı.
+ *
+ * Hedef oyuncu olabileceği gibi bir düzen yuvası da olabilir; birlik
+ * düzeninde savaşan senaryolar aynı hareket modelini bu yolla kullanır.
+ * @param standoff Hedefe bu mesafede durulur (0 = tam üstüne git).
+ */
+export function steerToward(
+  e: Enemy,
+  enemies: readonly Enemy[],
+  target: Vec2,
+  speed: number,
+  standoff: number,
+  deltaTime: number,
+): void {
+  const desired = seek(e, target, speed, standoff)
+  applySeparation(e, enemies, desired)
+  // Normalize etmek yerine sınırla: hattını tutan düşmanın "durma" isteği
+  // (sıfıra yakın vektör) hıza yükseltilmesin.
+  clampMagnitude(desired, speed)
+
+  // Ani yön değişimi yerine mevcut hızdan hedefe yumuşak geçiş.
+  const t = Math.min(1, ENEMY_CONFIG.steerLerp * deltaTime)
+  e.vel.x = lerp(e.vel.x, desired.x, t)
+  e.vel.z = lerp(e.vel.z, desired.z, t)
+
+  e.pos.x += e.vel.x * deltaTime
+  e.pos.z += e.vel.z * deltaTime
+
+  confineToArena(e)
 }
 
 function stepDiscipline(
@@ -136,16 +156,16 @@ function stepDiscipline(
 
 /**
  * Hedef mesafeye göre yönelme vektörü.
- * Disiplinli düşman standoff mesafesinde durmak ister (fazla yaklaştıysa geri
- * çekilir); disiplini kırılan düşman doğrudan oyuncunun üstüne gider.
+ * Standoff mesafesinde durmak ister (fazla yaklaştıysa geri çekilir). Oyuncuyu
+ * izleyen sürüde standoff disiplinle ölçeklenir: disiplini kırılan düşman
+ * doğrudan oyuncunun üstüne gider.
  */
-function seek(e: Enemy, playerPos: Vec2, speed: number): Vec2 {
-  const dx = playerPos.x - e.pos.x
-  const dz = playerPos.z - e.pos.z
+function seek(e: Enemy, target: Vec2, speed: number, standoff: number): Vec2 {
+  const dx = target.x - e.pos.x
+  const dz = target.z - e.pos.z
   const dist = Math.hypot(dx, dz)
   if (dist < 0.001) return { x: 0, z: 0 }
 
-  const standoff = ENEMY_CONFIG.standoffDistance * e.discipline
   const gap = dist - standoff
 
   // Hedef mesafeye yaklaştıkça yavaşla; tam üstündeyse dur.

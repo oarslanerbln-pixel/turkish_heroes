@@ -42,9 +42,14 @@ export function countAttackers(enemies: readonly Enemy[], playerPos: Vec2): numb
   return n
 }
 
-export function calcContactDamage(attackers: number, deltaTime: number): number {
+/** @param perEnemy Temas eden düşman başına saniyelik hasar; senaryoya göre değişir. */
+export function calcContactDamage(
+  attackers: number,
+  deltaTime: number,
+  perEnemy: number = COMBAT_CONFIG.damagePerEnemy,
+): number {
   const effective = Math.min(attackers, COMBAT_CONFIG.maxAttackers)
-  return effective * COMBAT_CONFIG.damagePerEnemy * deltaTime
+  return effective * perEnemy * deltaTime
 }
 
 export function resolveOutcome(health: number, aliveCount: number): Outcome {

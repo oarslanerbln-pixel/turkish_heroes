@@ -1,10 +1,11 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
-import { stepEnemies } from '../mechanics/enemySim'
-import { MAX_WAVE_ENEMIES, waveConfig } from '../mechanics/waves'
+import { MODE_FORMATION } from '../mechanics/corps'
+import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import type { Enemy } from '../mechanics/types'
 import { isPlaying, simDelta, world } from '../sim/world'
+import { scenarioOf } from '../sim/scenarios'
 import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
@@ -14,6 +15,14 @@ const ENEMY_PRIORITY = 1
 // kuşatılabilirliği okuduğu asıl sinyal bu: binicinin giysisi ve kalkanı taşır.
 const DISCIPLINED_COLOR = new Color('#6b7d99')
 const BROKEN_COLOR = new Color('#d04a3a')
+// Bizans: imparatorluk moru → dağılınca soluk kızıl. Hamle kırmızısı ayrı ve
+// daha doygun: "bu asker şimdi üstüne geliyor" düzen renginden ayırt edilsin.
+const BYZANTINE_COLOR = new Color('#6a3a96')
+const BYZANTINE_BROKEN = new Color('#b0605a')
+const CHARGE_COLOR = new Color('#ff2a12')
+const EMPEROR_COLOR = new Color('#e8b923')
+/** İmparator kalabalıkta seçilsin: biraz daha iri. */
+const EMPEROR_SCALE = 1.25
 
 /** Dörtnal: adım hızı (rad/sn), zıplama ve öne-arkaya yalpalama genliği. */
 const GALLOP_RATE = 9
@@ -38,15 +47,15 @@ export function EnemySwarm() {
   const dummy = useMemo(() => new Object3D(), [])
   const color = useMemo(() => new Color(), [])
   // Yalnızca çizim durumu: her düşmanın son yönü ve ölümünden beri geçen süre.
-  const headings = useMemo(() => new Float32Array(MAX_WAVE_ENEMIES), [])
-  const deathAge = useMemo(() => new Float32Array(MAX_WAVE_ENEMIES), [])
+  const headings = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
+  const deathAge = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
   const lastWave = useRef<Enemy[] | null>(null)
 
   // Renk buffer'ı ilk karede yazılmazsa örnekler siyah görünür.
   useLayoutEffect(() => {
     const mesh = riderRef.current
     if (!mesh) return
-    for (let i = 0; i < MAX_WAVE_ENEMIES; i++) {
+    for (let i = 0; i < ENEMY_CAPACITY; i++) {
       mesh.setColorAt(i, DISCIPLINED_COLOR)
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
@@ -60,15 +69,10 @@ export function EnemySwarm() {
 
     // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
     // yeniden başlatıldığında yeni pozisyonlar ilk karede görünür.
-    if (isPlaying()) {
-      stepEnemies(
-        world.enemies,
-        world.player,
-        dt,
-        world.isRetreating,
-        waveConfig(world.waveIndex).disciplineRecoveryMult,
-      )
-    }
+    if (isPlaying()) scenarioOf(world).moveEnemies(world, dt)
+    const battle = world.battle
+    const calm = battle ? BYZANTINE_COLOR : DISCIPLINED_COLOR
+    const broken = battle ? BYZANTINE_BROKEN : BROKEN_COLOR
 
     // Yeni dalga ya da yeniden başlatma: çizim durumu sıfırdan. Düşman -z'de
     // doğuyor ve oyuncuya (+z) bakıyor.
@@ -78,7 +82,7 @@ export function EnemySwarm() {
       deathAge.fill(0)
     }
 
-    // Dalgalar arasında düşman sayısı değişir; kapasiteyi (MAX_WAVE_ENEMIES)
+    // Dalgalar arasında düşman sayısı değişir; kapasiteyi (ENEMY_CAPACITY)
     // değil, o anki dalganın gerçek uzunluğunu çiziyoruz. Aksi halde bir
     // önceki (daha kalabalık) dalganın son matrisleri sahnede asılı kalırdı.
     const n = world.enemies.length
@@ -97,7 +101,11 @@ export function EnemySwarm() {
         const phase = time * GALLOP_RATE + i * 1.7
         dummy.position.set(e.pos.x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, e.pos.z)
         dummy.rotation.set(Math.sin(phase) * GALLOP_PITCH * gait, headings[i], 0)
-        dummy.scale.setScalar(1)
+        dummy.scale.setScalar(e.emperor ? EMPEROR_SCALE : 1)
+      } else if (e.fled) {
+        // Savaş alanını terk eden düşmedi: devrilme yok, sahneden çıkar.
+        dummy.position.set(0, -100, 0)
+        dummy.scale.setScalar(0)
       } else {
         // dt hitstop'ta sıfır: vuruş anında dik durur, donma bitince devrilir.
         deathAge[i] += dt
@@ -120,7 +128,9 @@ export function EnemySwarm() {
       horseMesh.setMatrixAt(i, dummy.matrix)
       riderMesh.setMatrixAt(i, dummy.matrix)
 
-      color.copy(DISCIPLINED_COLOR).lerp(BROKEN_COLOR, 1 - e.discipline)
+      if (e.emperor) color.copy(EMPEROR_COLOR)
+      else if (battle && battle.mode[i] !== MODE_FORMATION) color.copy(CHARGE_COLOR)
+      else color.copy(calm).lerp(broken, 1 - e.discipline)
       riderMesh.setColorAt(i, color)
     }
 
@@ -138,13 +148,13 @@ export function EnemySwarm() {
       */}
       <instancedMesh
         ref={horseRef}
-        args={[horse, horseMaterial, MAX_WAVE_ENEMIES]}
+        args={[horse, horseMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
       />
       <instancedMesh
         ref={riderRef}
-        args={[rider, riderMaterial, MAX_WAVE_ENEMIES]}
+        args={[rider, riderMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
       />

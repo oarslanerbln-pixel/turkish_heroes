@@ -3,7 +3,6 @@ import { useFrame } from '@react-three/fiber'
 import {
   approachAngle,
   calcFacing,
-  calcSiegeState,
   countInCrescent,
   executeStrike,
   HILAL_CONFIG,
@@ -11,11 +10,12 @@ import {
   resolvePhase,
   stepEnergy,
 } from '../mechanics/hilalSystem'
-import { calcContactDamage, countAttackers, resolveOutcome } from '../mechanics/combat'
+import { calcContactDamage, countAttackers } from '../mechanics/combat'
+import { BATTLE_CONFIG } from '../mechanics/corps'
 import type { StrikeRefusal, Vec2 } from '../mechanics/types'
-import { spawnWave, TOTAL_WAVES, waveClearBonus } from '../mechanics/waves'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, world } from '../sim/world'
+import { scenarioOf, SCORE_PER_KILL } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
 
@@ -35,17 +35,9 @@ const APPROACH_TOLERANCE = 1.5
 /** Ret mesajının ekranda kalma süresi (saniye). */
 const REFUSAL_DURATION = 1.4
 
-/** Düşürülen düşman başına puan. */
-const SCORE_PER_KILL = 100
-/** Zaferde kalan can başına bonus — efficient/temiz oynamayı ödüllendirir. */
-const HEALTH_BONUS_PER_POINT = 5
-
 /** Vuruş anındaki donma süreleri (saniye). */
 const HITSTOP_SMALL = 0.04
 const HITSTOP_BIG = 0.07
-
-/** Dalga temizlendikten sonra yenisi doğmadan önceki mola (saniye). */
-const WAVE_BREAK = 1.5
 
 function refuse(reason: StrikeRefusal): void {
   play('refuse')
@@ -59,7 +51,8 @@ export function GameDirector() {
 
   useFrame((_, delta) => {
     const dt = simDelta(delta)
-    const siege = calcSiegeState(world.enemies)
+    const scenario = scenarioOf(world)
+    const siege = scenario.siege(world)
 
     if (isPlaying()) {
       world.density = siege.density
@@ -69,7 +62,7 @@ export function GameDirector() {
       world.attackers = countAttackers(world.enemies, world.player)
       world.playerHealth = Math.max(
         0,
-        world.playerHealth - calcContactDamage(world.attackers, dt),
+        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage()),
       )
 
       // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
@@ -85,9 +78,15 @@ export function GameDirector() {
         world.facingTarget,
         HILAL_CONFIG.facingTurnRate * dt,
       )
-      world.inCrescent = countInCrescent(world.enemies, world.player, world.facing)
+      world.inCrescent = countInCrescent(
+        world.enemies,
+        world.player,
+        world.facing,
+        scenario.fallFilter(world),
+      )
 
       world.refusalTimer = Math.max(0, world.refusalTimer - dt)
+      world.announceTimer = Math.max(0, world.announceTimer - dt)
 
       const wasReady = isStrikeReady(world.energy)
       if (world.strikeTimer > 0) {
@@ -96,16 +95,25 @@ export function GameDirector() {
         refuse('notReady')
         world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
       } else if (world.strikeRequested && world.inCrescent === 0) {
-        // Boş havaya kapanan kuşatma anlamsız; dolu enerjiyi harcatma.
-        refuse('noTargets')
+        // Boş havaya kapanan kuşatma anlamsız; dolu enerjiyi harcatma. Yayda
+        // asker var ama hiçbiri düşmeyecekse sebep başka: düzenleri sağlam.
+        const anyInArc = countInCrescent(world.enemies, world.player, world.facing) > 0
+        refuse(anyInArc ? 'steady' : 'noTargets')
       } else if (world.strikeRequested) {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
-        const aliveBefore = countAlive()
+        const aliveBefore = siege.aliveCount
         world.fxKills.length = 0
-        const kills = executeStrike(world.enemies, world.player, world.facing, world.fxKills)
+        const kills = executeStrike(
+          world.enemies,
+          world.player,
+          world.facing,
+          world.fxKills,
+          scenario.fallFilter(world),
+        )
+        scenario.afterStrike(world)
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
-        play('strike', kills / aliveBefore)
+        play('strike', kills / Math.max(1, aliveBefore))
         haptic(kills >= 5 ? [40, 30, 60] : 40)
         // Hitstop: kuşatmanın kapandığı an kısa bir süre asılı kalır. Oyun hissi
         // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
@@ -126,25 +134,8 @@ export function GameDirector() {
       // Hilal kurulduğu an duyulsun: oyuncunun gözü düşmandayken de bilsin.
       if (!wasReady && isStrikeReady(world.energy)) play('ready')
 
-      // Vuruş sonrası düşen düşman sayısı yukarıda değişmiş olabilir; dalga
-      // temizlendi mi kontrolü bu yüzden burada, güncel sayıyla yapılır.
-      // alive sadece executeStrike ile azaldığı için tek bir noktada kontrol
-      // etmek yeterli — temas hasarı düşman öldürmüyor.
-      const moreWaves = world.waveIndex < TOTAL_WAVES - 1
-      if (countAlive() === 0 && moreWaves) {
-        if (world.waveBreak === 0) {
-          // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
-          world.score += waveClearBonus(world.waveIndex)
-          world.waveBreak = WAVE_BREAK
-        } else if (dt > 0) {
-          world.waveBreak = Math.max(0, world.waveBreak - dt)
-          if (world.waveBreak === 0) {
-            world.waveIndex++
-            world.enemies = spawnWave(world.waveIndex)
-            play('wave')
-          }
-        }
-      }
+      // Dalga geçişi / gün saati olayları — vuruştan sonra, güncel sayıyla.
+      scenario.advance(world, dt)
 
       world.phase = resolvePhase({
         vulnerability: siege.vulnerability,
@@ -153,19 +144,10 @@ export function GameDirector() {
       })
 
       const prevOutcome = world.outcome
-      // Dalga molasında sahada kimse yok ama savaş bitmedi: sıradaki dalga
-      // da "kalan düşman" sayılır, yoksa mola anında zafer ilan edilirdi.
-      const remaining = countAlive() + (world.waveIndex < TOTAL_WAVES - 1 ? 1 : 0)
-      world.outcome = resolveOutcome(world.playerHealth, remaining)
+      world.outcome = scenario.outcome(world)
       if (world.outcome !== 'playing' && prevOutcome === 'playing') {
-        if (world.outcome === 'victory') {
-          // Son dalganın kendi temizleme bonusu yukarıdaki dalga-geçiş
-          // bloğunda verilmez (waveIndex zaten TOTAL_WAVES-1'de sabitlenip
-          // spawn edilmez); burada tamamlanıyor.
-          world.score += waveClearBonus(world.waveIndex)
-          world.score += Math.round(world.playerHealth * HEALTH_BONUS_PER_POINT)
-        }
-        world.bestScore = saveBestScore(world.score)
+        if (world.outcome === 'victory') world.score += scenario.victoryBonus(world)
+        world.bestScore = saveBestScore(world.commander, world.score)
         play(world.outcome)
         if (world.outcome === 'defeat') haptic(200)
       }
@@ -183,6 +165,7 @@ export function GameDirector() {
     hudTimer.current += dt
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
       hudTimer.current = 0
+      const b = world.battle
       syncHud({
         phase: world.phase,
         outcome: world.outcome,
@@ -200,6 +183,13 @@ export function GameDirector() {
         waveIndex: world.waveIndex,
         score: world.score,
         bestScore: world.bestScore,
+        announcement: world.announceTimer > 0 ? world.announcement : '',
+        stars: world.stars,
+        battleTime: b?.time ?? 0,
+        campDistance: b ? Math.max(0, BATTLE_CONFIG.campZ - b.frontZ) : 0,
+        corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
+        defeatCause: b?.reachedCamp ? 'camp' : 'health',
+        emperorCaptured: b?.emperorCaptured ?? false,
       })
     }
   }, DIRECTOR_PRIORITY)
@@ -227,12 +217,4 @@ function detectRetreat(centroid: Vec2): boolean {
   // Hareket vektörünün "merkezden uzaklaşma" yönündeki bileşeni.
   const speedAway = (world.playerVel.x * awayX + world.playerVel.z * awayZ) / len
   return speedAway > -APPROACH_TOLERANCE
-}
-
-function countAlive(): number {
-  let n = 0
-  for (const e of world.enemies) {
-    if (e.alive) n++
-  }
-  return n
 }

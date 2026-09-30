@@ -1,5 +1,5 @@
-import { Suspense, useMemo } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
@@ -7,6 +7,10 @@ import { Terrain } from './world/Terrain'
 import { Stones } from './world/Stones'
 import { Grass } from './world/Grass'
 import { StrikeSparks } from './StrikeSparks'
+import { Camp } from './world/Camp'
+import { CorpsBanners } from './CorpsBanners'
+import { DayCycle } from './DayCycle'
+import { TuningPanel } from './TuningPanel'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
 import { CameraShake } from './CameraShake'
 import { CrescentPreview } from './CrescentPreview'
@@ -20,11 +24,20 @@ import { TouchJoystick } from './TouchJoystick'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 
-// Bozkırın uzakta kaybolduğu sıcak, tozlu pus. Kamera 45° aşağı baktığı için
-// gökyüzü hiç görünmüyor; derinliği hava perspektifi veriyor: arena net, ekranın
-// üstündeki tepeler bu renge doğru soluyor. Gökyüzü kubbesi yerine bilinçli
-// tercih — görünmeyecek bir şeye çizim çağrısı harcanmaz.
-const HAZE_COLOR = '#8e7254'
+/** Canlı ayar paneli yalnızca ?tune ile (oyun testi). */
+const TUNING_ENABLED = new URLSearchParams(window.location.search).has('tune')
+
+/**
+ * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Başlangıç
+ * ekranında komutan değişince arkadaki sahne (ordu, ordugah) yeni savaşı
+ * göstersin diye bir kare iste.
+ */
+function InvalidateOnCommander() {
+  const invalidate = useThree((s) => s.invalidate)
+  const commander = useGameStore((s) => s.commander)
+  useEffect(() => invalidate(), [commander, invalidate])
+  return null
+}
 
 export function Scene() {
   useStrikeInput()
@@ -36,6 +49,7 @@ export function Scene() {
   // 'demand' modunda R3F yalnızca gerektiğinde (ör. boyut değişince) çizer.
   const playing = useGameStore((s) => s.started && s.outcome === 'playing')
   const preset = QUALITY[tier]
+  const commander = useGameStore((s) => s.commander)
 
   // Efekt listesi kademe değişmedikçe aynı nesne kalsın: EffectComposer,
   // çocukları her değiştiğinde efekt pasolarını baştan kuruyor.
@@ -94,40 +108,13 @@ export function Scene() {
           {adaptive && (
             <PerformanceMonitor onIncline={() => step(1)} onDecline={() => step(-1)} />
           )}
-          {/* Arena (kameradan 20–40 birim) net kalır; ekranın üst kenarındaki
-              tepeler (~65 birim) pusa doğru soluklaşır. */}
-          <color attach="background" args={[HAZE_COLOR]} />
-          <fog attach="fog" args={[HAZE_COLOR, 45, 125]} />
-          {/* Ortam ışığı düşük: gölgeler ve süvari siluetleri zeminden ayrılsın. */}
-          <ambientLight intensity={0.25} />
-          {/* Gökyüzü/toprak ayrımı — bozkır hissini ucuza veriyor. */}
-          <hemisphereLight args={['#ffe2b8', '#4b3622', 0.6]} />
-          {/*
-            Alçak, sıcak güneş: uzun gölgeler. key: gölge haritası boyutu
-            değişince ışık yeniden kurulur — three mevcut haritayı yeniden
-            boyutlamıyor; eski ışık (ve haritası) R3F tarafından dispose edilir.
-          */}
-          <directionalLight
-            key={preset.shadowMapSize}
-            position={[18, 22, 12]}
-            intensity={2.2}
-            color="#ffd9a0"
-            castShadow
-            shadow-mapSize={[preset.shadowMapSize, preset.shadowMapSize]}
-            shadow-camera-left={-35}
-            shadow-camera-right={35}
-            shadow-camera-top={35}
-            shadow-camera-bottom={-35}
-            shadow-camera-far={80}
-            // Düz gölgeli (flatShading) arazide gölge lekesi olmasın.
-            shadow-bias={-0.0004}
-            shadow-normalBias={0.02}
-          />
-          {/* Karşı yönden soğuk dolgu — siluetler tamamen kararmasın. */}
-          <directionalLight position={[-14, 10, -16]} intensity={0.5} color="#6a7fa8" />
+          {/* Işık, sis ve gökyüzü: savaş saatine göre (Metehan'da hep öğle). */}
+          <DayCycle />
+          <InvalidateOnCommander />
           <Terrain />
           <Stones />
           <Grass />
+          {commander === 'alp-arslan' && <Camp />}
           <MetehanPlaceholder />
           <EnemySwarm />
           <GameDirector />
@@ -135,6 +122,7 @@ export function Scene() {
           <CrescentPreview />
           <StrikeEffect />
           <StrikeSparks />
+          {commander === 'alp-arslan' && <CorpsBanners />}
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
           <FollowCamera />
           <CameraShake />
@@ -155,6 +143,11 @@ export function Scene() {
         </Suspense>
       </Canvas>
       <HilalEnergyHUD />
+      {TUNING_ENABLED && commander === 'alp-arslan' && (
+        <div className="hud">
+          <TuningPanel />
+        </div>
+      )}
       <TouchJoystick />
     </div>
   )

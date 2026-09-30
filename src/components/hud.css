@@ -282,6 +282,245 @@
   letter-spacing: 0.08em;
 }
 
+/* ---- Üst orta: gün çizgisi (Alp Arslan) ---- */
+.day-line {
+  position: absolute;
+  top: calc(18px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(300px, 36vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Öğle altını → gün batımı turuncusu (--dusk'ta) → gece mavisi. */
+.day-track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #ffd9a0 0%,
+    #ff7a3d var(--dusk),
+    #6a7fa8 100%
+  );
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Gün batımı çentiği: kilit an her zaman görünsün. */
+.day-track::after {
+  content: '';
+  position: absolute;
+  left: var(--dusk);
+  top: -4px;
+  width: 1px;
+  height: 11px;
+  background: rgba(255, 243, 196, 0.7);
+}
+
+.sun {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff3c4 30%, #ffb347 70%);
+  box-shadow: 0 0 10px rgba(255, 179, 71, 0.9);
+  transition: left 0.12s linear;
+}
+
+.sun.is-moon {
+  background: radial-gradient(circle, #eef2ff 35%, #9fb0d8 75%);
+  box-shadow: 0 0 10px rgba(160, 180, 230, 0.8);
+}
+
+.day-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d9c3a0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Duyuru satırı ---- */
+.announce {
+  position: absolute;
+  top: calc(64px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--gold);
+  background: linear-gradient(90deg, transparent, rgba(16, 7, 2, 0.72) 18%, rgba(16, 7, 2, 0.72) 82%, transparent);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  animation: announce 2.2s ease forwards;
+}
+
+/* ---- Başlangıç: komutan seçimi ---- */
+.commanders {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hud .commander {
+  min-width: 180px;
+  padding: 9px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #bfa888;
+  background: rgba(255, 215, 0, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.commander b {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.commander span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.commander em {
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--gold-deep);
+  border-radius: 999px;
+}
+
+.hud .commander.is-selected {
+  color: var(--gold);
+  background: rgba(241, 209, 122, 0.1);
+  border-color: rgba(241, 209, 122, 0.6);
+  box-shadow: 0 0 18px rgba(233, 160, 40, 0.18);
+}
+
+/* ---- Sonuç: yıldızlar ---- */
+.stars {
+  display: flex;
+  gap: 10px;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.stars span {
+  color: rgba(241, 209, 122, 0.18);
+}
+
+.stars span.is-earned {
+  color: var(--gold);
+  text-shadow: 0 0 16px rgba(255, 179, 71, 0.6);
+  animation: star-in 0.4s ease backwards;
+}
+
+.stars span.is-earned:nth-child(2) { animation-delay: 0.15s; }
+.stars span.is-earned:nth-child(3) { animation-delay: 0.3s; }
+
+.epilogue {
+  max-width: 460px;
+  color: #bfa888;
+  font-size: 12px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.hud .secondary-btn {
+  padding: 12px 22px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  background: transparent;
+  border: 1px solid rgba(241, 209, 122, 0.35);
+  border-radius: 8px;
+}
+
+/* ---- Canlı ayar paneli (?tune) ---- */
+.tuning {
+  position: absolute;
+  right: calc(16px + var(--safe-right));
+  top: calc(64px + var(--safe-top));
+  width: 200px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: #d9c3a0;
+  background: rgba(10, 4, 0, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  pointer-events: auto;
+}
+
+.tuning label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tuning label span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.tuning b {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.tuning input {
+  width: 100%;
+  accent-color: var(--gold-deep);
+}
+
+.hud .tuning button {
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--gold);
+  background: rgba(241, 209, 122, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.hud .tuning .tuning-head {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 /* ---- Tam ekran menüler: başlangıç ve sonuç ---- */
 .screen {
   position: absolute;
@@ -443,6 +682,21 @@
   .step span { font-size: 11px; }
   .hud-card { width: 176px; padding: 9px 11px; gap: 6px; }
   .hud-score { font-size: 22px; }
+  .hud .commander { min-width: 150px; padding: 6px 12px; }
+  .commander b { font-size: 15px; }
+  .announce { top: calc(52px + var(--safe-top)); font-size: 13px; }
+  .stars { font-size: 24px; }
+}
+
+@keyframes announce {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  12%, 80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -4px); }
+}
+
+@keyframes star-in {
+  from { opacity: 0; transform: scale(1.8); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes fade-in {
