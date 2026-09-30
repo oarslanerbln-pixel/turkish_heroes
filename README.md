@@ -12,6 +12,7 @@ düzensiz küme sıkışır → hilal enerjisi dolar → yayı kapat.
 |---|---|---|
 | Hareket | WASD / oklar | Sol alttaki joystick |
 | Vuruş | Space | Sağ alttaki düğme |
+| Kol emri (Malazgirt: pusu → taciz → hücum) | Q sol kol / E sağ kol | Vuruş düğmesinin üstündeki düğmeler |
 | Başla / Yeniden | Space veya Enter / Enter | Ekrandaki düğme |
 | Mola / Devam | Esc veya P / Enter | Sağ üstteki düğme |
 

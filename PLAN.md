@@ -36,6 +36,7 @@ hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenm
 | 14 | Olay takibi (yerel, bağımlılıksız): savaş başına tek özet — sonuç ve yenilgi nedeni (can / ordugah), oyun süresi, vuruş başına düşen (ve o an sahadaki), ret sayıları (neden başına), dalga temizlenme anları, Malazgirt olayları (taciz, hamle, gün batımı…), komutan başına kaçıncı deneme (Kapı B'nin "ikinci kez oynadı mı" sorusu). Özetler localStorage'da (son 40); savaş sürerken sayfa kapanırsa sonraki açılışta "yarıda bırakıldı" sayılır. `?telemetry` ayıklamayı kalıcı açar: olaylar konsola, sonuç ekranında VERİYİ KOPYALA düğmesi (telefondaki testin verisi panoya). Uzak servis `addSink` ile bağlanır. Aynı gün: production adresi faz 0'daydı (Vercel production dalı eski; tüm deploy'lar giriş korumalı Preview'a gidiyordu) — son sürüm production'a alındı. | ✅ |
 | 15 | Mola ve CI: savaş Esc / P ya da sağ üstteki düğmeyle durur; uygulamadan çıkılınca (sekme gizlenir, pencere odağı kaybolur) kendiliğinden durur — telefona dönüldüğünde düşman saldırmış olmasın. Mola ekranı: DEVAM (Enter / Esc), YENİDEN BAŞLA, KOMUTANLAR. Molada simülasyon, müzik ve sahne döngüsü durur; basılan vuruş birikmez, joystick sıfırlanır. Olay takibine `pause` (elle / kendiliğinden) ve moladan çıkış için `quit` sonucu eklendi. GitHub Actions: her PR'da ve ana dala push'ta lint + test + build. | ✅ |
 | 16 | Savaş alanı görselliği: gökyüzü kubbesi (ufuk→tepe geçişi, güneş/ay diski ve parıltısı; gün saatine bağlı, ufuk rengi sisle aynı — uzak arazi gökyüzüne karışır, sis artık açık toz rengi). Sinematik çekimler: menüden savaşa girerken ordugahın ardından ufka bakış (ordu gökyüzüne karşı), sonra taktik duruşa yükseliş; gün batımında kamera alçalır, güneş Bizans ordusunun ardında batar. Oyuncu çekim sırasında da oynar; YENİDEN'de açılış çekimi yok. Taktik kamerada ekranın altını kaplayan ordugah noktalı inceltmeyle (dither) kaybolur. | ✅ |
+| 17 | Selçuklu kolları (Malazgirt): hilalin iki boynuzu oyuncunun emrinde (`mechanics/wings.ts`, saf ve testli). Her kol PUSU (ordugahın yanında dinlenir), TACİZ (karşısındaki kanadı ok menzilinden yıpratır ve yavaşlatır) ya da HÜCUM (birliğin yanına yüklenir); düğmeye / Q–E'ye her basış sıradaki emri verir. Kol yorulur — taciz yavaş, düzenli birliğe hücum hızlı tüketir; gücü biten kol pusuya döner, dinlenmeden çıkmaz. Gündüz hücum ilerleyen birliği durdurmaz; akşam dönen birliğe taze kolun ilk darbesi düzeni bir anda sarsar, birlik tutulur, dönüşü uzar. Kollar merkezi tutarsa (kanatlar düşmüşse) imparatorun arkası artçı kaçmadan da açılır. Asıl karar: kolları gündüz harcamak mı, akşama saklamak mı. Sahada atlı okçular: pusuda iki sıra, tacizde dönen halka, hücumda hilal düzeni. Duyurular, yeni sesler (emir, kol hücumu), bir kez gösterilen iki ipucu, olay takibine `wing_order`, `?tune`'a kol ayarları. Bot ölçütleri (`wings.test.ts`): pusudaki kol savaşı değiştirmez; kolları akşama saklayan güvenli tacizci ~4 asker daha fazla düşürür; kolları gündüz tüketen akşamı yorgun (güç < 0,5) karşılar; kollar pasif oyuncuyu kurtarmaz. | ✅ |
 
 **Kanıt disiplini:** Her denge kararı headless simülasyon taramasıyla
 (iyi/orta/kötü bot) ölçülmüş, her görsel/etkileşim hatası gerçek tarayıcıda
@@ -115,8 +116,9 @@ oxlint (lint)
 - Kare ölçümü: `?perf` ile üretimde FPS paneli; `__world`/`__gl`/`__scene` yalnızca dev.
 - Dünya (`src/components/world/`): `terrainShape.ts` saf fonksiyonlar (yükseklik,
   renk, gürültü; testli — arena r ≤ 34'te yükseklik tam sıfır, birimler y = 0'da
-  yürür). Arazi ızgarası ve çimen sayısı kademeye bağlı. Gökyüzü yok: kamera 45°
-  aşağı bakıyor, ufuk görünmüyor; derinliği sis veriyor.
+  yürür). Arazi ızgarası ve çimen sayısı kademeye bağlı. Gökyüzü kubbesi
+  (`SkyDome`) taktik kamerada görünmez; açılış ve gün batımı çekimlerinde
+  kamera alçalınca görünür. Taktik derinliği sis veriyor.
 - Süvari (`src/characters/riderGeometry.ts`): ilkel şekiller köşe rengiyle
   boyanıp birleştiriliyor. Düşmanda at ve binici iki örneklenmiş mesh (aynı
   matris); binicinin beyaz parçaları disiplin rengini `instanceColor` ile alır.
@@ -139,6 +141,13 @@ oxlint (lint)
   isteğe bağlı `FallFilter` alır (Malazgirt'te birlik bütçesi); korunan
   (`guarded`) asker yaya kapılmaz ve nişanı çekmez. Arena geometrisi
   değişmedi (r 29): ordu 28 birim yürür (−14 → ordugah 14).
+- Selçuklu kolları (`mechanics/wings.ts`): kolun kendi durumu (emir, konum,
+  güç, varma ölçüsü) orada; birliklerle ilişkisi (hedef seçimi, taciz ve
+  tutmanın birliğe işlenmesi) `corps.ts`'teki `stepWings`'te. Kolun tacizi
+  oyuncununkine eklenir; tutma (`pinned`) yalnızca ilerlemeyen birliğe işler
+  — ilerlemeyi, dönüşü ve çekilmeyi yavaşlatır. Emir `gameStore.cycleWing`'ten
+  doğrudan simülasyona yazılır. Süvariler (`AlliedWings`) kolun noktası
+  çevresinde emre göre dizilir; çizim durumu yalnızca bileşende.
 - Bot döngüsü `mechanics/battleBots.ts` (yönetmenin savaş kolunu izler;
   oyun kodu içe aktarmaz). Botların hareketi hedefe çekim + başka
   birliklerden itilme; hamleden kaçış tehditlerin tam tersine.

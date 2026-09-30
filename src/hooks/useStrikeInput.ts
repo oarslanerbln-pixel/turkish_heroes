@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
 /**
- * Space → hilal vuruşu, Esc / P → mola. Menü ekranlarında klavye ana düğmenin
+ * Space → hilal vuruşu, Q / E → sol / sağ kola emir, Esc / P → mola. Menü ekranlarında klavye ana düğmenin
  * işini görür (BAŞLA: Space/Enter, YENİDEN ve DEVAM: Enter) — klavyedeki
  * oyuncu fareye uzanmasın.
  * Kenar-tetiklemeli: tuş basılı tutulduğunda tarayıcının ürettiği tekrar
@@ -16,6 +16,11 @@ export function useStrikeInput() {
         const game = useGameStore.getState()
         if (game.paused) game.resume()
         else game.pause(false)
+        return
+      }
+      // Kol emirleri: savaş dışında (menü, mola, sonuç) mağaza yok sayar.
+      if (e.code === 'KeyQ' || e.code === 'KeyE') {
+        useGameStore.getState().cycleWing(e.code === 'KeyQ' ? 0 : 1)
         return
       }
       const isSpace = e.code === 'Space'

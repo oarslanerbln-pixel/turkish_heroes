@@ -18,6 +18,8 @@ export type Sfx =
   | 'dusk'
   | 'horn'
   | 'volley'
+  | 'order'
+  | 'wingCharge'
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
@@ -133,6 +135,17 @@ export function play(sfx: Sfx, intensity = 1): void {
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.
       for (let i = 0; i < 3; i++) tone(t + i * 0.42, 'sine', 90, 40, 0.5, 0.7)
+      break
+    case 'order':
+      // Kola emir: tek kös + kısa boru — "emir alındı".
+      tone(t, 'sine', 110, 55, 0.25, 0.45)
+      horn(t + 0.05, 294, 0.2)
+      break
+    case 'wingCharge':
+      // Kol dönen orduya yüklendi: yükselen boru + nal gürültüsü.
+      horn(t, 262, 0.2)
+      horn(t + 0.16, 392, 0.5)
+      noise(t, 0.9, 380, 140, 0.45)
       break
   }
 }

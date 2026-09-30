@@ -9,6 +9,7 @@ import type { Outcome } from '../mechanics/combat'
 import type { BattleEvent } from '../mechanics/corps'
 import type { CommanderId } from '../mechanics/scenario'
 import type { StrikeRefusal } from '../mechanics/types'
+import type { WingOrder } from '../mechanics/wings'
 
 export type Refusal = Exclude<StrikeRefusal, 'none'>
 /**
@@ -30,6 +31,8 @@ export type TelemetryEvent =
   | { type: 'battle_event'; event: BattleEvent }
   /** auto: uygulamadan çıkıldığı için (oyuncu durdurmadı). */
   | { type: 'pause'; auto: boolean }
+  /** Malazgirt: kola emir. wing: 0 sol, 1 sağ. */
+  | { type: 'wing_order'; wing: number; order: WingOrder }
   | {
       type: 'battle_end'
       outcome: EndOutcome
@@ -65,6 +68,8 @@ export interface BattleSummary {
   waves: { wave: number; t: number; health: number }[]
   events: { event: BattleEvent; t: number }[]
   pauses: { t: number; auto: boolean }[]
+  /** Kollara verilen emirler — oyuncu kolları kullanıyor mu, ne zaman. */
+  orders: { t: number; wing: number; order: WingOrder }[]
 }
 
 export function startSummary(
@@ -89,6 +94,7 @@ export function startSummary(
     waves: [],
     events: [],
     pauses: [],
+    orders: [],
   }
 }
 
@@ -114,6 +120,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'pause':
       s.pauses.push({ t: e.t, auto: e.auto })
+      break
+    case 'wing_order':
+      s.orders.push({ t: e.t, wing: e.wing, order: e.order })
       break
     case 'battle_end':
       s.outcome = e.outcome

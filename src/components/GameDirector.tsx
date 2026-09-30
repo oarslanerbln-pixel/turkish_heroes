@@ -221,6 +221,8 @@ export function GameDirector() {
         battleTime: b?.time ?? 0,
         campDistance: b ? Math.max(0, BATTLE_CONFIG.campZ - b.frontZ) : 0,
         corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
+        wingOrders: b ? b.wings.map((w) => w.order) : [],
+        wingStrength: b ? b.wings.map((w) => w.strength) : [],
         defeatCause: b?.reachedCamp ? 'camp' : 'health',
         emperorCaptured: b?.emperorCaptured ?? false,
       })

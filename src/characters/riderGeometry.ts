@@ -5,7 +5,15 @@
 // yine tek çizim çağrısı. Model +z'ye bakar, ayakları y = 0'da durur;
 // yön mantığı (rotation.y = atan2(vx, vz)) kapsüllerle aynı kalır.
 
-import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Float32BufferAttribute } from 'three'
+import {
+  BoxGeometry,
+  BufferGeometry,
+  Color,
+  ConeGeometry,
+  CylinderGeometry,
+  Float32BufferAttribute,
+  TorusGeometry,
+} from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 /** Beyaz = boyanabilir: instanceColor bu parçalara olduğu gibi geçer. */
@@ -62,18 +70,20 @@ export function buildHorseGeometry(): BufferGeometry {
   ])
 }
 
-export type RiderStyle = 'enemy' | 'hero'
+export type RiderStyle = 'enemy' | 'hero' | 'ally'
 
 /**
  * Binici. `enemy`: gövde, eyer örtüsü ve kalkan beyaz — disiplin rengi
  * instanceColor ile gelir. `hero`: Metehan'ın sabit renkleri ve sırtında tuğ
- * (at kılı sancak): sürünün içinde tek bakışta bulunsun diye.
+ * (at kılı sancak): sürünün içinde tek bakışta bulunsun diye. `ally`: Selçuklu
+ * atlı okçusu — komutanla aynı renk ailesi, daha koyu; mızrak yerine yay.
  */
 export function buildRiderGeometry(style: RiderStyle): BufferGeometry {
   const hero = style === 'hero'
-  const cloth = hero ? '#2a9d8f' : TINT
-  const trim = hero ? '#e9c46a' : TINT
-  const metal = hero ? '#c9a227' : '#9aa0a6'
+  const ally = style === 'ally'
+  const cloth = hero ? '#2a9d8f' : ally ? '#1f6f66' : TINT
+  const trim = hero ? '#e9c46a' : ally ? '#b8862b' : TINT
+  const metal = hero || ally ? '#c9a227' : '#9aa0a6'
   const parts = [
     paint(new BoxGeometry(0.58, 0.08, 0.5), trim, { y: 1.26, z: -0.05 }),
     paint(new BoxGeometry(0.36, 0.52, 0.26), cloth, { y: 1.6, z: -0.08 }),
@@ -81,9 +91,14 @@ export function buildRiderGeometry(style: RiderStyle): BufferGeometry {
     paint(new BoxGeometry(0.11, 0.42, 0.14), '#3a2a1e', { x: -0.26, y: 1.25, z: -0.02 }),
     paint(new BoxGeometry(0.2, 0.22, 0.2), '#c8a47a', { y: 2.0, z: -0.08 }),
     paint(new ConeGeometry(0.15, 0.26, 6), metal, { y: 2.22, z: -0.08 }),
-    // Mızrak: ucu öne ve yukarı.
-    paint(new BoxGeometry(0.035, 0.035, 2.0), '#7a5c3a', { x: 0.27, y: 1.75, z: 0.35, rx: -0.35 }),
   ]
+  if (ally) {
+    // Yay: sol elde, dikey; sırtı dışa dönük.
+    parts.push(paint(new TorusGeometry(0.42, 0.025, 4, 10, Math.PI), '#5a3a20', { x: -0.3, y: 1.6, z: 0.1, rz: Math.PI / 2 }))
+  } else {
+    // Mızrak: ucu öne ve yukarı.
+    parts.push(paint(new BoxGeometry(0.035, 0.035, 2.0), '#7a5c3a', { x: 0.27, y: 1.75, z: 0.35, rx: -0.35 }))
+  }
   if (hero) {
     // Tuğ: direk, altın tepelik, koyu at kılı püskül.
     parts.push(
@@ -91,7 +106,7 @@ export function buildRiderGeometry(style: RiderStyle): BufferGeometry {
       paint(new BoxGeometry(0.12, 0.12, 0.12), '#e9c46a', { x: -0.2, y: 3.08, z: -0.3 }),
       paint(new ConeGeometry(0.16, 0.5, 6), '#2b1b12', { x: -0.2, y: 2.75, z: -0.3, rx: Math.PI }),
     )
-  } else {
+  } else if (!ally) {
     // Yuvarlak kalkan, sol yanda.
     parts.push(paint(new CylinderGeometry(0.2, 0.2, 0.05, 8), cloth, { x: -0.24, y: 1.55, rz: Math.PI / 2 }))
   }

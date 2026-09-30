@@ -19,6 +19,15 @@ import { steerToward, ENEMY_CONFIG } from './enemySim'
 import { calcSiegeState, type FallFilter, type SiegeState } from './hilalSystem'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
+import {
+  createWings,
+  moveWing,
+  stepStrength,
+  WING_CONFIG,
+  wingHarass,
+  wingPin,
+  type WingState,
+} from './wings'
 
 /**
  * Denge sabitleri. Bilerek `as const` değil: canlı ayar paneli (?tune)
@@ -86,6 +95,8 @@ export const BATTLE_CONFIG = {
   rearguardThreshold: 0.8,
   /** Artçı gittiyse ve merkezin düzeni bunun altındaysa imparator korumasız. */
   emperorThreshold: 0.75,
+  /** Artçı gitmese de kollar merkezi en az bu şiddetle tutuyorsa arkası açılmış sayılır. */
+  emperorPin: 0.5,
   /** Gündüz vuruşundan sonra ordu irkilir: her birliğin düzeni bu kadar toparlanır. */
   strikeRecovery: 0.2,
 
@@ -148,6 +159,10 @@ export interface CorpsState {
   turnDuration: number
   /** Hayattaki asker sayısı (bu karenin başındaki). */
   alive: number
+  /** 0–1. Bu karede kolların tacizi; oyuncunun tacizine eklenir. */
+  wingHarass: number
+  /** 0–1. Hücumdaki kolların birliği tutması: ilerleyiş durur, dönüş uzar. */
+  pinned: number
 }
 
 /** Askerin anlık görevi. */
@@ -163,11 +178,19 @@ export type BattleEvent =
   | 'rearguardLeaves'
   | 'emperorExposed'
   | 'emperorCaptured'
+  /** Kol akşam dönen birliğe hücumun ilk darbesini vurdu. */
+  | 'wingShockLeft'
+  | 'wingShockRight'
+  /** Kol yoruldu, pusuya dönüyor. */
+  | 'wingTiredLeft'
+  | 'wingTiredRight'
 
 export interface BattleState {
   /** Savaşın başından beri geçen süre (sn). */
   time: number
   corps: CorpsState[]
+  /** Selçuklu kolları: sol, sağ (bkz. wings.ts). */
+  wings: WingState[]
   /** Asker başına görev (MODE_*), enemies ile aynı indeks. */
   mode: Uint8Array
   /** Görevin kalan süresi (uyarı / hamle). */
@@ -223,6 +246,8 @@ export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy
       turn: 0,
       turnDuration: 0,
       alive: def.size,
+      wingHarass: 0,
+      pinned: 0,
     }
   })
 
@@ -237,6 +262,7 @@ export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy
   const battle: BattleState = {
     time: 0,
     corps,
+    wings: createWings(),
     mode: new Uint8Array(enemies.length),
     modeTimer: new Float32Array(enemies.length),
     slots,
@@ -316,6 +342,7 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
   if (wasDay && !isDay(b)) sunset(b)
 
   measureCorps(b, enemies, player)
+  stepWings(b, dt)
 
   for (let ci = 0; ci < b.corps.length; ci++) {
     const c = b.corps[ci]
@@ -325,11 +352,12 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
     stepAnchor(c, dt)
   }
 
-  // İmparator: artçı gittiyse ve merkez yıprandıysa akşam korumasız kalır.
+  // İmparator: arkası açıldıysa (artçı gitti ya da kollar merkeze kapandı) ve
+  // merkez yıprandıysa akşam korumasız kalır.
   if (
     !b.emperorExposed &&
     !isDay(b) &&
-    b.rearguardLeft &&
+    (b.rearguardLeft || b.corps[CENTER].pinned >= cfg.emperorPin) &&
     b.corps[CENTER].cohesion < cfg.emperorThreshold
   ) {
     b.emperorExposed = true
@@ -380,13 +408,65 @@ function measureCorps(b: BattleState, enemies: readonly Enemy[], player: Vec2): 
   }
 }
 
+/** Kolun hedef sırası: kendi tarafındaki kanat, sonra merkez, karşı kanat, artçı. */
+const LEFT_WING_TARGETS = [0, CENTER, 2, REARGUARD] as const
+const RIGHT_WING_TARGETS = [2, CENTER, 0, REARGUARD] as const
+
+function wingTarget(b: BattleState, w: WingState): number {
+  if (w.order === 'ambush') return -1
+  for (const ci of w.side < 0 ? LEFT_WING_TARGETS : RIGHT_WING_TARGETS) {
+    const c = b.corps[ci]
+    if (c.alive > 0 && c.status !== 'fleeing') return ci
+  }
+  return -1
+}
+
+/**
+ * Kolları sürer ve etkilerini hedef birliklere yazar (wingHarass, pinned).
+ * Akşam dönen ya da çekilen birliğe varan hücumun ilk darbesi düzeni sarsar.
+ */
+function stepWings(b: BattleState, dt: number): void {
+  for (const c of b.corps) {
+    c.wingHarass = 0
+    c.pinned = 0
+  }
+  for (const w of b.wings) {
+    w.target = wingTarget(b, w)
+    const c = w.target >= 0 ? b.corps[w.target] : null
+    moveWing(w, c ? c.anchor : null, dt)
+    if (c) {
+      if (
+        w.order === 'charge' &&
+        !w.shocked &&
+        w.presence >= 0.8 &&
+        !isDay(b) &&
+        c.status !== 'advancing'
+      ) {
+        w.shocked = true
+        c.cohesion = clampCohesion(b, c.cohesion - WING_CONFIG.shock * w.strength)
+        b.events.push(w.side < 0 ? 'wingShockLeft' : 'wingShockRight')
+      }
+      c.wingHarass += wingHarass(w)
+      // İlerleyen birlik hücumu karşılar ve yürümeyi sürdürür; dönen ya da
+      // çekilen birlik yanına yüklenen kolu karşılayamaz, yerinde kalır.
+      if (c.status !== 'advancing') c.pinned = Math.min(1, c.pinned + wingPin(w))
+    }
+    const discipline = c ? c.cohesion * turnFactor(c) : 0
+    if (stepStrength(w, discipline, dt)) {
+      b.events.push(w.side < 0 ? 'wingTiredLeft' : 'wingTiredRight')
+    }
+  }
+}
+
 function stepCohesion(b: BattleState, c: CorpsState, dt: number): void {
   const cfg = BATTLE_CONFIG
   // Terk eden birlik artık savaşmıyor; düzeni anlamını yitirdi.
-  c.harass = c.status === 'fleeing' ? 0 : harassEffect(c.nearest)
+  const byPlayer = c.status === 'fleeing' ? 0 : harassEffect(c.nearest)
+  c.harass = c.status === 'fleeing' ? 0 : Math.min(1, byPlayer + c.wingHarass)
   if (c.harass > 0) {
     c.cohesion -= cfg.harassDecay * c.harass * dt
-    if (!b.seen.has('harass')) {
+    // İpucu oyuncunun kendi tacizi için: kolların tacizi onu yanlış yere yönlendirir.
+    if (byPlayer > 0 && !b.seen.has('harass')) {
       b.seen.add('harass')
       b.events.push('harass')
     }
@@ -447,17 +527,20 @@ function launchCharge(b: BattleState, ci: number, enemies: readonly Enemy[], pla
 }
 
 function stepAnchor(c: CorpsState, dt: number): void {
+  // Hücumdaki kol birliği yerinde tutar: ne ilerleyebilir ne çekilebilir.
+  const free = 1 - c.pinned
   switch (c.status) {
     case 'advancing':
-      c.anchor.z += marchSpeed(c) * (1 - BATTLE_CONFIG.harassSlow * c.harass) * dt
+      c.anchor.z += marchSpeed(c) * (1 - BATTLE_CONFIG.harassSlow * c.harass) * free * dt
       break
     case 'turning':
-      // Çark ederken yerinde: dönüş kendi başına yeterince karışık.
-      c.turn = Math.min(1, c.turn + dt / c.turnDuration)
+      // Çark ederken yerinde: dönüş kendi başına yeterince karışık. Yanına
+      // yüklenilen birlik çarkını geç tamamlar — kuşatma penceresi uzar.
+      c.turn = Math.min(1, c.turn + (dt / c.turnDuration) * (1 - WING_CONFIG.turnSlow * c.pinned))
       if (c.turn >= 1) c.status = 'withdrawing'
       break
     case 'withdrawing':
-      c.anchor.z -= marchSpeed(c) * dt
+      c.anchor.z -= marchSpeed(c) * free * dt
       break
     case 'fleeing':
       c.anchor.z -= BATTLE_CONFIG.fleeSpeed * dt
@@ -502,7 +585,9 @@ function stepSoldier(
   // Düzen yuvası: birlik merkezi + döndürülmüş, dönüşte sıkışan ofset.
   const slot = b.slots[i]
   const angle = formationAngle(c)
-  const spread = cfg.turnMinSpread + (1 - cfg.turnMinSpread) * factor
+  // Kolların sıkıştırdığı birliğin safları daralır: kuşatılabilirlik artar.
+  const spread =
+    (cfg.turnMinSpread + (1 - cfg.turnMinSpread) * factor) * (1 - WING_CONFIG.squeeze * c.pinned)
   const cos = Math.cos(angle)
   const sin = Math.sin(angle)
   target.x = c.anchor.x + (slot.x * cos + slot.z * sin) * spread
