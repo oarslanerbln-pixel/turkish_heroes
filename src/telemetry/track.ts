@@ -97,7 +97,7 @@ export function advanceClock(realDelta: number): void {
 export function track(e: TelemetryEvent): void {
   if (e.type === 'battle_start') {
     // Sonucu gelmeden yeni savaş başladıysa eskisi yarıda kalmıştır.
-    if (current) endAbandoned()
+    endUnfinished('abandoned')
     clock = 0
     current = startSummary(e, session, Date.now())
   }
@@ -123,10 +123,12 @@ export function nextAttempt(commander: CommanderId): number {
   return n
 }
 
-function endAbandoned(): void {
+/** Süren savaşı sonuçsuz kapatır; savaş yoksa bir şey yapmaz. */
+export function endUnfinished(outcome: 'abandoned' | 'quit'): void {
+  if (!current) return
   track({
     type: 'battle_end',
-    outcome: 'abandoned',
+    outcome,
     cause: null,
     score: world.score,
     stars: 0,

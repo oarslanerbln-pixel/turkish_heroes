@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
 /**
- * Space → hilal vuruşu. Menü ekranlarında klavye ana düğmenin işini görür
- * (BAŞLA: Space/Enter, YENİDEN: Enter) — klavyedeki oyuncu fareye uzanmasın.
+ * Space → hilal vuruşu, Esc / P → mola. Menü ekranlarında klavye ana düğmenin
+ * işini görür (BAŞLA: Space/Enter, YENİDEN ve DEVAM: Enter) — klavyedeki
+ * oyuncu fareye uzanmasın.
  * Kenar-tetiklemeli: tuş basılı tutulduğunda tarayıcının ürettiği tekrar
  * olayları yok sayılır, yoksa enerji dolar dolmaz vuruş kendiliğinden gider.
  */
@@ -11,6 +12,12 @@ export function useStrikeInput() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        const game = useGameStore.getState()
+        if (game.paused) game.resume()
+        else game.pause(false)
+        return
+      }
       const isSpace = e.code === 'Space'
       const isEnter = e.code === 'Enter' || e.code === 'NumpadEnter'
       if (!isSpace && !isEnter) return
@@ -23,6 +30,9 @@ export function useStrikeInput() {
       // oyun bittiği karede sonuç ekranını görmeden yeni tura atlamasın.
       else if (game.outcome !== 'playing') {
         if (isEnter) game.restart()
+      } else if (game.paused) {
+        // Space vuruş tuşu: molayı yanlışlıkla kapatmasın, yalnızca Enter.
+        if (isEnter) game.resume()
       } else if (isSpace) game.requestStrike()
     }
 

@@ -1,0 +1,28 @@
+# Her PR'da ve ana dala her push'ta: lint, testler (mekanik + headless denge),
+# tip kontrolü + üretim derlemesi. Vercel yalnızca derler; denge testi
+# kırılan bir değişiklik buradan geçemez.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [claude/hilal-game-mvp-hp0ge5]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

@@ -64,6 +64,11 @@ export interface World {
    */
   started: boolean
   /**
+   * Oyuncu durdurdu ya da uygulamadan çıktı. Simülasyon tamamen donar; savaş
+   * yalnızca oyuncu DEVAM deyince sürer — telefona dönüldüğü anda düşman saldırmasın.
+   */
+  paused: boolean
+  /**
    * Vuruş anındaki donma (hitstop) için kalan süre, saniye. > 0 iken simülasyon
    * ilerlemez: kuşatmanın kapandığı an bir nefes boyu asılı kalır.
    */
@@ -125,6 +130,7 @@ function initialWorld(commander: CommanderId): World {
     refusalTimer: 0,
     totalKills: 0,
     started: false,
+    paused: false,
     hitstop: 0,
     slowmo: 0,
     fxKills: [],
@@ -172,20 +178,22 @@ export function stepAnnouncements(realDelta: number): void {
 }
 
 /**
- * Simülasyon yalnızca oyun sürerken ilerler: başlangıç ekranında ve
- * yenilgi/zafer ekranında donar.
+ * Simülasyon yalnızca oyun sürerken ilerler: başlangıç ekranında,
+ * molada ve yenilgi/zafer ekranında donar.
  */
 export function isPlaying(): boolean {
-  return world.started && world.outcome === 'playing'
+  return world.started && world.outcome === 'playing' && !world.paused
 }
 
 /**
  * Simülasyonun bu karede ilerleyeceği süre. Sekme arka plandayken şişen delta
- * sınırlanır (karakter ışınlanmasın); hitstop sürerken sıfırdır. Oyuncu,
- * düşmanlar ve yönetmen aynı kuralı kullansın diye tek yerde.
+ * sınırlanır (karakter ışınlanmasın); hitstop ve mola sürerken sıfırdır.
+ * Oyuncu, düşmanlar ve yönetmen aynı kuralı kullansın diye tek yerde.
  */
 export function simDelta(delta: number): number {
-  if (world.hitstop > 0) return 0
+  // Molada sahne 'demand' modunda; yine de boyut değişince çizilen bir kare
+  // simülasyonu ilerletmesin.
+  if (world.hitstop > 0 || world.paused) return 0
   const dt = Math.min(delta, 0.1)
   return world.slowmo > 0 ? dt * SLOWMO_SCALE : dt
 }

@@ -6,7 +6,8 @@ import { resetWorld, world } from '../sim/world'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
 import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
-import { startAmbience } from '../audio/ambience'
+import { setBattleMusic, startAmbience } from '../audio/ambience'
+import { endUnfinished, track } from '../telemetry/track'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -42,6 +43,8 @@ export interface HudSnapshot {
 interface GameState extends HudSnapshot {
   /** Başlangıç ekranı geçildi mi — world.started'ın sunum kopyası. */
   started: boolean
+  /** Mola — world.paused'ın sunum kopyası. */
+  paused: boolean
   commander: CommanderId
   muted: boolean
   syncHud: (snapshot: HudSnapshot) => void
@@ -49,6 +52,9 @@ interface GameState extends HudSnapshot {
   selectCommander: (id: CommanderId) => void
   start: () => void
   requestStrike: () => void
+  /** @param auto Uygulamadan çıkıldığı için (oyuncu kendisi durdurmadı). */
+  pause: (auto: boolean) => void
+  resume: () => void
   restart: () => void
   /** Sonuç ekranından komutan seçimine dön. */
   backToMenu: () => void
@@ -97,6 +103,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   ...INITIAL_HUD,
   bestScore: world.bestScore,
   started: false,
+  paused: false,
   commander: world.commander,
   muted: isMuted(),
 
@@ -124,22 +131,42 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Simülasyona bayrak bırakır; GameDirector bir sonraki karede tüketir.
+  // Molada basılan tuş birikip DEVAM'da kendiliğinden vurmasın.
   requestStrike: () => {
-    world.strikeRequested = true
+    if (!world.paused) world.strikeRequested = true
+  },
+
+  // Yalnızca savaş sürerken. Molada sahne donuk ('demand'), yönetmen
+  // çalışmadığı için müziği o kapatamaz; burada kısılır, DEVAM'da geri gelir.
+  pause: (auto) => {
+    if (!world.started || world.outcome !== 'playing' || world.paused) return
+    world.paused = true
+    setBattleMusic(false, 0)
+    track({ type: 'pause', auto })
+    set({ paused: true })
+  },
+
+  resume: () => {
+    if (!world.paused) return
+    world.paused = false
+    set({ paused: false })
   },
 
   restart: () => {
+    // Moladan yeniden başlatılan savaş sonuçsuz kapanır (bitmişse etkisiz).
+    endUnfinished('quit')
     resetWorld()
     // HUD'u hemen sıfırla: yönetmenin ilk sync'ini beklerken sonuç ekranı
     // bir kare daha görünmesin. bestScore INITIAL_HUD'daki durgun değer değil,
     // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
     // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
-    set({ ...INITIAL_HUD, bestScore: world.bestScore })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, paused: false })
   },
 
   backToMenu: () => {
+    endUnfinished('quit')
     world.started = false
     resetWorld()
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false })
   },
 }))

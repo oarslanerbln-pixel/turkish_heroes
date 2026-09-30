@@ -6,6 +6,7 @@ import { commanderInfo } from '../mechanics/scenario'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
 import { OutcomeScreen } from './OutcomeScreen'
+import { PauseScreen } from './PauseScreen'
 import { StartScreen } from './StartScreen'
 import { Ornament } from './Ornament'
 import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
@@ -41,6 +42,7 @@ const WAVE_HINT = [
 export function HilalEnergyHUD() {
   const started = useGameStore((s) => s.started)
   const outcome = useGameStore((s) => s.outcome)
+  const paused = useGameStore((s) => s.paused)
   const waveIndex = useGameStore((s) => s.waveIndex)
   const battle = useGameStore((s) => s.commander === 'alp-arslan')
   const [touch] = useState(isTouchDevice)
@@ -58,6 +60,7 @@ export function HilalEnergyHUD() {
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {outcome === 'playing' &&
         (battle ? <BattleBanner /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
+      {outcome === 'playing' && paused && <PauseScreen touch={touch} />}
       {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
     </div>
   )
@@ -124,9 +127,16 @@ function StatusCard() {
 function Corner() {
   const muted = useGameStore((s) => s.muted)
   const toggleMute = useGameStore((s) => s.toggleMute)
+  const pause = useGameStore((s) => s.pause)
+  const playing = useGameStore((s) => s.outcome === 'playing')
 
   return (
     <div className="hud-corner">
+      {playing && (
+        <button className="icon-btn" onClick={() => pause(false)} aria-label="Mola" title="Mola (Esc)">
+          <PauseIcon />
+        </button>
+      )}
       <button
         className="icon-btn"
         onClick={toggleMute}
@@ -298,6 +308,15 @@ function WaveBanner({ index }: { index: number }) {
       <Ornament width={200} />
       <p>{WAVE_HINT[index] ?? ''}</p>
     </div>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="5" y="4" width="5" height="16" rx="1.5" />
+      <rect x="14" y="4" width="5" height="16" rx="1.5" />
+    </svg>
   )
 }
 
