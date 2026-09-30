@@ -21,6 +21,8 @@ import {
   SPAWN_CLEARANCE,
   spawnWave,
   WAVES,
+  wavesStarHealth,
+  wavesStars,
 } from './waves'
 import type { Enemy, Vec2 } from './types'
 
@@ -107,6 +109,26 @@ describe('Metehan — kurallar', () => {
     // Basamaklar tekdüze artar.
     for (let i = 1; i <= LADDER_TOP; i++) expect(ladderScale(i)).toBeGreaterThan(ladderScale(i - 1))
   })
+
+  it('yıldız yarayı tam hasar karşılığıyla ölçer: merdiven basamağı yıldız vermez', () => {
+    // Tam hasarda 60 yara (40 can) = yarı hasarda 30 yara (70 can): ikisi de 3 yıldız.
+    expect(wavesStars(40, 1)).toBe(3)
+    expect(wavesStars(70, 0.5)).toBe(3)
+    expect(wavesStars(20, 1)).toBe(2)
+    expect(wavesStars(60, 0.5)).toBe(2)
+    // Yarı hasarda 40 can: tam hasarda ölürdü, zafer merdivenin.
+    expect(wavesStars(40, 0.5)).toBe(1)
+    // Tam hasarda kazanmak en az 2 yıldız.
+    expect(wavesStars(1, 1)).toBe(2)
+    // Karnenin hedefi (wavesStarHealth) eşiğe tam oturur: bir can eksiği yetmez.
+    for (const scale of DAMAGE_LADDER) {
+      for (const n of [2, 3] as const) {
+        const need = wavesStarHealth(n, scale)
+        expect(wavesStars(need, scale)).toBeGreaterThanOrEqual(n)
+        expect(wavesStars(need - 1, scale)).toBeLessThan(n)
+      }
+    }
+  })
 })
 
 describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
@@ -172,5 +194,20 @@ describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
 
     const expert = seeds(6).map((p) => career(SKILLS.expert, p, 6))
     expect(expert.every((c) => c.firstWin === 1 && c.step === LADDER_TOP)).toBe(true)
+  })
+
+  it('yıldızlar beceriyi ayırır: 3. yıldız uzmanın bile her seferinde alamadığı an', { timeout: 30000 }, () => {
+    // Yarı hasarda (herkesin başladığı basamak) 30 oyuncu. Taramada: uzman
+    // 30/30 zafer, 30'u 2+, 10'u 3 yıldız; iyi 20 zaferde 1 üç yıldız; orta hiç.
+    const stars = (skill: (typeof SKILLS)[keyof typeof SKILLS]) =>
+      seeds(30).map((s) => runWaves(kiter(skill, s), undefined, true, true, DAMAGE_LADDER[0]).stars)
+    const count = (xs: number[], n: number) => xs.filter((x) => x >= n).length
+
+    const expert = stars(SKILLS.expert)
+    expect(count(expert, 2)).toBeGreaterThanOrEqual(27)
+    expect(count(expert, 3)).toBeGreaterThanOrEqual(5)
+    expect(count(expert, 3)).toBeLessThanOrEqual(18)
+    expect(count(stars(SKILLS.skilled), 3)).toBeLessThanOrEqual(3)
+    expect(count(stars(SKILLS.average), 3)).toBe(0)
   })
 })

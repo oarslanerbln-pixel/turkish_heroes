@@ -31,6 +31,7 @@ import {
   TOTAL_WAVES,
   waveClearBonus,
   waveConfig,
+  wavesStars,
 } from '../mechanics/waves'
 import { haptic, play } from '../audio/sfx'
 import { announce, type World } from './world'
@@ -130,6 +131,9 @@ const waves: Scenario = {
   },
 
   victoryBonus(w) {
+    // Merdiven bu savaşın sonucuyla finishBattle'da ilerliyor, yani burada
+    // hâlâ oynanan basamak. Yıldız puanı yok: can bonusu yarayı zaten sayıyor.
+    w.stars = wavesStars(w.playerHealth, ladderScale(ladderStep()))
     // Son dalganın temizleme bonusu dalga geçişinde verilmiyor; burada.
     return waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
   },

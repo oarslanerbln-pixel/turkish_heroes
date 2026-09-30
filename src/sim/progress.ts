@@ -52,7 +52,7 @@ function load(): Progress {
 
 /**
  * Yıldız kaydı bu sürümle geldi; önceki oyuncunun yıldızları kayıttan
- * türetilir: ordu savaşında zafer en az bir yıldızdır, imparatoru / Manuel'i
+ * türetilir: zafer en az bir yıldızdır, imparatoru / Manuel'i
  * kuşatmanın notu (yalnızca o anda kazanılır) üç yıldız. İki yıldız
  * türetilemez; oyuncu bir sonraki zaferinde kendisi yazar.
  */
@@ -61,7 +61,7 @@ export function inferStars(
   lore: readonly LoreId[],
 ): Partial<Record<CommanderId, number>> {
   const stars: Partial<Record<CommanderId, number>> = {}
-  for (const id of won) if (commanderInfo(id).unlockedBy) stars[id] = 1
+  for (const id of won) stars[id] = 1
   if (lore.includes('esir')) stars['alp-arslan'] = 3
   if (lore.includes('baris')) stars.kilicarslan = 3
   return stars

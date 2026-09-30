@@ -2,9 +2,9 @@ import { isCommanderAvailable, useGameStore } from '../store/gameStore'
 import { COMMANDERS, commanderInfo, type CommanderId } from '../mechanics/scenario'
 import { archiveCount } from '../lore/archive'
 import type { LoreId } from '../lore/lore'
-import { bestStars, earnedLore, hasWon, isFirstBattle } from '../sim/progress'
+import { bestStars, earnedLore, isFirstBattle } from '../sim/progress'
 import { Ornament } from './Ornament'
-import { LockIcon, ScrollIcon, SealIcon } from './icons'
+import { LockIcon, ScrollIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
 
 /**
@@ -13,7 +13,7 @@ import { LoreArchive } from './LoreArchive'
  * iki yanında, ortada kahraman ve ufuktaki ordu görünür.
  *
  *  - Solda komutanlar: üç komutan, üç soru — NASIL, NE ZAMAN, NEREDE. Her
- *    satır ilerlemeyi gösterir (yıldız ya da zafer mührü, tarih notları);
+ *    satır ilerlemeyi gösterir (en iyi yıldız, tarih notları);
  *    kilitli komutan da seçilir: savaş alanı arkada görünür, açmak istenir.
  *  - Sağda brifing: eksenin sorusu, üç adımda taktik, tek ana düğme.
  *  - Bilgi Hazinesi sol panelin dibinde; sayaç yarım kalan koleksiyonu
@@ -123,19 +123,10 @@ function RosterRow({
 }
 
 /**
- * Komutanın kaydı: ordu savaşında en iyi yıldız, Metehan'da (yıldızsız
- * dalga savaşı) zafer mührü. Henüz kazanılmamışsa boş yıldızlar hedefi
+ * Komutanın kaydı: en iyi yıldız. Henüz kazanılmamışsa boş yıldızlar hedefi
  * gösterir.
  */
 function Record({ id }: { id: CommanderId }) {
-  if (!commanderInfo(id).unlockedBy) {
-    return hasWon(id) ? (
-      <span className="roster-seal">
-        <SealIcon size={12} />
-        ZAFER
-      </span>
-    ) : null
-  }
   const stars = bestStars(id)
   return (
     <span className="roster-stars" aria-label={`${stars} yıldız`}>

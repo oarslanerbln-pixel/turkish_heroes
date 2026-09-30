@@ -60,9 +60,9 @@ describe('ilerleme', () => {
     expect(bestStars('alp-arslan')).toBe(3)
   })
 
-  it('eski kayıttan yıldız türetilir: zafer ≥ 1, esir / barış notu 3; Metehan yıldızsız', () => {
-    expect(inferStars(['metehan', 'alp-arslan'], [])).toEqual({ 'alp-arslan': 1 })
-    expect(inferStars(['metehan', 'alp-arslan'], ['esir'])).toEqual({ 'alp-arslan': 3 })
+  it('eski kayıttan yıldız türetilir: zafer ≥ 1, esir / barış notu 3', () => {
+    expect(inferStars(['metehan', 'alp-arslan'], [])).toEqual({ metehan: 1, 'alp-arslan': 1 })
+    expect(inferStars(['metehan', 'alp-arslan'], ['esir'])).toEqual({ metehan: 1, 'alp-arslan': 3 })
     expect(inferStars(['alp-arslan', 'kilicarslan'], ['baris'])).toEqual({
       'alp-arslan': 1,
       kilicarslan: 3,

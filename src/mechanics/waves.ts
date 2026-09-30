@@ -9,6 +9,7 @@
 
 import type { Enemy, Vec2 } from './types'
 import { createEnemies, ENEMY_CONFIG } from './enemySim'
+import { COMBAT_CONFIG } from './combat'
 
 export interface WaveConfig {
   enemyCount: number
@@ -141,4 +142,40 @@ export function ladderScale(step: number): number {
 /** Bir dalganın temizlenmesiyle kazanılan puan. Sonraki dalgalar daha değerli. */
 export function waveClearBonus(clearedIndex: number): number {
   return 200 * (clearedIndex + 1)
+}
+
+/** Yıldız için gereken tam hasar karşılığı kalan can. */
+export const WAVES_STAR_HEALTH = { 2: 0, 3: 35 } as const
+
+/**
+ * Metehan zaferinin yıldızları (1–3). Yalnızca zaferde çağrılır.
+ *
+ * Bot taraması (4 beceri × 5 basamak × 40 tohum, zaferler): vuruş sayısı hep 6,
+ * en büyük vuruş 29–31, düşürülen 71–79/80, süre 71–91 sn — beceriyi ayırmıyor.
+ * Ayıran tek şey alınan yara. Ama merdiven onu ölçekliyor: aynı uzman koşusu
+ * yarı hasarda 63, tam hasarda 27 canla bitiyor. `taken / scale` (tam hasar
+ * karşılığı yara) ise basamaktan bağımsız: tohum 1 beş basamakta da 70.
+ *
+ * Kazananlarda tam hasar karşılığı kalan can (100 − taken/scale), p10/p50/p90:
+ * uzman 8/26/42, iyi −94/−32/6, orta −96/−52/−2 (eksi: tam hasarda ölürdü).
+ *
+ * Eşikler bu dağılımdan: 2 yıldız "tam hasarda da ayakta kalırdın" (uzman
+ * %95, iyi %22), 3 yıldız 35 (uzman %36, iyi %7, orta hiç) — Malazgirt'in
+ * imparatoru gibi uzmanın da her seferinde alamadığı an.
+ *
+ * @param health Zaferde kalan can (0–100).
+ * @param scale Oynanan basamağın hasar çarpanı (ladderScale), 0.5–1.
+ */
+export function wavesStars(health: number, scale: number): number {
+  const max = COMBAT_CONFIG.playerMaxHealth
+  const fullDamageHealth = max - (max - health) / scale
+  if (fullDamageHealth >= WAVES_STAR_HEALTH[3]) return 3
+  if (fullDamageHealth >= WAVES_STAR_HEALTH[2]) return 2
+  return 1
+}
+
+/** wavesStars'ın tersi: `stars` yıldız için bu basamakta zaferde kalması gereken can. */
+export function wavesStarHealth(stars: 2 | 3, scale: number): number {
+  const max = COMBAT_CONFIG.playerMaxHealth
+  return Math.ceil(max - (max - WAVES_STAR_HEALTH[stars]) * scale)
 }

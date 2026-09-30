@@ -56,13 +56,3 @@ export function CloseIcon(props: IconProps) {
     </Svg>
   )
 }
-
-/** Mühür: yıldızı olmayan savaşta (Metehan) zafer işareti. */
-export function SealIcon(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <circle cx="12" cy="12" r="8" />
-      <path d="m8.5 12 2.5 2.5 4.5-5" />
-    </Svg>
-  )
-}

@@ -22,7 +22,7 @@ import {
 } from './hilalSystem'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
-import { routSurvivors, spawnWave, TOTAL_WAVES, waveConfig } from './waves'
+import { routSurvivors, spawnWave, TOTAL_WAVES, waveConfig, wavesStars } from './waves'
 import type { TelemetryEvent } from '../telemetry/summary'
 
 export const WAVE_BOT_DT = 1 / 60
@@ -60,6 +60,8 @@ export interface WaveRun {
   /** Yenilgide sahada kalan düşman. */
   remaining: number
   strikes: number[]
+  /** Zaferde wavesStars (merdiven basamağı damageScale), yenilgide 0. */
+  stars: number
 }
 
 /**
@@ -178,13 +180,14 @@ export function runWaves(
 
   const final = result ?? 'defeat'
   const remaining = fighting()
+  const stars = final === 'victory' ? wavesStars(health, damageScale) : 0
   record?.(
     {
       type: 'battle_end',
       outcome: final,
       cause: final === 'defeat' ? 'health' : null,
       score: 0,
-      stars: 0,
+      stars,
       health: Math.round(health),
       wave: waveIndex,
       remaining,
@@ -192,7 +195,7 @@ export function runWaves(
     },
     time,
   )
-  return { result: final, health, kills, time, wave: waveIndex, remaining, strikes }
+  return { result: final, health, kills, time, wave: waveIndex, remaining, strikes, stars }
 }
 
 // ——— Botlar ———

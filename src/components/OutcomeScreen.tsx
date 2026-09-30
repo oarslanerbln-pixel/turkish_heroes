@@ -40,7 +40,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           {isVictory ? 'ZAFER' : 'YENİLGİ'}
         </div>
         <Ornament width={240} />
-        {battle && isVictory && <Stars count={stars} />}
+        {isVictory && <Stars count={stars} />}
         <div className="subtitle">
           {showClose && <span className="close-chip">AZ KALDI</span>}
           {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
