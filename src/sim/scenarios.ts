@@ -25,6 +25,7 @@ import { spawnWave, TOTAL_WAVES, waveClearBonus, waveConfig } from '../mechanics
 import { haptic, play } from '../audio/sfx'
 import { announce, type World } from './world'
 import { isFirstBattle, takeHint } from './progress'
+import { track } from '../telemetry/track'
 
 export interface Scenario {
   /** Temas eden düşman başına saniyelik hasar. */
@@ -86,6 +87,7 @@ const waves: Scenario = {
       // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
       w.score += waveClearBonus(w.waveIndex)
       w.waveBreak = WAVE_BREAK
+      track({ type: 'wave_clear', wave: w.waveIndex, health: Math.round(w.playerHealth) })
     } else if (dt > 0) {
       w.waveBreak = Math.max(0, w.waveBreak - dt)
       if (w.waveBreak === 0) {
@@ -149,6 +151,7 @@ const battle: Scenario = {
     const b = w.battle
     if (!b) return
     for (const event of b.events) {
+      track({ type: 'battle_event', event })
       switch (event) {
         case 'harass':
           // İpucu oyuncu başına bir kez: ikinci savaşta artık biliyor.

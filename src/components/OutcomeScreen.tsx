@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import { Ornament } from './Ornament'
+import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
@@ -42,7 +44,31 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           KOMUTANLAR
         </button>
       </div>
+
+      {TELEMETRY_DEBUG && <TelemetryExport />}
     </div>
+  )
+}
+
+/** ?telemetry: telefonda oynanan testin savaş özetlerini panoya alır. */
+function TelemetryExport() {
+  const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const copy = () => {
+    // Pano yalnızca güvenli bağlamda (https / localhost) var.
+    if (!navigator.clipboard) return setStatus('failed')
+    navigator.clipboard.writeText(exportTelemetry()).then(
+      () => setStatus('copied'),
+      () => setStatus('failed'),
+    )
+  }
+  return (
+    <button className="secondary-btn" onClick={copy}>
+      {status === 'copied'
+        ? 'KOPYALANDI'
+        : status === 'failed'
+          ? 'KOPYALANAMADI'
+          : `VERİYİ KOPYALA · ${loggedBattles()} SAVAŞ`}
+    </button>
   )
 }
 

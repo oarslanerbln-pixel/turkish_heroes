@@ -32,5 +32,7 @@ Grafik kalitesi FPS'e göre kendini ayarlar (düşük / orta / yüksek). Telefon
 
 - `?perf` — FPS paneli ve o anki kalite kademesi
 - `?quality=low` (veya `medium`, `high`) — kademeyi sabitler, uyarlamayı kapatır
+- `?telemetry` — oynanış kaydını görünür yapar (kalıcı; `?telemetry=0` kapatır):
+  sonuç ekranındaki VERİYİ KOPYALA savaş özetlerini panoya alır. Veri cihazdan çıkmaz.
 
 Mimari, fazların durumu ve sonraki adımlar için: [PLAN.md](./PLAN.md).
