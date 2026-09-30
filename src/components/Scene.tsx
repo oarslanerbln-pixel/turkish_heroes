@@ -24,6 +24,7 @@ import { GameDirector } from './GameDirector'
 import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
+import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
@@ -45,13 +46,14 @@ function InvalidateOnCommander() {
 
 export function Scene() {
   useStrikeInput()
+  useAutoPause()
   const tier = useQuality((s) => s.tier)
   const adaptive = useQuality((s) => !s.locked)
   const step = useQuality((s) => s.step)
-  // Menülerde (başlangıç, sonuç) sahne yarı saydam bir katmanın arkasında donuk
+  // Menülerde (başlangıç, mola, sonuç) sahne yarı saydam bir katmanın arkasında donuk
   // duruyor; saniyede 60 kez yeniden çizmek yalnızca pil ve ısı harcıyordu.
   // 'demand' modunda R3F yalnızca gerektiğinde (ör. boyut değişince) çizer.
-  const playing = useGameStore((s) => s.started && s.outcome === 'playing')
+  const playing = useGameStore((s) => s.started && s.outcome === 'playing' && !s.paused)
   const preset = QUALITY[tier]
   const commander = useGameStore((s) => s.commander)
 

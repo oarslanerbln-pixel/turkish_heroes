@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { isTouchDevice, touchMove } from '../hooks/useTouchControls'
 import { useGameStore } from '../store/gameStore'
@@ -12,12 +12,23 @@ const DEAD_ZONE = 6 // px — ufak titremeyi/yanlışlıkla dokunmayı yok say
  */
 export function TouchJoystick() {
   const [show] = useState(isTouchDevice)
-  const started = useGameStore((s) => s.started)
+  const active = useGameStore((s) => s.started && s.outcome === 'playing' && !s.paused)
   const originRef = useRef<{ x: number; y: number } | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })
 
-  if (!show || !started) return null
+  // Parmak basılıyken mola ya da sonuç gelirse bırakma olayı hiç gelmez;
+  // sıfırlanmazsa oyuncu DEVAM'da kendiliğinden yürürdü.
+  useEffect(() => {
+    if (active) return
+    pointerIdRef.current = null
+    originRef.current = null
+    touchMove.x = 0
+    touchMove.z = 0
+    setKnob({ x: 0, y: 0 })
+  }, [active])
+
+  if (!show || !active) return null
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)

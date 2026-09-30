@@ -629,7 +629,8 @@
   line-height: 1.1;
 }
 
-.result-title.is-victory {
+.result-title.is-victory,
+.result-title.is-pause {
   background: linear-gradient(180deg, #fff3c4 0%, #f1d17a 42%, #b8862b 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -676,6 +677,7 @@
 @media (max-height: 460px) {
   .screen { gap: 10px; }
   .screen h1 { font-size: clamp(36px, 7vw, 56px); }
+  .result-title { font-size: clamp(34px, 6vw, 48px); }
   .step { padding: 8px 10px; }
   .step span { font-size: 11px; }
   .hud-card { width: 176px; padding: 9px 11px; gap: 6px; }

@@ -11,8 +11,11 @@ import type { CommanderId } from '../mechanics/scenario'
 import type { StrikeRefusal } from '../mechanics/types'
 
 export type Refusal = Exclude<StrikeRefusal, 'none'>
-/** Sayfa savaş sürerken kapandıysa 'abandoned'. */
-export type EndOutcome = Exclude<Outcome, 'playing'> | 'abandoned'
+/**
+ * Sonucu gelmeden biten savaş: sayfa kapandıysa 'abandoned', oyuncu moladan
+ * yeniden başlattı ya da komutanlara döndüyse 'quit'.
+ */
+export type EndOutcome = Exclude<Outcome, 'playing'> | 'abandoned' | 'quit'
 export type DefeatCause = 'health' | 'camp'
 
 export type TelemetryEvent =
@@ -25,6 +28,8 @@ export type TelemetryEvent =
   | { type: 'strike_refused'; reason: Refusal }
   /** Malazgirt: taciz, hamle, gün batımı… */
   | { type: 'battle_event'; event: BattleEvent }
+  /** auto: uygulamadan çıkıldığı için (oyuncu durdurmadı). */
+  | { type: 'pause'; auto: boolean }
   | {
       type: 'battle_end'
       outcome: EndOutcome
@@ -59,6 +64,7 @@ export interface BattleSummary {
   refusals: Record<Refusal, number>
   waves: { wave: number; t: number; health: number }[]
   events: { event: BattleEvent; t: number }[]
+  pauses: { t: number; auto: boolean }[]
 }
 
 export function startSummary(
@@ -82,6 +88,7 @@ export function startSummary(
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],
     events: [],
+    pauses: [],
   }
 }
 
@@ -104,6 +111,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'battle_event':
       s.events.push({ event: e.event, t: e.t })
+      break
+    case 'pause':
+      s.pauses.push({ t: e.t, auto: e.auto })
       break
     case 'battle_end':
       s.outcome = e.outcome

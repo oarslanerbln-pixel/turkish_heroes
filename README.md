@@ -13,6 +13,7 @@ düzensiz küme sıkışır → hilal enerjisi dolar → yayı kapat.
 | Hareket | WASD / oklar | Sol alttaki joystick |
 | Vuruş | Space | Sağ alttaki düğme |
 | Başla / Yeniden | Space veya Enter / Enter | Ekrandaki düğme |
+| Mola / Devam | Esc veya P / Enter | Sağ üstteki düğme |
 
 ## Geliştirme
 

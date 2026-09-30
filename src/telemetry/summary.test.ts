@@ -57,6 +57,19 @@ describe('savaş özeti', () => {
     })
   })
 
+  it('molaları ve moladan çıkışı kaydeder', () => {
+    const s = play([
+      { type: 'pause', auto: true, t: 20 },
+      { type: 'pause', auto: false, t: 31.5 },
+      { type: 'battle_end', outcome: 'quit', cause: null, score: 300, stars: 0, health: 64, wave: 0, t: 31.5 },
+    ])
+    expect(s.pauses).toEqual([
+      { t: 20, auto: true },
+      { t: 31.5, auto: false },
+    ])
+    expect(s.outcome).toBe('quit')
+  })
+
   it('JSON gidiş-dönüşünde bozulmaz (localStorage kaydı)', () => {
     const s = play([{ type: 'strike', kills: 3, alive: 5, t: 2 }])
     expect(JSON.parse(JSON.stringify(s))).toEqual(s)
