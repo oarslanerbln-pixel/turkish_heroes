@@ -115,6 +115,17 @@ export function track(e: TelemetryEvent): void {
   }
 }
 
+/**
+ * Süren savaşın, verilen sonuç olayıyla kapanmış hali — kaydetmeden. Savaş
+ * karnesi bunu okur; tavsiye de böylece battle_end'in içinde kayda geçer.
+ */
+export function projectEnd(e: Extract<TelemetryEvent, { type: 'battle_end' }>): BattleSummary | null {
+  if (!current) return null
+  const s = structuredClone(current)
+  applyEvent(s, { ...e, t: Math.round(clock * 10) / 10 })
+  return s
+}
+
 /** battle_start'ın attempt alanı: sayacı artırıp kaydeder. */
 export function nextAttempt(commander: CommanderId): number {
   const n = (stored.plays[commander] ?? 0) + 1
@@ -134,6 +145,8 @@ export function endUnfinished(outcome: 'abandoned' | 'quit'): void {
     stars: 0,
     health: Math.round(world.playerHealth),
     wave: world.waveIndex,
+    remaining: world.enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0),
+    simTime: world.battle?.time ?? world.time,
   })
 }
 

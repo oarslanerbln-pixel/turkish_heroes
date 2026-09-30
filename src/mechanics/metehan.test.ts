@@ -1,0 +1,176 @@
+// Metehan'ın dalgalı savaşı: adalet kuralları ve denge sözleri.
+//
+// İlk blok kuralları tek tek sabitler (bozgun, doğuş yeri, zorluk merdiveni).
+// İkinci blok olasılıksal bot ölçütleridir: insan gibi kusurlu botlar
+// (tepki gecikmesi, direksiyon hatası, kötü hamle; bkz. waveBots.ts) sabit
+// tohumlarla koşturulur. Her ölçüt bir kuralın neden var olduğunu belgeler;
+// kural gevşetilirse ya da bir sabit oynanırsa test kırılır.
+
+import { describe, expect, it } from 'vitest'
+import { countAttackers } from './combat'
+import { createEnemies, ENEMY_CONFIG, stepEnemies } from './enemySim'
+import { calcSiegeState, countInCrescent, executeStrike } from './hilalSystem'
+import { kiter, runWaves, SKILLS, type WaveBot } from './waveBots'
+import {
+  DAMAGE_LADDER,
+  LADDER_TOP,
+  ladderScale,
+  nextLadderStep,
+  routLimit,
+  routSurvivors,
+  SPAWN_CLEARANCE,
+  spawnWave,
+  WAVES,
+} from './waves'
+import type { Enemy, Vec2 } from './types'
+
+const DT = 1 / 60
+
+function leaveAlive(enemies: Enemy[], n: number): void {
+  enemies.forEach((e, i) => (e.alive = i < n))
+}
+
+describe('Metehan — kurallar', () => {
+  it('bozgun eşiği dalganın %15\'i: 16 → 2, 26 → 3, 38 → 5', () => {
+    expect(WAVES.map((_, i) => routLimit(i))).toEqual([2, 3, 5])
+  })
+
+  it('vuruştan sonra artık eşiğin altındaysa bozguna uğrar, üstündeyse savaşır', () => {
+    const many = spawnWave(0)
+    leaveAlive(many, 3)
+    expect(routSurvivors(many, 0)).toBe(0)
+    expect(many.some((e) => e.routed)).toBe(false)
+
+    const few = spawnWave(0)
+    leaveAlive(few, 2)
+    expect(routSurvivors(few, 0)).toBe(2)
+    expect(few.filter((e) => e.alive).every((e) => e.routed)).toBe(true)
+    // Bir kez bozguna uğrayan ikinci kez sayılmaz.
+    expect(routSurvivors(few, 0)).toBe(0)
+  })
+
+  it('bozguna uğrayan ne hedef ne tehdit; sınıra kaçıp sahadan çıkar', () => {
+    const enemies = createEnemies(2)
+    const player: Vec2 = { x: 0, z: 0 }
+    enemies[0].pos = { x: 0, z: 1 }
+    enemies[1].pos = { x: 0, z: 6 }
+    for (const e of enemies) e.routed = true
+
+    expect(countAttackers(enemies, player)).toBe(0)
+    expect(countInCrescent(enemies, player, 0)).toBe(0)
+    expect(executeStrike(enemies, player, 0)).toBe(0)
+    expect(calcSiegeState(enemies).aliveCount).toBe(0)
+
+    // Oyuncu peşlerinden koşsa da yetişemez: kaçış hızı oyuncununkinden yüksek.
+    for (let t = 0; t < 6; t += DT) {
+      stepEnemies(enemies, player, DT, true)
+      player.z += 6 * DT
+    }
+    expect(enemies.every((e) => !e.alive && e.fled)).toBe(true)
+  })
+
+  it('yeni dalga oyuncunun yakasında ama düzen mesafesinin dışında doğar', () => {
+    for (const player of [
+      { x: 0, z: 14 },
+      { x: -14, z: 0 },
+      { x: 10, z: -10 },
+      { x: 0, z: 26 },
+      { x: 3, z: -3 },
+    ]) {
+      for (let wave = 1; wave < WAVES.length; wave++) {
+        const enemies = spawnWave(wave, player)
+        const nearest = Math.min(
+          ...enemies.map((e) => Math.hypot(e.pos.x - player.x, e.pos.z - player.z)),
+        )
+        expect(nearest).toBeGreaterThanOrEqual(SPAWN_CLEARANCE)
+        expect(enemies.every((e) => Math.hypot(e.pos.x, e.pos.z) <= ENEMY_CONFIG.arenaRadius)).toBe(
+          true,
+        )
+        // Kümenin merkezi oyuncunun yarısında (merkezden bakınca aynı yarım düzlem).
+        const cx = enemies.reduce((s, e) => s + e.pos.x, 0) / enemies.length
+        const cz = enemies.reduce((s, e) => s + e.pos.z, 0) / enemies.length
+        if (Math.hypot(player.x, player.z) > 10) expect(cx * player.x + cz * player.z).toBeGreaterThan(0)
+      }
+    }
+    // Oyuncusuz (ilk dalga): eski diziliş, -z'de.
+    const first = spawnWave(0)
+    expect(first.every((e) => e.pos.z < 0)).toBe(true)
+  })
+
+  it('zorluk merdiveni: yarı hasardan başlar, zaferle çıkar, yenilgiyle iner, sınırlarda durur', () => {
+    expect(DAMAGE_LADDER[0]).toBe(0.5)
+    expect(DAMAGE_LADDER[LADDER_TOP]).toBe(1)
+    expect(nextLadderStep(0, false)).toBe(0)
+    expect(nextLadderStep(0, true)).toBe(1)
+    expect(nextLadderStep(LADDER_TOP, true)).toBe(LADDER_TOP)
+    expect(nextLadderStep(LADDER_TOP, false)).toBe(LADDER_TOP - 1)
+    // Basamaklar tekdüze artar.
+    for (let i = 1; i <= LADDER_TOP; i++) expect(ladderScale(i)).toBeGreaterThan(ladderScale(i - 1))
+  })
+})
+
+describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
+  const seeds = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
+
+  it('bozgun son düşman tuzağını kaldırır', { timeout: 30000 }, () => {
+    // ≤2 düşmanla 20 sn'den uzun geçen koşu sayısı. Tuzak: disiplinsiz son
+    // düşman oyuncudan hızlı, dibine yapışıyor ve yayın iç yarıçapında kalıyor.
+    const stuck = (rout: boolean) =>
+      seeds(40).filter((s) => {
+        const base = kiter(SKILLS.skilled, s)
+        let since = -1
+        let worst = 0
+        const bot: WaveBot = (v) => {
+          const n = v.enemies.filter((e) => e.alive && !e.routed).length
+          if (n > 0 && n <= 2) {
+            if (since < 0) since = v.time
+            worst = Math.max(worst, v.time - since)
+          } else since = -1
+          return base(v)
+        }
+        runWaves(bot, undefined, rout)
+        return worst > 20
+      }).length
+
+    expect(stuck(false)).toBeGreaterThanOrEqual(8)
+    expect(stuck(true)).toBe(0)
+  })
+
+  it('dalganın oyuncunun yakasında doğması şansı sonuçtan çıkarır', { timeout: 30000 }, () => {
+    // Sabit doğuşta sonucu doğuş anında oyuncunun çemberin neresinde olduğu
+    // belirliyordu; aynı uzman bot 30 koşunun yalnızca 10'unu kazanıyordu.
+    const wins = (spawnAway: boolean) =>
+      seeds(30).filter(
+        (s) => runWaves(kiter(SKILLS.expert, s), undefined, true, spawnAway).result === 'victory',
+      ).length
+    expect(wins(false)).toBeLessThanOrEqual(15)
+    expect(wins(true)).toBeGreaterThanOrEqual(27)
+  })
+
+  it('tam hasar kapıda duvardır: orta oyuncu neredeyse hiç kazanamaz', { timeout: 30000 }, () => {
+    // Merdivenin var olma nedeni. Bu değişirse (ör. oyun kolaylaşırsa)
+    // merdivenin basamakları yeniden ölçülmeli.
+    const wins = seeds(30).filter(
+      (s) => runWaves(kiter(SKILLS.average, s)).result === 'victory',
+    ).length
+    expect(wins).toBeLessThanOrEqual(2)
+  })
+
+  it('merdivenle her orta oyuncu ilk 8 denemede kazanır; uzman tam hasara yerleşir', { timeout: 60000 }, () => {
+    const career = (skill: (typeof SKILLS)[keyof typeof SKILLS], player: number, attempts: number) => {
+      let step = 0
+      let firstWin = -1
+      for (let a = 0; a < attempts; a++) {
+        const r = runWaves(kiter(skill, player * 100 + a), undefined, true, true, ladderScale(step))
+        if (r.result === 'victory' && firstWin < 0) firstWin = a + 1
+        step = nextLadderStep(step, r.result === 'victory')
+      }
+      return { firstWin, step }
+    }
+    const average = seeds(12).map((p) => career(SKILLS.average, p, 8))
+    expect(average.every((c) => c.firstWin > 0)).toBe(true)
+
+    const expert = seeds(6).map((p) => career(SKILLS.expert, p, 6))
+    expect(expert.every((c) => c.firstWin === 1 && c.step === LADDER_TOP)).toBe(true)
+  })
+})

@@ -22,13 +22,25 @@ import { stepEnemies } from '../mechanics/enemySim'
 import { WING_CONFIG } from '../mechanics/wings'
 import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
 import type { CommanderId } from '../mechanics/scenario'
-import { spawnWave, TOTAL_WAVES, waveClearBonus, waveConfig } from '../mechanics/waves'
+import {
+  ladderScale,
+  routSurvivors,
+  spawnWave,
+  TOTAL_WAVES,
+  waveClearBonus,
+  waveConfig,
+} from '../mechanics/waves'
 import { haptic, play } from '../audio/sfx'
 import { announce, type World } from './world'
-import { isFirstBattle, takeHint } from './progress'
+import { isFirstBattle, ladderStep, takeHint } from './progress'
 import { track } from '../telemetry/track'
 
 export interface Scenario {
+  /**
+   * Temas hasarının çarpanı (1 = tam): Metehan'da zorluk merdiveni, Malazgirt'te
+   * ilk savaşın yarı hasarı. Olay takibi de kaydeder — zafer oranı buna göre okunur.
+   */
+  assist(): number
   /** Temas eden düşman başına saniyelik hasar. */
   contactDamage(): number
   /** Düşmanları bir kare ilerletir (EnemySwarm, öncelik 1). */
@@ -62,7 +74,8 @@ function countAlive(w: World): number {
 
 /** Metehan: üç dalga halinde gelen, peşine takılınca kümelenen sürü. */
 const waves: Scenario = {
-  contactDamage: () => COMBAT_CONFIG.damagePerEnemy,
+  assist: () => ladderScale(ladderStep()),
+  contactDamage: () => COMBAT_CONFIG.damagePerEnemy * ladderScale(ladderStep()),
 
   moveEnemies(w, dt) {
     stepEnemies(
@@ -78,7 +91,14 @@ const waves: Scenario = {
 
   fallFilter: () => undefined,
 
-  afterStrike() {},
+  afterStrike(w) {
+    // Kırılan dalganın artığı dağılır: son bir-iki düşmanın peşinde ölmek yok.
+    const routed = routSurvivors(w.enemies, w.waveIndex)
+    if (routed === 0) return
+    announce(routed === 1 ? 'Bozgun! Son düşman kaçıyor' : `Bozgun! Kalan ${routed} düşman kaçıyor`)
+    play('rout')
+    track({ type: 'rout', count: routed })
+  },
 
   advance(w, dt) {
     // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
@@ -93,7 +113,8 @@ const waves: Scenario = {
       w.waveBreak = Math.max(0, w.waveBreak - dt)
       if (w.waveBreak === 0) {
         w.waveIndex++
-        w.enemies = spawnWave(w.waveIndex)
+        // Yeni dalga oyuncunun yakasından, arkadan gelir (bkz. spawnWave).
+        w.enemies = spawnWave(w.waveIndex, w.player)
         play('wave')
       }
     }
@@ -136,6 +157,8 @@ const WINGS_HINT = 'Kolların pusuda — taciz ya da hücum emri ver'
 const WINGS_HINT_AT = 12
 /** Gün batımında pusuda hazır bekleyen kol varsa (bir kez). */
 const WINGS_DUSK_HINT = 'Pusudaki kollara HÜCUM emri ver'
+const round2 = (v: number) => Math.round(v * 100) / 100
+
 /** Ağır çekim süreleri (gerçek zaman, sn). */
 const FIRST_CHARGE_SLOWMO = 0.45
 const SUNSET_SLOWMO = 0.9
@@ -143,6 +166,7 @@ const SUNSET_SLOWMO = 0.9
 /** Alp Arslan: birlik düzeninde ilerleyen Bizans ordusu, gün batımında dönüş. */
 const battle: Scenario = {
   // İlk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
+  assist: () => (isFirstBattle() ? 0.5 : 1),
   contactDamage: () => BATTLE_CONFIG.contactDamage * (isFirstBattle() ? 0.5 : 1),
 
   moveEnemies(w, dt) {
@@ -186,6 +210,12 @@ const battle: Scenario = {
           }
           break
         case 'sunset':
+          track({
+            type: 'dusk',
+            cohesion: b.corps.map((c) => round2(c.cohesion)),
+            wings: b.wings.map((x) => round2(x.strength)),
+            health: Math.round(w.playerHealth),
+          })
           play('dusk')
           // Dönüş savaşın kilit anı: her seferinde kısa bir ağır çekimle başlar.
           w.slowmo = SUNSET_SLOWMO

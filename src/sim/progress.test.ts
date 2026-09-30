@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { isFirstBattle, isUnlocked, recordBattleEnd, recordVictory, takeHint } from './progress'
+import {
+  isFirstBattle,
+  isUnlocked,
+  ladderStep,
+  recordBattleEnd,
+  recordLadder,
+  recordVictory,
+  takeHint,
+} from './progress'
+import { LADDER_TOP } from '../mechanics/waves'
 
 // Test ortamında localStorage yok: ilerleme bellekte tutulur, kurallar aynı.
 describe('ilerleme', () => {
@@ -14,6 +23,16 @@ describe('ilerleme', () => {
     expect(isUnlocked('alp-arslan')).toBe(false)
     recordVictory('metehan')
     expect(isUnlocked('alp-arslan')).toBe(true)
+  })
+
+  it('Metehan merdiveni yarı hasardan başlar, zaferle çıkar, yenilgiyle iner', () => {
+    expect(ladderStep()).toBe(0)
+    recordLadder(false)
+    expect(ladderStep()).toBe(0)
+    for (let i = 0; i < LADDER_TOP + 2; i++) recordLadder(true)
+    expect(ladderStep()).toBe(LADDER_TOP)
+    recordLadder(false)
+    expect(ladderStep()).toBe(LADDER_TOP - 1)
   })
 
   it('ilk savaş bitince artık ilk savaş değil', () => {

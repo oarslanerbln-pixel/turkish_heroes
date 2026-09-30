@@ -3,6 +3,7 @@
 // zaman ilerleme o oturumla sınırlı kalır (oyun yine oynanır).
 
 import type { CommanderId } from '../mechanics/scenario'
+import { LADDER_TOP, nextLadderStep } from '../mechanics/waves'
 import { loadBestScore } from './score'
 
 const STORAGE_KEY = 'hilal_progress'
@@ -16,6 +17,8 @@ interface Progress {
   hints: HintId[]
   /** Bitirilen (kazanılan ya da kaybedilen) Malazgirt savaşı sayısı. */
   battlesPlayed: number
+  /** Metehan'ın zorluk merdivenindeki basamak (bkz. waves.ts DAMAGE_LADDER). */
+  ladder: number
 }
 
 function load(): Progress {
@@ -23,12 +26,20 @@ function load(): Progress {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const p = JSON.parse(raw) as Partial<Progress>
-      return { won: p.won ?? [], hints: p.hints ?? [], battlesPlayed: p.battlesPlayed ?? 0 }
+      const won = p.won ?? []
+      return {
+        won,
+        hints: p.hints ?? [],
+        battlesPlayed: p.battlesPlayed ?? 0,
+        // Merdivenden önce Metehan'ı zaten kazanmış oyuncu tam hasarda başlar:
+        // o zorluğu yenmiş, kolaylaştırılmış savaş ona hediye değil.
+        ladder: p.ladder ?? (won.includes('metehan') ? LADDER_TOP : 0),
+      }
     }
   } catch {
     // Bozuk kayıt ya da erişilemeyen depolama: sıfırdan başla.
   }
-  return { won: [], hints: [], battlesPlayed: 0 }
+  return { won: [], hints: [], battlesPlayed: 0, ladder: 0 }
 }
 
 let progress = load()
@@ -59,6 +70,17 @@ export function recordVictory(id: CommanderId): void {
 
 export function recordBattleEnd(): void {
   progress = { ...progress, battlesPlayed: progress.battlesPlayed + 1 }
+  save()
+}
+
+/** Metehan'ın zorluk merdivenindeki basamak. */
+export function ladderStep(): number {
+  return progress.ladder
+}
+
+/** Metehan savaşı bitti: merdivende bir basamak yukarı ya da aşağı. */
+export function recordLadder(victory: boolean): void {
+  progress = { ...progress, ladder: nextLadderStep(progress.ladder, victory) }
   save()
 }
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
+import type { Debrief } from '../debrief/debrief'
 import { parseCommander, type CommanderId } from '../mechanics/scenario'
 import { announce, isPlaying, resetWorld, world } from '../sim/world'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
@@ -41,6 +42,8 @@ export interface HudSnapshot {
   wingStrength: number[] // kolların gücü 0–1
   defeatCause: 'health' | 'camp'
   emperorCaptured: boolean
+  debrief: Debrief | null // savaş bitince karne; sürerken null
+  unlocked: CommanderId | null // bu zaferle kilidi açılan komutan
 }
 
 interface GameState extends HudSnapshot {
@@ -63,6 +66,8 @@ interface GameState extends HudSnapshot {
   restart: () => void
   /** Sonuç ekranından komutan seçimine dön. */
   backToMenu: () => void
+  /** Sonuç ekranından doğrudan başka bir komutanın savaşına (kilit açılınca). */
+  playCommander: (id: CommanderId) => void
   toggleMute: () => void
 }
 
@@ -96,6 +101,8 @@ const INITIAL_HUD: HudSnapshot = {
   wingStrength: [],
   defeatCause: 'health',
   emperorCaptured: false,
+  debrief: null,
+  unlocked: null,
 }
 
 // ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır
@@ -189,6 +196,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
     // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
     set({ ...INITIAL_HUD, bestScore: world.bestScore, paused: false })
+  },
+
+  playCommander: (id) => {
+    if (!isCommanderAvailable(id)) return
+    endUnfinished('quit')
+    // world.started korunur: savaş hemen başlar. Yeni savaş alanı, açılış çekimiyle.
+    resetWorld(id)
+    world.cameraCue = 'intro'
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, paused: false })
   },
 
   backToMenu: () => {

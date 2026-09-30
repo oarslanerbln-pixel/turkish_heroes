@@ -25,6 +25,11 @@ export interface Enemy {
   guarded?: boolean
   /** Savaş alanını terk etti — düşmedi; ölüm animasyonu oynatılmaz. */
   fled?: boolean
+  /**
+   * Bozguna uğradı: savaşmayı bıraktı, sahadan kaçıyor. Ne hedef ne tehdit;
+   * sınıra varınca kaçmış (fled) sayılır. Metehan'da dalganın son artığı.
+   */
+  routed?: boolean
 }
 
 export type HilalPhase = 'idle' | 'retreat' | 'gather' | 'strike'

@@ -779,6 +779,282 @@
   border-radius: 999px;
 }
 
+/* ---- Sonuç: iki sütun (sonuç | karne) ---- */
+.screen.outcome {
+  /* Uzun içerik ortalanırken üstten kesilmesin (desteklemeyen tarayıcı ilkini kullanır). */
+  justify-content: center;
+  justify-content: safe center;
+}
+
+.outcome-main,
+.outcome-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.outcome-side {
+  width: min(420px, 100%);
+}
+
+@media (min-width: 720px) {
+  .screen.outcome {
+    flex-direction: row;
+    gap: 48px;
+  }
+  .outcome-main { flex: 0 1 380px; }
+  .outcome-side { flex: 0 1 420px; }
+}
+
+.close-chip {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  background: var(--gold);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+
+/* ---- Savaş karnesi ---- */
+.karne {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  background: rgba(255, 215, 0, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.karne-peak {
+  color: var(--gold);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.karne-peak::before {
+  content: '✦ ';
+  color: var(--gold-deep);
+}
+
+.karne-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.karne-goal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.karne-goal-row b {
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.karne-goal .bar > span {
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold));
+}
+
+.karne-advice {
+  padding-left: 10px;
+  color: #ecdcbc;
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  border-left: 2px solid var(--ember);
+}
+
+.karne-advice span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ember);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+
+/* Zaman çizelgesi: vuruşlar, hamleler, dalga sonları, gün batımı. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 12px;
+}
+
+.tl-track {
+  position: relative;
+  height: 20px;
+  margin: 0 8px;
+  background: linear-gradient(90deg, rgba(241, 209, 122, 0.12), rgba(241, 209, 122, 0.05));
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.tl-track.has-dusk {
+  background: linear-gradient(
+    90deg,
+    rgba(241, 209, 122, 0.14) 0%,
+    rgba(233, 130, 50, 0.24) var(--dusk),
+    rgba(52, 52, 110, 0.4) var(--dusk),
+    rgba(20, 20, 60, 0.55) 100%
+  );
+}
+
+.tl-track i {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tl-strike {
+  width: var(--size);
+  height: var(--size);
+  background: var(--gold);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.6);
+}
+
+.tl-strike em {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.tl-track .tl-charge {
+  top: 1px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid var(--danger);
+}
+
+.tl-wave {
+  width: 2px;
+  height: 100%;
+  background: rgba(241, 209, 122, 0.5);
+}
+
+.tl-track .tl-rout {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--gold);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tl-emperor::before {
+  content: '♛';
+  color: #fff3c4;
+  font-size: 15px;
+  font-style: normal;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+.tl-shock::before {
+  content: '»';
+  color: #8fd8c8;
+  font-size: 14px;
+  font-style: normal;
+}
+
+.tl-legend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.tl-legend span::before {
+  content: '';
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+
+.tl-key-strike::before {
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.tl-key-charge::before {
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 5px solid var(--danger);
+}
+
+.tl-key-dusk::before {
+  width: 10px;
+  height: 6px;
+  background: linear-gradient(90deg, rgba(233, 130, 50, 0.7) 50%, rgba(52, 52, 110, 0.9) 50%);
+  border-radius: 2px;
+}
+
+.tl-key-wave::before {
+  width: 2px;
+  height: 8px;
+  background: rgba(241, 209, 122, 0.6);
+}
+
+/* Kilidi açılan komutan: zaferin ödülü, bir sonraki savaşın kapısı. */
+.unlock {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px;
+  background: rgba(241, 209, 122, 0.08);
+  border: 1px solid rgba(241, 209, 122, 0.6);
+  border-radius: 10px;
+  box-shadow: 0 0 24px rgba(233, 160, 40, 0.2);
+  animation: star-in 0.5s ease 0.4s backwards;
+}
+
+.unlock-label {
+  color: var(--ember);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+}
+
+.unlock b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.unlock span:not(.unlock-label) {
+  color: #bfa888;
+  font-size: 11px;
+}
+
+.hud .unlock .primary-btn {
+  margin-top: 8px;
+  padding: 11px 32px;
+}
+
 /* Kısa ekranlı telefonlar (yatay) — menüleri sıkıştır. */
 @media (max-height: 460px) {
   .screen { gap: 10px; }
@@ -792,6 +1068,14 @@
   .commander b { font-size: 15px; }
   .announce { top: calc(52px + var(--safe-top)); font-size: 13px; }
   .stars { font-size: 24px; }
+  .outcome-main, .outcome-side { gap: 8px; }
+  .result-stats b { font-size: 20px; }
+  .karne { gap: 7px; padding: 9px 12px; }
+  .karne-advice { font-size: 12px; }
+  .timeline { padding-top: 10px; }
+  .unlock { padding: 8px; }
+  .unlock b { font-size: 18px; }
+  .hud .unlock .primary-btn { margin-top: 4px; padding: 9px 28px; }
 }
 
 @keyframes announce {

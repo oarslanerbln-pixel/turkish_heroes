@@ -20,10 +20,15 @@ export type EndOutcome = Exclude<Outcome, 'playing'> | 'abandoned' | 'quit'
 export type DefeatCause = 'health' | 'camp'
 
 export type TelemetryEvent =
-  /** attempt: bu cihazda o komutanla başlatılan kaçıncı savaş (1 tabanlı). */
-  | { type: 'battle_start'; commander: CommanderId; attempt: number }
+  /**
+   * attempt: bu cihazda o komutanla başlatılan kaçıncı savaş (1 tabanlı).
+   * assist: temas hasarının çarpanı (1 = tam; Metehan'da zorluk merdiveni).
+   */
+  | { type: 'battle_start'; commander: CommanderId; attempt: number; assist: number }
   /** Metehan: dalga temizlendi. Sıradaki dalga mola sonrası başlar. */
   | { type: 'wave_clear'; wave: number; health: number }
+  /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
+  | { type: 'rout'; count: number }
   /** alive: vuruştan önce sahada (Malazgirt'te teslim olmamış) kalan. */
   | { type: 'strike'; kills: number; alive: number }
   | { type: 'strike_refused'; reason: Refusal }
@@ -33,6 +38,12 @@ export type TelemetryEvent =
   | { type: 'pause'; auto: boolean }
   /** Malazgirt: kola emir. wing: 0 sol, 1 sağ. */
   | { type: 'wing_order'; wing: number; order: WingOrder }
+  /**
+   * Malazgirt gün batımı anı: birliklerin düzeni (sol, merkez, sağ, artçı),
+   * kolların gücü (0–1) ve oyuncunun canı. Akşamın nasıl karşılandığı —
+   * karnenin asıl verisi.
+   */
+  | { type: 'dusk'; cohesion: number[]; wings: number[]; health: number }
   | {
       type: 'battle_end'
       outcome: EndOutcome
@@ -42,6 +53,12 @@ export type TelemetryEvent =
       stars: number
       health: number
       wave: number
+      /** Sahada kalan düşman (teslim olan ve kaçan sayılmaz). */
+      remaining: number
+      /** Simülasyon saati (sn): Malazgirt'te gün çizgisiyle aynı ölçek. */
+      simTime: number
+      /** Sonuç ekranında gösterilen tavsiye (bkz. debrief.ts). */
+      advice?: string
     }
 
 /** Olay + savaşın başından beri geçen oyun süresi (sn, gerçek zaman). */
@@ -54,6 +71,8 @@ export interface BattleSummary {
   startedAt: number
   commander: CommanderId
   attempt: number
+  /** Temas hasarının çarpanı: zafer oranı buna göre okunmalı. */
+  assist: number
   outcome: EndOutcome | 'playing'
   cause: DefeatCause | null
   /** Oyun süresi (sn); sekme arka plandayken işlemez. */
@@ -66,10 +85,20 @@ export interface BattleSummary {
   strikes: { t: number; kills: number; alive: number }[]
   refusals: Record<Refusal, number>
   waves: { wave: number; t: number; health: number }[]
+  routs: { t: number; count: number }[]
   events: { event: BattleEvent; t: number }[]
   pauses: { t: number; auto: boolean }[]
   /** Kollara verilen emirler — oyuncu kolları kullanıyor mu, ne zaman. */
   orders: { t: number; wing: number; order: WingOrder }[]
+  /** Malazgirt: gün batımında birliklerin düzeni ve kolların gücü. */
+  dusk: { t: number; cohesion: number[]; wings: number[]; health: number } | null
+  remaining: number
+  simTime: number
+  /**
+   * Oyuncuya gösterilen tavsiye. Bir sonraki denemenin sonucuyla birlikte
+   * "tavsiye işe yarıyor mu" sorusunu cevaplar.
+   */
+  advice: string | null
 }
 
 export function startSummary(
@@ -82,6 +111,7 @@ export function startSummary(
     startedAt,
     commander: e.commander,
     attempt: e.attempt,
+    assist: e.assist,
     outcome: 'playing',
     cause: null,
     duration: 0,
@@ -92,9 +122,14 @@ export function startSummary(
     strikes: [],
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],
+    routs: [],
     events: [],
     pauses: [],
     orders: [],
+    dusk: null,
+    remaining: 0,
+    simTime: 0,
+    advice: null,
   }
 }
 
@@ -108,6 +143,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       s.waves.push({ wave: e.wave, t: e.t, health: e.health })
       s.wave = e.wave + 1
       s.health = e.health
+      break
+    case 'rout':
+      s.routs.push({ t: e.t, count: e.count })
       break
     case 'strike':
       s.strikes.push({ t: e.t, kills: e.kills, alive: e.alive })
@@ -124,6 +162,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
     case 'wing_order':
       s.orders.push({ t: e.t, wing: e.wing, order: e.order })
       break
+    case 'dusk':
+      s.dusk = { t: e.t, cohesion: e.cohesion, wings: e.wings, health: e.health }
+      break
     case 'battle_end':
       s.outcome = e.outcome
       s.cause = e.cause
@@ -131,6 +172,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       s.stars = e.stars
       s.health = e.health
       s.wave = e.wave
+      s.remaining = e.remaining
+      s.simTime = e.simTime
+      s.advice = e.advice ?? null
       break
   }
 }

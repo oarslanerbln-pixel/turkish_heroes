@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { applyEvent, startSummary, type Stamped } from './summary'
 
 function play(events: Stamped[]) {
-  const s = startSummary({ type: 'battle_start', commander: 'metehan', attempt: 2 }, 'abc', 1000)
+  const s = startSummary({ type: 'battle_start', commander: 'metehan', attempt: 2, assist: 0.7 }, 'abc', 1000)
   for (const e of events) applyEvent(s, e)
   return s
 }
@@ -39,6 +39,8 @@ describe('savaş özeti', () => {
         stars: 0,
         health: 0,
         wave: 1,
+        remaining: 7,
+        simTime: 41.1,
         t: 41.3,
       },
     ])
@@ -47,11 +49,14 @@ describe('savaş özeti', () => {
       startedAt: 1000,
       commander: 'metehan',
       attempt: 2,
+      assist: 0.7,
       outcome: 'defeat',
       cause: 'health',
       score: 1200,
       health: 0,
       wave: 1,
+      remaining: 7,
+      simTime: 41.1,
       duration: 41.3,
       events: [{ event: 'charge', t: 40 }],
     })
@@ -61,7 +66,7 @@ describe('savaş özeti', () => {
     const s = play([
       { type: 'pause', auto: true, t: 20 },
       { type: 'pause', auto: false, t: 31.5 },
-      { type: 'battle_end', outcome: 'quit', cause: null, score: 300, stars: 0, health: 64, wave: 0, t: 31.5 },
+      { type: 'battle_end', outcome: 'quit', cause: null, score: 300, stars: 0, health: 64, wave: 0, remaining: 9, simTime: 30, t: 31.5 },
     ])
     expect(s.pauses).toEqual([
       { t: 20, auto: true },
@@ -79,6 +84,28 @@ describe('savaş özeti', () => {
       { t: 14, wing: 0, order: 'harass' },
       { t: 101.2, wing: 1, order: 'charge' },
     ])
+  })
+
+  it('gün batımı anını ve gösterilen tavsiyeyi kaydeder', () => {
+    const s = play([
+      { type: 'dusk', cohesion: [0.6, 0.7, 0.9, 0.85], wings: [1, 0.4], health: 72, t: 101 },
+      {
+        type: 'battle_end',
+        outcome: 'victory',
+        cause: null,
+        score: 4000,
+        stars: 2,
+        health: 70,
+        wave: 0,
+        remaining: 12,
+        simTime: 160,
+        advice: 'breakRear',
+        t: 163,
+      },
+    ])
+    expect(s.dusk).toEqual({ t: 101, cohesion: [0.6, 0.7, 0.9, 0.85], wings: [1, 0.4], health: 72 })
+    expect(s.advice).toBe('breakRear')
+    expect(s.simTime).toBe(160)
   })
 
   it('JSON gidiş-dönüşünde bozulmaz (localStorage kaydı)', () => {

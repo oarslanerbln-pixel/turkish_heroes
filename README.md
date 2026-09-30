@@ -21,7 +21,7 @@ düzensiz küme sıkışır → hilal enerjisi dolar → yayı kapat.
 ```bash
 npm install
 npm run dev      # geliştirme sunucusu (FPS paneli ve denge verisi açık)
-npm test         # mekanik + headless denge testleri
+npm test         # mekanik, headless denge (olasılıksal botlar) ve savaş karnesi testleri
 npm run lint
 npm run build    # tip kontrolü + üretim derlemesi (dist/)
 npm run preview  # üretim derlemesini yerelde sun

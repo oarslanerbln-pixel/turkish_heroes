@@ -36,6 +36,7 @@ import {
 } from './hilalSystem'
 import type { Enemy, Vec2 } from './types'
 import { orderWing, type WingOrder } from './wings'
+import type { TelemetryEvent } from '../telemetry/summary'
 
 export const BOT_DT = 1 / 60
 /** Oyuncunun başlangıcı: ordugahın önü. */
@@ -85,7 +86,15 @@ export interface BattleRun {
   duskWingStrength: number[]
 }
 
-export function runBattle(bot: Bot, seed: number): BattleRun {
+/**
+ * @param record Oyundaki olay takibiyle aynı olaylar; savaş karnesi testleri
+ *   koşuyu oyuncunun özetine böyle çevirir. t: savaş saati (sn).
+ */
+export function runBattle(
+  bot: Bot,
+  seed: number,
+  record?: (e: TelemetryEvent, t: number) => void,
+): BattleRun {
   const { battle, enemies } = createBattle(seed)
   const player = { ...PLAYER_START }
   let health = 100
@@ -98,13 +107,20 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
   let duskCohesion: number[] = []
   let duskWingStrength: number[] = []
   const view: BotView = { battle, enemies, player, energy, facing, inCrescent: 0, health }
+  record?.({ type: 'battle_start', commander: 'alp-arslan', attempt: 1, assist: 1 }, 0)
 
   while (result === 'playing') {
     view.energy = energy
     view.facing = facing
     view.health = health
     const action = bot(view)
-    action.wings?.forEach((order, wi) => orderWing(battle.wings[wi], order))
+    action.wings?.forEach((order, wi) => {
+      const w = battle.wings[wi]
+      const before = w.order
+      if (orderWing(w, order) && w.order !== before) {
+        record?.({ type: 'wing_order', wing: wi, order: w.order }, battle.time)
+      }
+    })
 
     const len = Math.hypot(action.move.x, action.move.z)
     if (len > 0) {
@@ -123,7 +139,13 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
     if (wasDay && !isDay(battle)) {
       duskCohesion = battle.corps.map((c) => c.cohesion)
       duskWingStrength = battle.wings.map((w) => w.strength)
+      record?.(
+        { type: 'dusk', cohesion: duskCohesion, wings: duskWingStrength, health: Math.round(health) },
+        battle.time,
+      )
     }
+    for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
+    battle.events.length = 0
     const siege = battleSiege(battle, enemies)
     health -= calcContactDamage(
       countAttackers(enemies, player),
@@ -136,8 +158,12 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
     view.inCrescent = countInCrescent(enemies, player, facing, strikeBudget(battle))
 
     if (action.strike && isStrikeReady(energy) && view.inCrescent > 0) {
+      const alive = siege.aliveCount
       const kills = executeStrike(enemies, player, facing, undefined, strikeBudget(battle))
       afterStrike(battle, enemies)
+      record?.({ type: 'strike', kills, alive }, battle.time)
+      for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
+      battle.events.length = 0
       strikes.push(kills)
       if (!isDay(battle)) bestDuskStrike = Math.max(bestDuskStrike, kills)
       energy = 0
@@ -150,6 +176,20 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
 
   const fallen = countFallen(enemies)
   const stars = result === 'victory' ? battleStars(battle, enemies) : 0
+  record?.(
+    {
+      type: 'battle_end',
+      outcome: result,
+      cause: result === 'defeat' ? (battle.reachedCamp ? 'camp' : 'health') : null,
+      score: 0,
+      stars,
+      health: Math.max(0, Math.round(health)),
+      wave: 0,
+      remaining: enemies.filter((e) => e.alive).length,
+      simTime: battle.time,
+    },
+    battle.time,
+  )
   const score =
     fallen * SCORE_PER_KILL +
     (result === 'victory'

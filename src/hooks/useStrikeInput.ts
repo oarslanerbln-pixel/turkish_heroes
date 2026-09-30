@@ -34,7 +34,11 @@ export function useStrikeInput() {
       // Sonuç ekranında yalnızca Enter: vuruş için Space'e basılı giden oyuncu,
       // oyun bittiği karede sonuç ekranını görmeden yeni tura atlamasın.
       else if (game.outcome !== 'playing') {
-        if (isEnter) game.restart()
+        // Enter ana düğmenin işi: kilit açıldıysa yeni komutanın savaşı.
+        if (isEnter) {
+          if (game.unlocked) game.playCommander(game.unlocked)
+          else game.restart()
+        }
       } else if (game.paused) {
         // Space vuruş tuşu: molayı yanlışlıkla kapatmasın, yalnızca Enter.
         if (isEnter) game.resume()

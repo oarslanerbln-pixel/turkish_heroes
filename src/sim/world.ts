@@ -8,6 +8,7 @@
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import { createBattle, type BattleState } from '../mechanics/corps'
 import type { CommanderId } from '../mechanics/scenario'
+import type { Debrief } from '../debrief/debrief'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
 import { loadBestScore } from './score'
@@ -27,6 +28,11 @@ export interface World {
   /** Oyuncuya temas eden düşman sayısı — HUD ve hasar için. */
   attackers: number
   enemies: Enemy[]
+  /**
+   * Savaşın simülasyon saati (sn): hitstop ve molada durur, ağır çekimde
+   * yavaşlar. Malazgirt'te battle.time ile aynı ölçek.
+   */
+  time: number
   /** 0 tabanlı geçerli dalga indeksi. */
   waveIndex: number
   score: number
@@ -100,6 +106,10 @@ export interface World {
    * boşaltır (fxKills gibi); simülasyonu etkilemez.
    */
   cameraCue: CameraCue | null
+  /** Savaş bitince yazılan karne (bkz. debrief/debrief.ts); savaş sürerken null. */
+  debrief: Debrief | null
+  /** Bu zaferle kilidi açılan komutan — sonuç ekranı onu doğrudan önerir. */
+  unlocked: CommanderId | null
 }
 
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
@@ -117,6 +127,7 @@ function initialWorld(commander: CommanderId): World {
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
     enemies: battle?.enemies ?? spawnWave(0),
+    time: 0,
     waveIndex: 0,
     score: 0,
     bestScore: loadBestScore(commander),
@@ -148,6 +159,8 @@ function initialWorld(commander: CommanderId): World {
     announceQueue: [],
     stars: 0,
     cameraCue: null,
+    debrief: null,
+    unlocked: null,
   }
 }
 

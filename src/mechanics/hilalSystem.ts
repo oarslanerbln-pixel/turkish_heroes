@@ -145,7 +145,7 @@ export function calcFacing(
   // ile birebir aynı, yani sonuç da aynı (bkz. hilalSystem.test.ts).
   let n = 0
   for (const e of enemies) {
-    if (!e.alive || e.guarded) continue
+    if (!e.alive || e.guarded || e.routed) continue
     const dx = e.pos.x - origin.x
     const dz = e.pos.z - origin.z
     const dist = Math.hypot(dx, dz)
@@ -204,7 +204,7 @@ export function calcSiegeState(enemies: readonly Enemy[], corps?: number): Siege
   let n = 0
 
   for (const e of enemies) {
-    if (!e.alive || (corps !== undefined && e.corps !== corps)) continue
+    if (!e.alive || e.routed || (corps !== undefined && e.corps !== corps)) continue
     cx += e.pos.x
     cz += e.pos.z
     disciplineSum += e.discipline
@@ -226,7 +226,7 @@ export function calcSiegeState(enemies: readonly Enemy[], corps?: number): Siege
 
   let totalDist = 0
   for (const e of enemies) {
-    if (!e.alive || (corps !== undefined && e.corps !== corps)) continue
+    if (!e.alive || e.routed || (corps !== undefined && e.corps !== corps)) continue
     totalDist += Math.hypot(e.pos.x - centroid.x, e.pos.z - centroid.z)
   }
 
@@ -239,6 +239,35 @@ export function calcSiegeState(enemies: readonly Enemy[], corps?: number): Siege
 
 export function calcEnergyGain(vulnerability: number, deltaTime: number): number {
   return vulnerability * HILAL_CONFIG.energyFillRate * deltaTime
+}
+
+/** Bu hızın altında hareket eden oyuncu kaçmıyor, hattını tutuyordur. */
+const MIN_EVASION_SPEED = 1
+
+/** Bu hızdan daha sert bir yaklaşma "hücum"dur; düşmanın düzenini bozmaz. */
+const APPROACH_TOLERANCE = 1.5
+
+/**
+ * Oyuncu düşmanı peşinden sürüklüyor mu?
+ *
+ * Yalnızca "merkezden uzaklaşma" aransaydı çember çizerek kaçmak (atlı okçunun
+ * asıl taktiği) sayılmazdı; teğetsel harekette uzaklaşma bileşeni sıfırdır.
+ * Kural bu yüzden iki koşula dayanır: oyuncu gerçekten hareket ediyor ve
+ * kümenin üstüne yürümüyor. Durmak hat tutmaktır, hücum etmek de kaçmak değildir.
+ * Yönetmen ve Metehan botları (waveBots.ts) aynı kuralı kullanır.
+ */
+export function isRetreatingFrom(player: Vec2, velocity: Vec2, centroid: Vec2): boolean {
+  const speed = Math.hypot(velocity.x, velocity.z)
+  if (speed < MIN_EVASION_SPEED) return false
+
+  const awayX = player.x - centroid.x
+  const awayZ = player.z - centroid.z
+  const len = Math.hypot(awayX, awayZ)
+  if (len < 0.001) return false
+
+  // Hareket vektörünün "merkezden uzaklaşma" yönündeki bileşeni.
+  const speedAway = (velocity.x * awayX + velocity.z * awayZ) / len
+  return speedAway > -APPROACH_TOLERANCE
 }
 
 export interface PhaseContext {
@@ -303,7 +332,7 @@ export function executeStrike(
   let kills = 0
 
   for (const e of enemies) {
-    if (!e.alive) continue
+    if (!e.alive || e.routed) continue
 
     if (!e.guarded && isInCrescent(e.pos, origin, facing) && (!canFall || canFall(e))) {
       e.alive = false
@@ -333,7 +362,13 @@ export function countInCrescent(
 ): number {
   let n = 0
   for (const e of enemies) {
-    if (e.alive && !e.guarded && isInCrescent(e.pos, origin, facing) && (!canFall || canFall(e))) {
+    if (
+      e.alive &&
+      !e.guarded &&
+      !e.routed &&
+      isInCrescent(e.pos, origin, facing) &&
+      (!canFall || canFall(e))
+    ) {
       n++
     }
   }
