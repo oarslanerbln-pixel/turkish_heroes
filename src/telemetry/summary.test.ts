@@ -70,6 +70,17 @@ describe('savaş özeti', () => {
     expect(s.outcome).toBe('quit')
   })
 
+  it('kollara verilen emirleri sırasıyla kaydeder', () => {
+    const s = play([
+      { type: 'wing_order', wing: 0, order: 'harass', t: 14 },
+      { type: 'wing_order', wing: 1, order: 'charge', t: 101.2 },
+    ])
+    expect(s.orders).toEqual([
+      { t: 14, wing: 0, order: 'harass' },
+      { t: 101.2, wing: 1, order: 'charge' },
+    ])
+  })
+
   it('JSON gidiş-dönüşünde bozulmaz (localStorage kaydı)', () => {
     const s = play([{ type: 'strike', kills: 3, alive: 5, t: 2 }])
     expect(JSON.parse(JSON.stringify(s))).toEqual(s)

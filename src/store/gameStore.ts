@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
 import { parseCommander, type CommanderId } from '../mechanics/scenario'
-import { resetWorld, world } from '../sim/world'
+import { announce, isPlaying, resetWorld, world } from '../sim/world'
+import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
-import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
+import { isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
 import { setBattleMusic, startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 
@@ -36,6 +37,8 @@ export interface HudSnapshot {
   battleTime: number // savaşın başından beri (sn) — gün çizgisi
   campDistance: number // ordunun ön hattının ordugaha uzaklığı
   corpsCohesion: number[] // birlik başına düzen; -1 = birlik yok
+  wingOrders: WingOrder[] // Selçuklu kollarının emri (0 sol, 1 sağ); savaş yoksa boş
+  wingStrength: number[] // kolların gücü 0–1
   defeatCause: 'health' | 'camp'
   emperorCaptured: boolean
 }
@@ -52,6 +55,8 @@ interface GameState extends HudSnapshot {
   selectCommander: (id: CommanderId) => void
   start: () => void
   requestStrike: () => void
+  /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
+  cycleWing: (wing: number) => void
   /** @param auto Uygulamadan çıkıldığı için (oyuncu kendisi durdurmadı). */
   pause: (auto: boolean) => void
   resume: () => void
@@ -60,6 +65,8 @@ interface GameState extends HudSnapshot {
   backToMenu: () => void
   toggleMute: () => void
 }
+
+const WING_NAMES = ['Sol kol', 'Sağ kol']
 
 const INITIAL_HUD: HudSnapshot = {
   phase: 'idle',
@@ -85,6 +92,8 @@ const INITIAL_HUD: HudSnapshot = {
   battleTime: 0,
   campDistance: 0,
   corpsCohesion: [],
+  wingOrders: [],
+  wingStrength: [],
   defeatCause: 'health',
   emperorCaptured: false,
 }
@@ -136,6 +145,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Molada basılan tuş birikip DEVAM'da kendiliğinden vurmasın.
   requestStrike: () => {
     if (!world.paused) world.strikeRequested = true
+  },
+
+  // Emir doğrudan simülasyona işlenir (kol bir sonraki adımda yola çıkar);
+  // düğme de beklemeden yeni emri göstersin diye HUD hemen güncellenir.
+  cycleWing: (wing) => {
+    const wings = world.battle?.wings
+    const w = wings?.[wing]
+    if (!wings || !w || !isPlaying()) return
+    const order = nextOrder(w.order)
+    if (!orderWing(w, order)) {
+      play('refuse')
+      announce(`${WING_NAMES[wing]} dinleniyor — atlar yorgun`)
+      return
+    }
+    play('order')
+    track({ type: 'wing_order', wing, order })
+    set({ wingOrders: wings.map((x) => x.order) })
   },
 
   // Yalnızca savaş sürerken. Molada sahne donuk ('demand'), yönetmen

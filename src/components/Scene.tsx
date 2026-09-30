@@ -9,6 +9,7 @@ import { Grass } from './world/Grass'
 import { StrikeSparks } from './StrikeSparks'
 import { Camp } from './world/Camp'
 import { CorpsBanners } from './CorpsBanners'
+import { AlliedWings } from './AlliedWings'
 import { ChargeWarnings } from './ChargeWarnings'
 import { ArrowVolley } from './ArrowVolley'
 import { DustTrails } from './DustTrails'
@@ -133,6 +134,7 @@ export function Scene() {
           {commander === 'alp-arslan' && (
             <>
               <CorpsBanners />
+              <AlliedWings />
               <ChargeWarnings />
               <ArrowVolley />
             </>

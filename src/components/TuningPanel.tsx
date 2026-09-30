@@ -1,31 +1,68 @@
 import { useState } from 'react'
 import { BATTLE_CONFIG } from '../mechanics/corps'
+import { WING_CONFIG } from '../mechanics/wings'
 import { world } from '../sim/world'
 
 // Canlı ayar paneli — yalnızca ?tune ile. Prototipin işi "oynaması keyifli
 // mi" sorusuna cevap bulmak; denge sabitlerini oyun sürerken oynatabilmek bu
-// yüzden şart. Değerler BATTLE_CONFIG'e doğrudan yazılır ve bir sonraki
-// karede geçerli olur; sayfa yenilenince tasarım değerlerine döner. Kalıcı
-// hale getirilen her değer corps.test.ts'teki bot ölçütlerinden geçmeli.
+// yüzden şart. Değerler BATTLE_CONFIG'e ve WING_CONFIG'e doğrudan yazılır ve
+// bir sonraki karede geçerli olur; sayfa yenilenince tasarım değerlerine
+// döner. Kalıcı hale getirilen her değer corps.test.ts ve wings.test.ts'teki
+// bot ölçütlerinden geçmeli.
 
-type Key = keyof typeof BATTLE_CONFIG
+interface Slider {
+  label: string
+  min: number
+  max: number
+  step: number
+  get: () => number
+  set: (value: number) => void
+}
 
-const SLIDERS: { key: Key; label: string; min: number; max: number; step: number }[] = [
-  { key: 'dayLength', label: 'Gün (sn)', min: 40, max: 160, step: 5 },
-  { key: 'advanceSpeed', label: 'İlerleme', min: 0.1, max: 0.6, step: 0.01 },
-  { key: 'harassDecay', label: 'Taciz düşüşü', min: 0.005, max: 0.06, step: 0.001 },
-  { key: 'harassSlow', label: 'Taciz yavaşlatma', min: 0, max: 1, step: 0.05 },
-  { key: 'dayFloor', label: 'Gündüz tabanı', min: 0.3, max: 0.9, step: 0.05 },
-  { key: 'chargeDwell', label: 'Hamle tetiği (sn)', min: 0.5, max: 4, step: 0.1 },
-  { key: 'chargeSpeed', label: 'Hamle hızı', min: 5, max: 9, step: 0.1 },
-  { key: 'contactDamage', label: 'Temas hasarı', min: 4, max: 20, step: 1 },
-  { key: 'turnPerDisorder', label: 'Dönüş uzaması', min: 0, max: 12, step: 0.5 },
-  { key: 'rearguardThreshold', label: 'Artçı eşiği', min: 0.5, max: 1, step: 0.01 },
-  { key: 'emperorThreshold', label: 'İmparator eşiği', min: 0.5, max: 1, step: 0.01 },
+/** Ayar nesnesinin sayısal bir alanına bağlı kaydırıcı; anahtar derlemede denetlenir. */
+function slider<C extends Record<K, number>, K extends keyof C>(
+  config: C,
+  key: K,
+  label: string,
+  min: number,
+  max: number,
+  step: number,
+): Slider {
+  return {
+    label,
+    min,
+    max,
+    step,
+    get: () => config[key],
+    set: (value) => {
+      config[key] = value as C[K]
+    },
+  }
+}
+
+const SLIDERS: Slider[] = [
+  slider(BATTLE_CONFIG, 'dayLength', 'Gün (sn)', 40, 160, 5),
+  slider(BATTLE_CONFIG, 'advanceSpeed', 'İlerleme', 0.1, 0.6, 0.01),
+  slider(BATTLE_CONFIG, 'harassDecay', 'Taciz düşüşü', 0.005, 0.06, 0.001),
+  slider(BATTLE_CONFIG, 'harassSlow', 'Taciz yavaşlatma', 0, 1, 0.05),
+  slider(BATTLE_CONFIG, 'dayFloor', 'Gündüz tabanı', 0.3, 0.9, 0.05),
+  slider(BATTLE_CONFIG, 'chargeDwell', 'Hamle tetiği (sn)', 0.5, 4, 0.1),
+  slider(BATTLE_CONFIG, 'chargeSpeed', 'Hamle hızı', 5, 9, 0.1),
+  slider(BATTLE_CONFIG, 'contactDamage', 'Temas hasarı', 4, 20, 1),
+  slider(BATTLE_CONFIG, 'turnPerDisorder', 'Dönüş uzaması', 0, 12, 0.5),
+  slider(BATTLE_CONFIG, 'rearguardThreshold', 'Artçı eşiği', 0.5, 1, 0.01),
+  slider(BATTLE_CONFIG, 'emperorThreshold', 'İmparator eşiği', 0.5, 1, 0.01),
+  slider(BATTLE_CONFIG, 'emperorPin', 'Merkez tutma eşiği', 0.2, 1, 0.05),
+  slider(WING_CONFIG, 'harass', 'Kol tacizi', 0, 1, 0.05),
+  slider(WING_CONFIG, 'shock', 'Kol ilk darbesi', 0, 0.6, 0.02),
+  slider(WING_CONFIG, 'turnSlow', 'Kol dönüş yavaşlatma', 0, 1, 0.05),
+  slider(WING_CONFIG, 'harassFatigue', 'Taciz yorgunluğu', 0, 0.04, 0.002),
+  slider(WING_CONFIG, 'chargeFatigue', 'Hücum yorgunluğu', 0, 0.15, 0.005),
+  slider(WING_CONFIG, 'recovery', 'Kol dinlenmesi', 0, 0.06, 0.002),
 ]
 
 export function TuningPanel() {
-  // Kaydırıcıların kendisi yeniden çizilsin diye; asıl değer BATTLE_CONFIG'te.
+  // Kaydırıcıların kendisi yeniden çizilsin diye; asıl değer ayar nesnelerinde.
   const [, setVersion] = useState(0)
   const [open, setOpen] = useState(true)
 
@@ -41,18 +78,18 @@ export function TuningPanel() {
       {open && (
         <>
           {SLIDERS.map((s) => (
-            <label key={s.key}>
+            <label key={s.label}>
               <span>
-                {s.label} <b>{BATTLE_CONFIG[s.key]}</b>
+                {s.label} <b>{s.get()}</b>
               </span>
               <input
                 type="range"
                 min={s.min}
                 max={s.max}
                 step={s.step}
-                value={BATTLE_CONFIG[s.key]}
+                value={s.get()}
                 onChange={(e) => {
-                  BATTLE_CONFIG[s.key] = Number(e.target.value)
+                  s.set(Number(e.target.value))
                   setVersion((v) => v + 1)
                 }}
               />

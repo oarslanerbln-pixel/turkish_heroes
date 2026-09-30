@@ -248,6 +248,112 @@
   bottom: calc(44px + var(--safe-bottom));
 }
 
+/* ---- Selçuklu kolları: emir düğmeleri ---- */
+/* Masaüstünde her kol ekranın kendi yanında (sol kol solda). */
+.wings {
+  position: absolute;
+  inset: auto calc(20px + var(--safe-right)) calc(28px + var(--safe-bottom))
+    calc(20px + var(--safe-left));
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.wing-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 112px;
+  padding: 8px 10px 9px;
+  color: #c9b28a;
+  text-align: left;
+  background: rgba(16, 7, 2, 0.62);
+  border: 1px solid rgba(241, 209, 122, 0.22);
+  border-radius: 8px;
+  touch-action: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wing-name {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.wing-name kbd {
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid rgba(241, 209, 122, 0.22);
+  border-radius: 3px;
+}
+
+.wing-btn b {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+}
+
+.wing-bar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.wing-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--health);
+  transition: width 0.3s linear;
+}
+
+.wing-btn.is-harass {
+  border-color: rgba(241, 209, 122, 0.6);
+}
+
+.wing-btn.is-charge {
+  border-color: var(--ember);
+  box-shadow: 0 0 14px rgba(255, 90, 26, 0.4);
+}
+
+.wing-btn.is-charge b {
+  color: var(--ember);
+}
+
+.wing-btn.is-resting b {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wing-btn.is-resting .wing-bar > span {
+  background: var(--danger);
+}
+
+/* Dokunmatik: sol alt joystick'in; kollar vuruş düğmesinin üstünde yan yana. */
+.is-touch .wings {
+  inset: auto calc(20px + var(--safe-right)) calc(132px + var(--safe-bottom)) auto;
+  gap: 8px;
+}
+
+.is-touch .wing-btn {
+  width: 78px;
+  padding: 7px 8px;
+}
+
+.is-touch .wing-btn b {
+  font-size: 13px;
+}
+
+.is-touch .wing-btn.is-resting b {
+  font-size: 10px;
+}
+
 /* ---- Dalga bannerı ---- */
 .wave-banner {
   position: absolute;

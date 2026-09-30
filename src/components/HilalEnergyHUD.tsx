@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import { BATTLE_CONFIG } from '../mechanics/corps'
+import { WING_CONFIG, type WingOrder } from '../mechanics/wings'
 import { commanderInfo } from '../mechanics/scenario'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
@@ -19,6 +20,17 @@ const PHASE_LABEL: Record<HilalPhase, string> = {
   gather: 'Kuşatma',
   strike: 'Vuruş',
 }
+
+const ORDER_LABEL: Record<WingOrder, string> = {
+  ambush: 'PUSU',
+  harass: 'TACİZ',
+  charge: 'HÜCUM',
+}
+
+const WINGS = [
+  { name: 'SOL KOL', key: 'Q' },
+  { name: 'SAĞ KOL', key: 'E' },
+]
 
 const PHASE_COLOR: Record<HilalPhase, string> = {
   idle: '#8b7355',
@@ -56,6 +68,7 @@ export function HilalEnergyHUD() {
       <EnergyPanel touch={touch} />
       {touch && <TouchStrikeButton />}
       {battle && outcome === 'playing' && <DayLine />}
+      {battle && outcome === 'playing' && <WingButtons touch={touch} />}
       {outcome === 'playing' && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {outcome === 'playing' &&
@@ -253,6 +266,46 @@ function TouchStrikeButton() {
     >
       {canStrike ? `VUR (${inCrescent})` : strikeReady ? 'MENZİL' : 'KUŞAT'}
     </button>
+  )
+}
+
+/**
+ * Selçuklu kollarının emir düğmeleri. Her basış sıradaki emri verir
+ * (pusu → taciz → hücum). Gücü azalan kol pusuda dinlenirken düğme bunu
+ * söyler: oyuncu neden emir alınmadığını görsün. Masaüstünde kollar ekranın
+ * kendi yanında; dokunmatikte sol alt joystick'in, ikisi de vuruş düğmesinin
+ * üstünde sağ başparmağın erişiminde.
+ */
+function WingButtons({ touch }: { touch: boolean }) {
+  const orders = useGameStore((s) => s.wingOrders)
+  const strength = useGameStore((s) => s.wingStrength)
+  const cycleWing = useGameStore((s) => s.cycleWing)
+  if (orders.length === 0) return null
+
+  return (
+    <div className="wings">
+      {orders.map((order, i) => {
+        const power = strength[i] ?? 0
+        const resting = order === 'ambush' && power < WING_CONFIG.readyStrength
+        return (
+          <button
+            key={i}
+            className={`wing-btn is-${resting ? 'resting' : order}`}
+            // pointerdown: vuruş düğmesi gibi gecikmesiz.
+            onPointerDown={() => cycleWing(i)}
+          >
+            <span className="wing-name">
+              {WINGS[i].name}
+              {!touch && <kbd>{WINGS[i].key}</kbd>}
+            </span>
+            <b>{resting ? 'DİNLENİYOR' : ORDER_LABEL[order]}</b>
+            <span className="wing-bar">
+              <span style={{ width: `${Math.round(power * 100)}%` }} />
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 

@@ -35,6 +35,7 @@ import {
   stepEnergy,
 } from './hilalSystem'
 import type { Enemy, Vec2 } from './types'
+import { orderWing, type WingOrder } from './wings'
 
 export const BOT_DT = 1 / 60
 /** Oyuncunun başlangıcı: ordugahın önü. */
@@ -59,6 +60,8 @@ export interface BotAction {
   /** İstenen hareket; hızı retreatSpeed'e sınırlanır. */
   move: Vec2
   strike: boolean
+  /** Kollara emir (sol, sağ); verilmezse emirler değişmez. */
+  wings?: readonly WingOrder[]
 }
 
 export type Bot = (view: BotView) => BotAction
@@ -78,6 +81,8 @@ export interface BattleRun {
   rearguardLeft: boolean
   /** Gün batımında birliklerin düzeni — ayar yaparken en çok bakılan değer. */
   duskCohesion: number[]
+  /** Gün batımında kolların gücü. */
+  duskWingStrength: number[]
 }
 
 export function runBattle(bot: Bot, seed: number): BattleRun {
@@ -91,6 +96,7 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
   const strikes: number[] = []
   let bestDuskStrike = 0
   let duskCohesion: number[] = []
+  let duskWingStrength: number[] = []
   const view: BotView = { battle, enemies, player, energy, facing, inCrescent: 0, health }
 
   while (result === 'playing') {
@@ -98,6 +104,7 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
     view.facing = facing
     view.health = health
     const action = bot(view)
+    action.wings?.forEach((order, wi) => orderWing(battle.wings[wi], order))
 
     const len = Math.hypot(action.move.x, action.move.z)
     if (len > 0) {
@@ -113,7 +120,10 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
 
     const wasDay = isDay(battle)
     stepBattle(battle, enemies, player, BOT_DT)
-    if (wasDay && !isDay(battle)) duskCohesion = battle.corps.map((c) => c.cohesion)
+    if (wasDay && !isDay(battle)) {
+      duskCohesion = battle.corps.map((c) => c.cohesion)
+      duskWingStrength = battle.wings.map((w) => w.strength)
+    }
     const siege = battleSiege(battle, enemies)
     health -= calcContactDamage(
       countAttackers(enemies, player),
@@ -161,6 +171,7 @@ export function runBattle(bot: Bot, seed: number): BattleRun {
     emperorExposed: battle.emperorExposed,
     rearguardLeft: battle.rearguardLeft,
     duskCohesion,
+    duskWingStrength,
   }
 }
 
@@ -392,6 +403,30 @@ export const provokerBot = (): Bot => (v) => {
   // İmparator henüz korunuyorsa hilali harcama; yalnızca büyük fırsatı kullan.
   const dest = post(b, ci, { x: 0, z: -1 }, 9)
   return { move: navigate(v, dest, ci), strike: v.inCrescent >= 8 }
+}
+
+// ——— Kol emirleri ———
+
+/** Savaşın durumuna göre iki kolun emri (sol, sağ). */
+export type WingPolicy = (b: BattleState) => readonly WingOrder[]
+
+const BOTH_AMBUSH: readonly WingOrder[] = ['ambush', 'ambush']
+const BOTH_HARASS: readonly WingOrder[] = ['harass', 'harass']
+const BOTH_CHARGE: readonly WingOrder[] = ['charge', 'charge']
+
+/** Tarihteki gibi: kollar gündüz pusuda, gün batımında dönen orduya hücum. */
+export const ambushWings: WingPolicy = (b) => (isDay(b) ? BOTH_AMBUSH : BOTH_CHARGE)
+/** Kollar gündüz taciz eder, akşam hücum. */
+export const harassWings: WingPolicy = (b) => (isDay(b) ? BOTH_HARASS : BOTH_CHARGE)
+/** Sabırsız: kollar dinlenir dinlenmez hücuma. */
+export const eagerWings: WingPolicy = () => BOTH_CHARGE
+
+/** Bir botu kol emirleriyle birleştirir. */
+export function withWings(makeBot: () => Bot, policy: WingPolicy): () => Bot {
+  return () => {
+    const bot = makeBot()
+    return (v) => ({ ...bot(v), wings: policy(v.battle) })
+  }
 }
 
 /** Ölçüm yardımcısı: bir botun tohum tohum sonuçları (her koşuya taze bot). */

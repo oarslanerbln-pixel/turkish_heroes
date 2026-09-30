@@ -19,6 +19,7 @@ import {
   type BattleEvent,
 } from '../mechanics/corps'
 import { stepEnemies } from '../mechanics/enemySim'
+import { WING_CONFIG } from '../mechanics/wings'
 import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
 import type { CommanderId } from '../mechanics/scenario'
 import { spawnWave, TOTAL_WAVES, waveClearBonus, waveConfig } from '../mechanics/waves'
@@ -122,10 +123,19 @@ const EVENT_TEXT: Record<BattleEvent, string> = {
   rearguardLeaves: 'Artçı savaş alanını terk ediyor',
   emperorExposed: 'İmparator korumasız!',
   emperorCaptured: 'İmparator esir alındı',
+  wingShockLeft: 'Sol kol dönen orduya yüklendi!',
+  wingShockRight: 'Sağ kol dönen orduya yüklendi!',
+  wingTiredLeft: 'Sol kol yoruldu — pusuya dönüyor',
+  wingTiredRight: 'Sağ kol yoruldu — pusuya dönüyor',
 }
 
 /** İlk gün batımında (oyuncu başına bir kez) gösterilen ipucu. */
 const DUSK_HINT = 'Dönen birlik savunmasız — şimdi kuşat'
+/** Kolların ilk tanıtımı: açılış çekimi bitip ordu yaklaşırken. */
+const WINGS_HINT = 'Kolların pusuda — taciz ya da hücum emri ver'
+const WINGS_HINT_AT = 12
+/** Gün batımında pusuda hazır bekleyen kol varsa (bir kez). */
+const WINGS_DUSK_HINT = 'Pusudaki kollara HÜCUM emri ver'
 /** Ağır çekim süreleri (gerçek zaman, sn). */
 const FIRST_CHARGE_SLOWMO = 0.45
 const SUNSET_SLOWMO = 0.9
@@ -150,6 +160,15 @@ const battle: Scenario = {
   advance(w) {
     const b = w.battle
     if (!b) return
+    // Oyuncu kolları kendi keşfettiyse tanıtım gereksiz.
+    if (
+      b.time >= WINGS_HINT_AT &&
+      b.time < BATTLE_CONFIG.dayLength &&
+      b.wings.every((x) => x.order === 'ambush') &&
+      takeHint('wings')
+    ) {
+      announce(WINGS_HINT)
+    }
     for (const event of b.events) {
       track({ type: 'battle_event', event })
       switch (event) {
@@ -172,6 +191,18 @@ const battle: Scenario = {
           w.slowmo = SUNSET_SLOWMO
           w.cameraCue = 'dusk'
           announce(takeHint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
+          if (
+            b.wings.some((x) => x.order === 'ambush' && x.strength >= WING_CONFIG.readyStrength) &&
+            takeHint('wingsDusk')
+          ) {
+            announce(WINGS_DUSK_HINT)
+          }
+          break
+        case 'wingShockLeft':
+        case 'wingShockRight':
+          play('wingCharge')
+          haptic(40)
+          announce(EVENT_TEXT[event])
           break
         case 'emperorExposed':
           play('horn')
