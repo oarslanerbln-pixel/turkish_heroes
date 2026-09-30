@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ambushWings,
+  blockerBot,
   eagerWings,
   greedyBot,
   passiveBot,
@@ -24,6 +25,7 @@ import {
   withWings,
   type Bot,
 } from '../mechanics/battleBots'
+import { MIRYOKEFALON } from '../mechanics/corps'
 import { kiter, runWaves, SKILLS, type KiterSkill } from '../mechanics/waveBots'
 import { applyEvent, startSummary, type BattleSummary, type TelemetryEvent } from '../telemetry/summary'
 import { debrief, type AdviceId, type Debrief } from './debrief'
@@ -141,5 +143,24 @@ describe('savaş karnesi — bot türü başına tavsiye (Metehan)', () => {
       const routed = r.summary.routs.length > 0
       expect(r.report.advice.id).toBe(routed ? 'sweep' : 'clean')
     }
+  })
+})
+
+describe('savaş karnesi — bot türü başına tavsiye (Miryokefalon)', () => {
+  const pass = (makeBot: () => Bot, seeds: readonly number[]): Graded[] =>
+    seeds.map((seed) => {
+      const r = recorder()
+      runBattle(makeBot(), seed, r.record, MIRYOKEFALON)
+      return { summary: r.summary(), report: debrief(r.summary(), { best: 0 }) }
+    })
+
+  it('yolu hiç kesmeyen ve genişte kesen: "boğazın hemen ötesinde kes"', { timeout: 30000 }, () => {
+    const runs = [...pass(blockerBot(null, 4), [1, 2]), ...pass(blockerBot(-4, 4), [1, 2])]
+    expect(runs.every((r) => r.report.advice.id === 'blockNeck')).toBe(true)
+  })
+
+  it('boğazın ötesinde kesen: ustalık', { timeout: 30000 }, () => {
+    const runs = pass(blockerBot(8, 4), [1, 2, 3])
+    expect(share(runs, 'mastery')).toBe(1)
   })
 })

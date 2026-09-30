@@ -12,7 +12,6 @@ import {
   stepEnergy,
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
-import { BATTLE_CONFIG } from '../mechanics/corps'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
 import { isUnlocked, recordBattleEnd, recordLadder, recordVictory } from '../sim/progress'
@@ -58,7 +57,7 @@ function finishBattle(scenario: Scenario): void {
     world.score += scenario.victoryBonus(world)
     recordVictory(world.commander)
   }
-  if (world.battle) recordBattleEnd()
+  if (world.battle) recordBattleEnd(world.commander)
   else recordLadder(victory)
   world.unlocked = locked.find((id) => isUnlocked(id)) ?? null
   world.bestScore = saveBestScore(world.commander, world.score)
@@ -99,7 +98,7 @@ export function GameDirector() {
           type: 'battle_start',
           commander: world.commander,
           attempt: nextAttempt(world.commander),
-          assist: scenario.assist(),
+          assist: scenario.assist(world),
         })
       }
       world.time += dt
@@ -112,7 +111,7 @@ export function GameDirector() {
       world.attackers = countAttackers(world.enemies, world.player)
       world.playerHealth = Math.max(
         0,
-        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage()),
+        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage(world)),
       )
 
       // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
@@ -243,7 +242,7 @@ export function GameDirector() {
         announcement: world.announceTimer > 0 ? world.announcement : '',
         stars: world.stars,
         battleTime: b?.time ?? 0,
-        campDistance: b ? Math.max(0, BATTLE_CONFIG.campZ - b.frontZ) : 0,
+        campDistance: b ? Math.max(0, b.layout.objectiveZ - b.frontZ) : 0,
         corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
         wingOrders: b ? b.wings.map((w) => w.order) : [],
         wingStrength: b ? b.wings.map((w) => w.strength) : [],
@@ -251,6 +250,8 @@ export function GameDirector() {
         emperorCaptured: b?.emperorCaptured ?? false,
         debrief: world.debrief,
         unlocked: world.unlocked,
+        canBlock: !!b?.layout.pass && !b.blockadeUsed,
+        blockade: b?.blockade?.strength ?? 0,
       })
     }
   }, DIRECTOR_PRIORITY)

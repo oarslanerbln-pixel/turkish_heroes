@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest'
 import { BATTLE_CONFIG, BATTLE_SIZE } from '../mechanics/corps'
 import { applyEvent, startSummary, type BattleSummary, type TelemetryEvent } from '../telemetry/summary'
 import { debrief } from './debrief'
+import type { CommanderId } from '../mechanics/scenario'
 
 type Timed = [number, TelemetryEvent]
 
-function summary(commander: 'metehan' | 'alp-arslan', events: Timed[]): BattleSummary {
+function summary(commander: CommanderId, events: Timed[]): BattleSummary {
   const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist: 1 }, 'test', 0)
   for (const [t, e] of events) applyEvent(s, { ...e, t })
   return s
@@ -250,5 +251,63 @@ describe('savaş karnesi — Malazgirt', () => {
     expect(d.goal).toBeNull()
     expect(d.peak).toContain('Romanos Diogenes')
     expect(d.timeline.marks.some((m) => m.kind === 'emperor')).toBe(true)
+  })
+})
+
+describe('savaş karnesi — Miryokefalon', () => {
+  const nightAt = 150
+  const pass = (events: Timed[]) => summary('kilicarslan', events)
+  const block = (z: number): TelemetryEvent => ({ type: 'blockade', z })
+
+  it('yığının yeri: kesilmedi / genişte / çıkışa yakın → "boğazın hemen ötesinde kes"', () => {
+    const advice = (events: Timed[]) =>
+      debrief(pass([...events, [nightAt, end('victory', { stars: 1, simTime: nightAt })]]), { best: 0 })
+        .advice
+    expect(advice([]).id).toBe('blockNeck')
+    expect(advice([[30, block(-4)]]).text).toContain('geniş vadide')
+    expect(advice([[30, block(18)]]).text).toContain('çıkışa yakın')
+    // İyi yerde kesip kol sıkıştıysa ders hasat.
+    expect(advice([[30, block(8)], [60, event('jam')]]).id).toBe('harvestJam')
+    // İyi yerde kesti ama yığın temizlendi, kol sıkışmadı.
+    expect(advice([[30, block(8)], [80, event('blockadeCleared')]]).id).toBe('holdBlock')
+  })
+
+  it('geçit aşıldı: yığın temizlendiyse "yığını tut"', () => {
+    const d = debrief(
+      pass([
+        [30, block(8)],
+        [90, event('blockadeCleared')],
+        [140, end('defeat', { cause: 'camp', simTime: 140 })],
+      ]),
+      { best: 0 },
+    )
+    expect(d.headline).toBe('Bizans ordusu geçidi aştı — geceye 10 sn kala.')
+    expect(d.close).toBe(true)
+    expect(d.advice.id).toBe('holdBlock')
+    expect(d.timeline.marks.some((m) => m.kind === 'block')).toBe(true)
+  })
+
+  it('2 yıldız: Manuel\'e giden üç adım; 3 yıldız: barış', () => {
+    const two = debrief(
+      pass([
+        [30, block(8)],
+        [60, event('jam')],
+        [nightAt, end('victory', { stars: 2, simTime: nightAt })],
+      ]),
+      { best: 0 },
+    )
+    expect(two.goal).toMatchObject({ label: '3. yıldız: Manuel', value: 2, target: 3 })
+    expect(two.advice.id).toBe('jamCenter')
+
+    const three = debrief(
+      pass([
+        [30, block(8)],
+        [90, event('emperorCaptured')],
+        [90, end('victory', { stars: 3, health: 80, simTime: 90 })],
+      ]),
+      { best: 0 },
+    )
+    expect(three.advice.id).toBe('mastery')
+    expect(three.peak).toContain('Manuel')
   })
 })

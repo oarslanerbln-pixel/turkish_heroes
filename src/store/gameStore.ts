@@ -5,6 +5,7 @@ import type { Debrief } from '../debrief/debrief'
 import { parseCommander, type CommanderId } from '../mechanics/scenario'
 import { announce, isPlaying, resetWorld, world } from '../sim/world'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
+import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
 import { isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
@@ -44,6 +45,8 @@ export interface HudSnapshot {
   emperorCaptured: boolean
   debrief: Debrief | null // savaş bitince karne; sürerken null
   unlocked: CommanderId | null // bu zaferle kilidi açılan komutan
+  canBlock: boolean // geçit: YOLU KES henüz kullanılmadı
+  blockade: number // geçit: kaya yığınının kalan sağlamlığı 0–1 (yoksa 0)
 }
 
 interface GameState extends HudSnapshot {
@@ -60,6 +63,8 @@ interface GameState extends HudSnapshot {
   requestStrike: () => void
   /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
   cycleWing: (wing: number) => void
+  /** Geçit: YOLU KES — oyuncunun bulunduğu yere kaya yığını (bir kez). */
+  dropBlockade: () => void
   /** @param auto Uygulamadan çıkıldığı için (oyuncu kendisi durdurmadı). */
   pause: (auto: boolean) => void
   resume: () => void
@@ -103,6 +108,8 @@ const INITIAL_HUD: HudSnapshot = {
   emperorCaptured: false,
   debrief: null,
   unlocked: null,
+  canBlock: false,
+  blockade: 0,
 }
 
 // ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır
@@ -169,6 +176,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     play('order')
     track({ type: 'wing_order', wing, order })
     set({ wingOrders: wings.map((x) => x.order) })
+  },
+
+  // Yığın hemen düşer; ses ve duyuru senaryonun olay işleyişinden gelir.
+  dropBlockade: () => {
+    const b = world.battle
+    if (!b?.layout.pass || !isPlaying()) return
+    if (!dropBlockadeAt(b, world.player.z)) {
+      play('refuse')
+      announce('Yol zaten kesildi — kaya yığını bir kez')
+      return
+    }
+    track({ type: 'blockade', z: Math.round(b.blockade!.z * 10) / 10 })
+    set({ canBlock: false, blockade: 1 })
   },
 
   // Yalnızca savaş sürerken. Molada sahne donuk ('demand'), yönetmen

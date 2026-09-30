@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react'
+import { confineToPass } from '../../mechanics/pass'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { useKeyboard } from '../../hooks/useKeyboard'
@@ -73,6 +74,8 @@ export function MetehanPlaceholder() {
     world.player.x += dx * dt
     world.player.z += dz * dt
     confinePlayerToArena()
+    // Geçitte duvarların arasında.
+    if (world.battle?.layout.pass) confineToPass(world.player)
 
     // Hitstop'ta dt sıfır: hız bölmesi NaN üretmesin, donmuş oyuncu "duruyor".
     if (dt > 0) {

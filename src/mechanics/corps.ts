@@ -17,6 +17,7 @@
 
 import { steerToward, ENEMY_CONFIG } from './enemySim'
 import { calcSiegeState, type FallFilter, type SiegeState } from './hilalSystem'
+import { confineToPass, narrowness, PASS, passHalfWidth } from './pass'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
 import {
@@ -131,8 +132,155 @@ export const REARGUARD = 3
 /** Ordugaha varışı belirleyen ön birlikler — artçı arkada kalır. */
 const FRONT_CORPS = [0, 1, 2] as const
 
-/** Sahadaki toplam asker: birlikler + imparator. */
-export const BATTLE_SIZE = CORPS.reduce((n, c) => n + c.size, 0) + 1
+/**
+ * Miryokefalon kolunun ayarları (bkz. pass.ts). Bilerek `as const` değil:
+ * ?tune paneli değiştirebilsin. Bot taramasıyla ayarlandı (column.test.ts).
+ */
+export const COLUMN_CONFIG = {
+  /** Birlik merkezleri arası yürüyüş mesafesi. */
+  gap: 6,
+  /** Sıkışan birlik öndekine bu oranda yaklaşır: saflar iç içe girer. */
+  squeeze: 0.45,
+  /** Durdurulan birliğin sıkışma hızı (sn başına; boğazda tam, genişte %30'u). */
+  jamRate: 0.12,
+  /** Yol açılınca sıkışmanın çözülmesi (sn başına). */
+  jamRecover: 0.08,
+  /** Genişte sıkışmanın varabileceği en yüksek değer: yer varsa ordu yayılır. */
+  wideJamCap: 0.35,
+  /** Sıkışan birliğin düzeni kalıcı olarak da erir (tam sıkışmada sn başına). */
+  jamDecay: 0.006,
+  /** Düzen tabanı (geçitte gün batımı yok, taban hep geçerli). */
+  floor: 0.5,
+  /** Vuruştan sonra ordunun irkilip toparlanması. */
+  strikeRecovery: 0.05,
+  /** Kaya yığınının taciz yokken temizlenme süresi (sn). */
+  clearTime: 40,
+  /** Tam tacizde temizleme bu oranda yavaşlar. */
+  clearHarassSlow: 0.7,
+  /** Yığın kolun başını bu kadar önünde durdurur. */
+  headroom: 2,
+  /**
+   * Merkez bu kadar sıkışıp düzeni bunun altına inince Manuel korumasız.
+   * 0,8 sıkışma ancak boğazın yakınında mümkün (genişte tavan düşük): Manuel'i
+   * açığa çıkarmanın yolu merkezi boğaza yığmak.
+   */
+  exposeJam: 0.8,
+  exposeCohesion: 0.7,
+  /** Yamaçtan inen kolun ilk darbesi bu kadar sıkışmış birliği sarsar. */
+  shockJam: 0.5,
+  /** Gece çöker, savaş biter (sn). */
+  nightAt: 150,
+}
+
+/**
+ * Savaş alanı düzeni: ordunun dizilişi, hedef çizgisi, günün akışı, arazi.
+ * Kurallar (taciz, hamle, kollar, vuruş bütçesi) ortak; düzen neyin nerede
+ * ve ne zaman olduğunu söyler.
+ */
+export interface BattleLayout {
+  id: 'malazgirt' | 'miryokefalon'
+  corps: readonly CorpsDef[]
+  armyStartZ: number
+  /** Ön hat buraya varırsa yenilgi: ordugah ya da geçidin çıkışı. */
+  objectiveZ: number
+  /** Gün batımı (sn): ordu döner. Infinity: dönüş yok. */
+  dayLength: number
+  /** Gece çöker, savaş biter (sn). */
+  nightAt: number
+  /** Gündüz düzen tabanı. */
+  dayFloor: number
+  /** Gündüz vuruşundan sonra her birliğin toparlanması. */
+  strikeRecovery: number
+  /** Ön hat: ön birliklerin ortalaması (açık alan) ya da en öndeki (kol). */
+  front: 'mean' | 'lead'
+  /** Kolların hedef sırası (sol, sağ). */
+  wingTargets: readonly [readonly number[], readonly number[]]
+  /** Sağ kolun pusu yeri; sol kol aynası. */
+  wingHome: Vec2
+  playerStart: Vec2
+  /** Dar geçit: kol halinde yürüyüş, sıkışma, YOLU KES (bkz. pass.ts). */
+  pass: boolean
+}
+
+export const MALAZGIRT: BattleLayout = {
+  id: 'malazgirt',
+  corps: CORPS,
+  // ?tune BATTLE_CONFIG'i canlı değiştirir; düzen değerleri oradan okur.
+  get armyStartZ() {
+    return BATTLE_CONFIG.armyStartZ
+  },
+  get objectiveZ() {
+    return BATTLE_CONFIG.campZ
+  },
+  get dayLength() {
+    return BATTLE_CONFIG.dayLength
+  },
+  get nightAt() {
+    return BATTLE_CONFIG.nightAt
+  },
+  get dayFloor() {
+    return BATTLE_CONFIG.dayFloor
+  },
+  get strikeRecovery() {
+    return BATTLE_CONFIG.strikeRecovery
+  },
+  front: 'mean',
+  wingTargets: [
+    [0, CENTER, 2, REARGUARD],
+    [2, CENTER, 0, REARGUARD],
+  ],
+  wingHome: { x: WING_CONFIG.homeX, z: WING_CONFIG.homeZ },
+  playerStart: { x: 0, z: 16 },
+  pass: false,
+}
+
+/**
+ * Miryokefalon kolu, önden arkaya: öncü, merkez (Manuel), ağırlıklar, artçı.
+ * Merkez ve artçı indeksleri Malazgirt'le aynı (CENTER, REARGUARD).
+ */
+export const COLUMN_CORPS: readonly CorpsDef[] = [
+  { name: 'Öncü', size: 8, cols: 4, x: 0, z: 0 },
+  { name: 'Merkez', size: 10, cols: 5, x: 0, z: -6.5 },
+  { name: 'Ağırlıklar', size: 8, cols: 4, x: 0, z: -13 },
+  { name: 'Artçı', size: 8, cols: 4, x: 0, z: -19.5 },
+]
+
+export const MIRYOKEFALON: BattleLayout = {
+  id: 'miryokefalon',
+  corps: COLUMN_CORPS,
+  armyStartZ: -7,
+  get objectiveZ() {
+    return PASS.exitZ
+  },
+  dayLength: Infinity,
+  get nightAt() {
+    return COLUMN_CONFIG.nightAt
+  },
+  get dayFloor() {
+    return COLUMN_CONFIG.floor
+  },
+  get strikeRecovery() {
+    return COLUMN_CONFIG.strikeRecovery
+  },
+  front: 'lead',
+  // Sol kol öncüyü, sağ kol merkezi öncelikle hedefler.
+  wingTargets: [
+    [0, CENTER, 2, REARGUARD],
+    [CENTER, 0, 2, REARGUARD],
+  ],
+  // Pusu yamaçta, boğazın yanında.
+  wingHome: { x: 12, z: 2 },
+  playerStart: { x: 0, z: 16 },
+  pass: true,
+}
+
+/** Düzenin sahadaki toplam askeri: birlikler + imparator. */
+export function armySize(layout: BattleLayout): number {
+  return layout.corps.reduce((n, c) => n + c.size, 0) + 1
+}
+
+/** Malazgirt'in sahadaki toplam askeri: birlikler + imparator. */
+export const BATTLE_SIZE = armySize(MALAZGIRT)
 
 /** İmparatorun merkez birliğine göre yuvası: safların hemen arkası. */
 const EMPEROR_SLOT: Vec2 = { x: 0, z: -2.6 }
@@ -163,6 +311,13 @@ export interface CorpsState {
   wingHarass: number
   /** 0–1. Hücumdaki kolların birliği tutması: ilerleyiş durur, dönüş uzar. */
   pinned: number
+  /**
+   * 0–1. Geçitte sıkışma: öndeki birlik ya da kaya yığını yolu kesince birlik
+   * üst üste biner. Disiplin (1 − sıkışma) ile çarpılır; açık alanda hep 0.
+   */
+  jam: number
+  /** Birliğin ilerleyebileceği en uzak z (öndeki birlik ya da yığın). */
+  limit: number
 }
 
 /** Askerin anlık görevi. */
@@ -184,8 +339,14 @@ export type BattleEvent =
   /** Kol yoruldu, pusuya dönüyor. */
   | 'wingTiredLeft'
   | 'wingTiredRight'
+  /** Geçit: yol kaya yığınıyla kesildi / öncü yığını temizledi. */
+  | 'blockade'
+  | 'blockadeCleared'
+  /** Geçit: bir birlik ilk kez ağır sıkıştı (bir kez). */
+  | 'jam'
 
 export interface BattleState {
+  layout: BattleLayout
   /** Savaşın başından beri geçen süre (sn). */
   time: number
   corps: CorpsState[]
@@ -207,21 +368,29 @@ export interface BattleState {
   events: BattleEvent[]
   /** Bir kez gösterilen olaylar (ilk taciz, ilk hamle) tekrar yayılmasın. */
   seen: Set<BattleEvent>
+  /** Geçit: kaya yığını (z'si ve kalan sağlamlığı 0–1); yoksa null. */
+  blockade: { z: number; strength: number } | null
+  /** YOLU KES savaş başına bir kez. */
+  blockadeUsed: boolean
 }
 
 /**
  * Orduyu dizer. Tohum yalnızca küçük sapmalar verir (asker başına ±0,4,
  * ordu merkezinde ±1,5): her savaş aynı kurala, biraz farklı başlangıca sahip.
  */
-export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy[] } {
+export function createBattle(
+  seed = 1071,
+  layout: BattleLayout = MALAZGIRT,
+): { battle: BattleState; enemies: Enemy[] } {
   const rand = mulberry32(seed)
   const jitter = (amount: number) => (rand() * 2 - 1) * amount
-  const armyX = jitter(1.5)
-  const armyZ = BATTLE_CONFIG.armyStartZ
+  // Geçitte kol ortada kalır; açık alanda ordunun yeri biraz oynar.
+  const armyX = jitter(layout.pass ? 0.3 : 1.5)
+  const armyZ = layout.armyStartZ
 
   const enemies: Enemy[] = []
   const slots: Vec2[] = []
-  const corps: CorpsState[] = CORPS.map((def, ci) => {
+  const corps: CorpsState[] = layout.corps.map((def, ci) => {
     const anchor = { x: armyX + def.x, z: armyZ + def.z }
     const rows = Math.ceil(def.size / def.cols)
     for (let i = 0; i < def.size; i++) {
@@ -248,6 +417,8 @@ export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy
       alive: def.size,
       wingHarass: 0,
       pinned: 0,
+      jam: 0,
+      limit: Infinity,
     }
   })
 
@@ -260,9 +431,10 @@ export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy
   corps[CENTER].alive++
 
   const battle: BattleState = {
+    layout,
     time: 0,
     corps,
-    wings: createWings(),
+    wings: createWings(layout.wingHome),
     mode: new Uint8Array(enemies.length),
     modeTimer: new Float32Array(enemies.length),
     slots,
@@ -273,6 +445,8 @@ export function createBattle(seed = 1071): { battle: BattleState; enemies: Enemy
     frontZ: armyZ,
     events: [],
     seen: new Set(),
+    blockade: null,
+    blockadeUsed: false,
   }
   return { battle, enemies }
 }
@@ -303,7 +477,7 @@ export function harassEffect(dist: number): number {
 }
 
 export function isDay(b: BattleState): boolean {
-  return b.time < BATTLE_CONFIG.dayLength
+  return b.time < b.layout.dayLength
 }
 
 /**
@@ -312,6 +486,14 @@ export function isDay(b: BattleState): boolean {
  */
 export function turnFactor(c: CorpsState): number {
   return c.status === 'turning' ? 1 - Math.sin(Math.PI * c.turn) : 1
+}
+
+/**
+ * Birliğin askerlerine geçen disiplin: düzen × dönüş × (1 − sıkışma). Akşam
+ * dönüşü de geçitteki sıkışma da aynı yoldan kuşatma penceresi açar.
+ */
+export function corpsDiscipline(c: CorpsState): number {
+  return c.cohesion * turnFactor(c) * (1 - c.jam)
 }
 
 /** Düzenin baktığı yön: ileri 0, dönüşte 0→π, çekilirken π. */
@@ -335,13 +517,13 @@ const target: Vec2 = { x: 0, z: 0 }
  */
 export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: number): void {
   if (dt <= 0) return
-  const cfg = BATTLE_CONFIG
   const wasDay = isDay(b)
   b.time += dt
 
   if (wasDay && !isDay(b)) sunset(b)
 
   measureCorps(b, enemies, player)
+  if (b.layout.pass) stepColumn(b, dt)
   stepWings(b, dt)
 
   for (let ci = 0; ci < b.corps.length; ci++) {
@@ -352,14 +534,7 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
     stepAnchor(c, dt)
   }
 
-  // İmparator: arkası açıldıysa (artçı gitti ya da kollar merkeze kapandı) ve
-  // merkez yıprandıysa akşam korumasız kalır.
-  if (
-    !b.emperorExposed &&
-    !isDay(b) &&
-    (b.rearguardLeft || b.corps[CENTER].pinned >= cfg.emperorPin) &&
-    b.corps[CENTER].cohesion < cfg.emperorThreshold
-  ) {
+  if (!b.emperorExposed && emperorOpen(b)) {
     b.emperorExposed = true
     b.events.push('emperorExposed')
   }
@@ -372,8 +547,86 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
 
   if (isDay(b)) {
     b.frontZ = frontLine(b)
-    if (b.frontZ >= cfg.campZ) b.reachedCamp = true
+    if (b.frontZ >= b.layout.objectiveZ) b.reachedCamp = true
   }
+}
+
+/**
+ * İmparator korumasız mı? Malazgirt: akşam arkası açıldıysa (artçı gitti ya da
+ * kollar merkezi tutuyor) ve merkez yıprandıysa. Miryokefalon: muhafızlar
+ * geçitte sıkıştıysa ve merkezin düzeni kırıldıysa — Manuel açıkta.
+ */
+function emperorOpen(b: BattleState): boolean {
+  const center = b.corps[CENTER]
+  if (b.layout.pass) {
+    return center.jam >= COLUMN_CONFIG.exposeJam && center.cohesion < COLUMN_CONFIG.exposeCohesion
+  }
+  const cfg = BATTLE_CONFIG
+  return (
+    !isDay(b) &&
+    (b.rearguardLeft || center.pinned >= cfg.emperorPin) &&
+    center.cohesion < cfg.emperorThreshold
+  )
+}
+
+/**
+ * Kolun yürüyüşü (yalnızca geçitte): her birlik öndekinin ya da kaya yığınının
+ * gerisinde durur. Sıkışma yalnızca SERT duruştan birikir: yığına dayanan baş,
+ * kolların yamaçtan inip tuttuğu birlik ya da duran bir birliğin arkasında
+ * kalan. Tacizle yavaşlayan baş kolu birlikte yavaşlatır, sıkıştırmaz — ilk
+ * taramada öyleydi ve yığının yeri hiçbir şeyi değiştirmiyordu. Sıkışma darda
+ * hızlı, genişte yavaş ve sınırlı birikir. Yığına dayanan birlik yığını
+ * temizler; taciz temizlemeyi yavaşlatır.
+ */
+function stepColumn(b: BattleState, dt: number): void {
+  const cfg = COLUMN_CONFIG
+  let ahead = b.blockade ? b.blockade.z - cfg.headroom : Infinity
+  // Öndeki engel sert bir duruş mu (yığın ya da duran birlik)?
+  let aheadStopped = b.blockade !== null
+  let lead = true
+  for (const c of b.corps) {
+    if (c.alive === 0 || c.status === 'fleeing') continue
+    // Öndeki birliğin gerisinde: sıkıştıkça ona daha çok yaklaşır.
+    c.limit = lead ? ahead : ahead - cfg.gap * (1 - cfg.squeeze * c.jam)
+    const atLimit = c.status === 'advancing' && c.anchor.z >= c.limit - 0.05
+    // c.pinned bir önceki karenin (stepWings bu fonksiyondan sonra çalışır).
+    const stopped = c.status === 'advancing' && ((atLimit && aheadStopped) || c.pinned >= 0.5)
+    const narrow = narrowness(c.anchor.z)
+    if (stopped) {
+      const cap = cfg.wideJamCap + (1 - cfg.wideJamCap) * narrow
+      c.jam = Math.min(cap, c.jam + cfg.jamRate * (0.3 + 0.7 * narrow) * dt)
+      if (c.jam >= 0.5 && !b.seen.has('jam')) {
+        b.seen.add('jam')
+        b.events.push('jam')
+      }
+    } else {
+      c.jam = Math.max(0, c.jam - cfg.jamRecover * dt)
+    }
+    if (lead && atLimit && b.blockade) {
+      b.blockade.strength -= (dt / cfg.clearTime) * (1 - cfg.clearHarassSlow * c.harass)
+      if (b.blockade.strength <= 0) {
+        b.blockade = null
+        b.events.push('blockadeCleared')
+      }
+    }
+    ahead = c.anchor.z
+    aheadStopped = stopped
+    lead = false
+  }
+}
+
+/**
+ * YOLU KES: oyuncunun bulunduğu yere kaya yığını, savaş başına bir kez.
+ * Kolun başı yığında durur, arkası sıkışır. Yığının gerisinde kalan birlikler
+ * etkilenir; önüne çoktan geçmiş olan yürümeyi sürdürür.
+ * @returns yığın düştü mü
+ */
+export function dropBlockade(b: BattleState, z: number): boolean {
+  if (!b.layout.pass || b.blockadeUsed) return false
+  b.blockade = { z: Math.min(PASS.exitZ - 1, Math.max(PASS.entryZ + 4, z)), strength: 1 }
+  b.blockadeUsed = true
+  b.events.push('blockade')
+  return true
 }
 
 /** Gün batımı: her birlik dönmeye başlar; artçı yıprandıysa çekilir. */
@@ -408,13 +661,9 @@ function measureCorps(b: BattleState, enemies: readonly Enemy[], player: Vec2): 
   }
 }
 
-/** Kolun hedef sırası: kendi tarafındaki kanat, sonra merkez, karşı kanat, artçı. */
-const LEFT_WING_TARGETS = [0, CENTER, 2, REARGUARD] as const
-const RIGHT_WING_TARGETS = [2, CENTER, 0, REARGUARD] as const
-
 function wingTarget(b: BattleState, w: WingState): number {
   if (w.order === 'ambush') return -1
-  for (const ci of w.side < 0 ? LEFT_WING_TARGETS : RIGHT_WING_TARGETS) {
+  for (const ci of b.layout.wingTargets[w.side < 0 ? 0 : 1]) {
     const c = b.corps[ci]
     if (c.alive > 0 && c.status !== 'fleeing') return ci
   }
@@ -435,27 +684,28 @@ function stepWings(b: BattleState, dt: number): void {
     const c = w.target >= 0 ? b.corps[w.target] : null
     moveWing(w, c ? c.anchor : null, dt)
     if (c) {
-      if (
-        w.order === 'charge' &&
-        !w.shocked &&
-        w.presence >= 0.8 &&
-        !isDay(b) &&
-        c.status !== 'advancing'
-      ) {
+      if (w.order === 'charge' && !w.shocked && w.presence >= 0.8 && shockable(b, c)) {
         w.shocked = true
         c.cohesion = clampCohesion(b, c.cohesion - WING_CONFIG.shock * w.strength)
         b.events.push(w.side < 0 ? 'wingShockLeft' : 'wingShockRight')
       }
       c.wingHarass += wingHarass(w)
-      // İlerleyen birlik hücumu karşılar ve yürümeyi sürdürür; dönen ya da
-      // çekilen birlik yanına yüklenen kolu karşılayamaz, yerinde kalır.
-      if (c.status !== 'advancing') c.pinned = Math.min(1, c.pinned + wingPin(w))
+      // Açık alanda ilerleyen birlik hücumu karşılar ve yürümeyi sürdürür;
+      // dönen ya da çekilen birlik karşılayamaz, yerinde kalır. Geçitte
+      // yamaçtan inen kol kolu olduğu yerde tutar: arkası sıkışır.
+      if (b.layout.pass || c.status !== 'advancing') c.pinned = Math.min(1, c.pinned + wingPin(w))
     }
-    const discipline = c ? c.cohesion * turnFactor(c) : 0
+    const discipline = c ? corpsDiscipline(c) : 0
     if (stepStrength(w, discipline, dt)) {
       b.events.push(w.side < 0 ? 'wingTiredLeft' : 'wingTiredRight')
     }
   }
+}
+
+/** Kolun hücumunun ilk darbesi bu birliği sarsar mı: akşam dönen ya da geçitte sıkışan. */
+function shockable(b: BattleState, c: CorpsState): boolean {
+  if (b.layout.pass) return c.jam >= COLUMN_CONFIG.shockJam
+  return !isDay(b) && c.status !== 'advancing'
 }
 
 function stepCohesion(b: BattleState, c: CorpsState, dt: number): void {
@@ -473,12 +723,14 @@ function stepCohesion(b: BattleState, c: CorpsState, dt: number): void {
   } else {
     c.cohesion += cfg.cohesionRecovery * dt
   }
+  // Geçitte sıkışan birlik kalıcı olarak da dağılır.
+  c.cohesion -= COLUMN_CONFIG.jamDecay * c.jam * dt
   c.cohesion = clampCohesion(b, c.cohesion)
 }
 
 /** Gündüz taban düzen geçerli; akşam düzen sıfıra kadar düşebilir. */
 function clampCohesion(b: BattleState, v: number): number {
-  const floor = isDay(b) ? BATTLE_CONFIG.dayFloor : 0
+  const floor = isDay(b) ? b.layout.dayFloor : 0
   return Math.min(1, Math.max(floor, v))
 }
 
@@ -531,7 +783,13 @@ function stepAnchor(c: CorpsState, dt: number): void {
   const free = 1 - c.pinned
   switch (c.status) {
     case 'advancing':
-      c.anchor.z += marchSpeed(c) * (1 - BATTLE_CONFIG.harassSlow * c.harass) * free * dt
+      // Geçitte öndeki birliğin ya da yığının gerisinde durur (limit); açık alanda sınırsız.
+      if (c.anchor.z < c.limit) {
+        c.anchor.z = Math.min(
+          c.limit,
+          c.anchor.z + marchSpeed(c) * (1 - BATTLE_CONFIG.harassSlow * c.harass) * free * dt,
+        )
+      }
       break
     case 'turning':
       // Çark ederken yerinde: dönüş kendi başına yeterince karışık. Yanına
@@ -559,7 +817,7 @@ function stepSoldier(
   const cfg = BATTLE_CONFIG
   const c = b.corps[e.corps ?? 0]
   const factor = turnFactor(c)
-  e.discipline = c.cohesion * factor
+  e.discipline = corpsDiscipline(c)
   if (e.emperor) e.guarded = !b.emperorExposed
 
   if (b.mode[i] === MODE_TELEGRAPH) {
@@ -572,6 +830,7 @@ function stepSoldier(
     target.x = e.pos.x
     target.z = e.pos.z
     steerToward(e, enemies, target, cfg.formationSpeed, 0, dt)
+    confine(b, c, e, false)
     return
   }
 
@@ -579,6 +838,8 @@ function stepSoldier(
     b.modeTimer[i] -= dt
     if (b.modeTimer[i] <= 0) b.mode[i] = MODE_FORMATION
     steerToward(e, enemies, player, cfg.chargeSpeed, 0, dt)
+    // Hamle eden asker yığının üstünden aşabilir: yığın kolu durdurur, atlıyı değil.
+    confine(b, c, e, true)
     return
   }
 
@@ -588,13 +849,23 @@ function stepSoldier(
   // Kolların sıkıştırdığı birliğin safları daralır: kuşatılabilirlik artar.
   const spread =
     (cfg.turnMinSpread + (1 - cfg.turnMinSpread) * factor) * (1 - WING_CONFIG.squeeze * c.pinned)
+  // Geçitte saflar duvarlar arasına sığar; sıkışan birlik boyuna da daralır.
+  let fitX = 1
+  let fitZ = 1
+  if (b.layout.pass) {
+    const def = b.layout.corps[e.corps ?? 0]
+    const half = ((def.cols - 1) / 2) * cfg.slotSpacing
+    fitX = Math.min(1, Math.max(0.3, (passHalfWidth(c.anchor.z) - 1) / Math.max(1, half)))
+    fitZ = 1 - COLUMN_CONFIG.squeeze * c.jam
+  }
   const cos = Math.cos(angle)
   const sin = Math.sin(angle)
-  target.x = c.anchor.x + (slot.x * cos + slot.z * sin) * spread
-  target.z = c.anchor.z + (-slot.x * sin + slot.z * cos) * spread
+  target.x = c.anchor.x + (slot.x * cos + slot.z * sin) * spread * fitX
+  target.z = c.anchor.z + (-slot.x * sin + slot.z * cos) * spread * fitZ
 
   const fleeing = c.status === 'fleeing'
   steerToward(e, enemies, target, fleeing ? cfg.fleeSpeed : cfg.formationSpeed, 0, dt)
+  confine(b, c, e, false)
 
   // Terk eden asker arena sınırına varınca savaş alanından çıkar.
   // Sayım hemen düşer: birlik sayıları kare içinde tutarlı kalsın.
@@ -605,8 +876,24 @@ function stepSoldier(
   }
 }
 
-/** Ön birliklerin, hayattaki asker sayısıyla ağırlıklı ortalama z'si. */
+/** Geçitte asker duvarların arasında ve (hamle dışında) yığının gerisinde kalır. */
+function confine(b: BattleState, c: CorpsState, e: Enemy, charging: boolean): void {
+  if (!b.layout.pass) return
+  confineToPass(e.pos, 0.5)
+  const block = b.blockade
+  if (!charging && block && c.anchor.z < block.z && e.pos.z > block.z - 0.6) e.pos.z = block.z - 0.6
+}
+
+/**
+ * Ön hat. Açık alanda ön birliklerin, hayattaki asker sayısıyla ağırlıklı
+ * ortalama z'si; geçitte kolun en öndeki birliği.
+ */
 function frontLine(b: BattleState): number {
+  if (b.layout.front === 'lead') {
+    let lead = -Infinity
+    for (const c of b.corps) if (c.alive > 0 && c.status !== 'fleeing') lead = Math.max(lead, c.anchor.z)
+    return lead === -Infinity ? b.layout.armyStartZ : lead
+  }
   let sum = 0
   let n = 0
   for (const ci of FRONT_CORPS) {
@@ -654,7 +941,7 @@ export function battleSiege(b: BattleState, enemies: readonly Enemy[]): SiegeSta
  */
 export function strikeBudget(b: BattleState): FallFilter {
   // Yuvarlama: hiç yıpratılmamış birlik (düzen 0,99) tek asker bile vermesin.
-  const left = b.corps.map((c) => Math.round(c.alive * (1 - c.cohesion * turnFactor(c))))
+  const left = b.corps.map((c) => Math.round(c.alive * (1 - corpsDiscipline(c))))
   return (e) => {
     if (e.emperor) return true
     const ci = e.corps ?? 0
@@ -676,7 +963,7 @@ export function afterStrike(b: BattleState, enemies: readonly Enemy[]): void {
   measureCorpsAlive(b, enemies)
   if (isDay(b)) {
     for (const c of b.corps) {
-      c.cohesion = clampCohesion(b, c.cohesion + BATTLE_CONFIG.strikeRecovery)
+      c.cohesion = clampCohesion(b, c.cohesion + b.layout.strikeRecovery)
     }
   }
   const emperor = enemies.find((e) => e.emperor)
@@ -705,7 +992,7 @@ export function resolveBattle(
   health: number,
 ): BattleResult {
   if (health <= 0 || b.reachedCamp) return 'defeat'
-  if (b.emperorCaptured || b.time >= BATTLE_CONFIG.nightAt) return 'victory'
+  if (b.emperorCaptured || b.time >= b.layout.nightAt) return 'victory'
   if (!enemies.some((e) => e.alive)) return 'victory'
   return 'playing'
 }

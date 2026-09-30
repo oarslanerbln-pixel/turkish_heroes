@@ -13,15 +13,19 @@ import {
   countSurrendered,
   countFallen,
   createBattle,
+  dropBlockade,
   isDay,
+  MALAZGIRT,
   MODE_FORMATION,
   REARGUARD,
   resolveBattle,
   stepBattle,
   strikeBudget,
+  type BattleLayout,
   type BattleResult,
   type BattleState,
 } from './corps'
+import { confineToPass } from './pass'
 import { calcContactDamage, countAttackers } from './combat'
 import { ENEMY_CONFIG } from './enemySim'
 import {
@@ -63,6 +67,8 @@ export interface BotAction {
   strike: boolean
   /** Kollara emir (sol, sağ); verilmezse emirler değişmez. */
   wings?: readonly WingOrder[]
+  /** Geçit: YOLU KES, oyuncunun bulunduğu yere (savaş başına bir kez). */
+  blockade?: boolean
 }
 
 export type Bot = (view: BotView) => BotAction
@@ -84,6 +90,9 @@ export interface BattleRun {
   duskCohesion: number[]
   /** Gün batımında kolların gücü. */
   duskWingStrength: number[]
+  /** Geçit: yığının düştüğü z (düşmediyse null) ve birlik başına en yüksek sıkışma. */
+  blockadeZ: number | null
+  peakJam: number[]
 }
 
 /**
@@ -94,9 +103,12 @@ export function runBattle(
   bot: Bot,
   seed: number,
   record?: (e: TelemetryEvent, t: number) => void,
+  layout: BattleLayout = MALAZGIRT,
 ): BattleRun {
-  const { battle, enemies } = createBattle(seed)
-  const player = { ...PLAYER_START }
+  const { battle, enemies } = createBattle(seed, layout)
+  const player = { ...layout.playerStart }
+  const peakJam = battle.corps.map(() => 0)
+  let blockZ: number | null = null
   let health = 100
   let energy = 0
   let facing = Math.PI
@@ -107,7 +119,10 @@ export function runBattle(
   let duskCohesion: number[] = []
   let duskWingStrength: number[] = []
   const view: BotView = { battle, enemies, player, energy, facing, inCrescent: 0, health }
-  record?.({ type: 'battle_start', commander: 'alp-arslan', attempt: 1, assist: 1 }, 0)
+  record?.(
+    { type: 'battle_start', commander: layout.pass ? 'kilicarslan' : 'alp-arslan', attempt: 1, assist: 1 },
+    0,
+  )
 
   while (result === 'playing') {
     view.energy = energy
@@ -121,6 +136,10 @@ export function runBattle(
         record?.({ type: 'wing_order', wing: wi, order: w.order }, battle.time)
       }
     })
+    if (action.blockade && dropBlockade(battle, player.z)) {
+      blockZ = battle.blockade!.z
+      record?.({ type: 'blockade', z: Math.round(blockZ * 10) / 10 }, battle.time)
+    }
 
     const len = Math.hypot(action.move.x, action.move.z)
     if (len > 0) {
@@ -132,10 +151,12 @@ export function runBattle(
         player.x *= ENEMY_CONFIG.arenaRadius / r
         player.z *= ENEMY_CONFIG.arenaRadius / r
       }
+      if (layout.pass) confineToPass(player)
     }
 
     const wasDay = isDay(battle)
     stepBattle(battle, enemies, player, BOT_DT)
+    battle.corps.forEach((c, ci) => (peakJam[ci] = Math.max(peakJam[ci], c.jam)))
     if (wasDay && !isDay(battle)) {
       duskCohesion = battle.corps.map((c) => c.cohesion)
       duskWingStrength = battle.wings.map((w) => w.strength)
@@ -212,6 +233,8 @@ export function runBattle(
     rearguardLeft: battle.rearguardLeft,
     duskCohesion,
     duskWingStrength,
+    blockadeZ: blockZ,
+    peakJam,
   }
 }
 
@@ -469,9 +492,63 @@ export function withWings(makeBot: () => Bot, policy: WingPolicy): () => Bot {
   }
 }
 
+// ——— Geçit (Miryokefalon) ———
+
+/** Kolun en öndeki birliği (yoksa −1). */
+function leadCorps(b: BattleState): number {
+  let best = -1
+  b.corps.forEach((c, ci) => {
+    if (c.alive === 0 || c.status === 'fleeing') return
+    if (best < 0 || c.anchor.z > b.corps[best].anchor.z) best = ci
+  })
+  return best
+}
+
+/**
+ * Kesici: yolu `blockZ`'de keser (null: hiç kesmez), sonra kolun başının
+ * önünde taciz menzilinde durup öncüyü yıpratır, sıkışan kolu yayı dolunca
+ * kuşatır. Manuel açığa çıkınca ona döner. Hamleden kaçar.
+ */
+export function blockerBot(blockZ: number | null, minStrike = 6): () => Bot {
+  return () => (v) => {
+    const b = v.battle
+    if (nearestThreat(v)) return { move: flee(v), strike: false }
+
+    const emperor = v.enemies.find((e) => e.emperor && e.alive)
+    if (b.emperorExposed && emperor) {
+      // Kuzeyinden yaklaş: yay güneye, Manuel'e baksın.
+      const dest = { x: emperor.pos.x, z: emperor.pos.z + 7 }
+      return { move: navigate(v, dest, CENTER), strike: isInCrescent(emperor.pos, v.player, v.facing) }
+    }
+
+    const lead = leadCorps(b)
+    if (lead < 0) return { move: { x: 0, z: 0 }, strike: v.inCrescent > 0 }
+    const headZ = b.corps[lead].anchor.z + 1.5
+
+    if (blockZ !== null && !b.blockadeUsed) {
+      const dest = { x: 0, z: blockZ }
+      const there = Math.hypot(v.player.x - dest.x, v.player.z - dest.z) < 0.8
+      // Kol oraya varmak üzereyse beklemeden kes (geç kalmak yolu açık bırakır).
+      if (there || headZ > blockZ - 3) return { move: { x: 0, z: 0 }, strike: false, blockade: true }
+      return { move: navigate(v, dest, -1), strike: false }
+    }
+
+    const dest = { x: 0, z: b.corps[lead].anchor.z + 9.5 }
+    return { move: navigate(v, dest, lead), strike: v.inCrescent >= minStrike }
+  }
+}
+
+/** Geçitte kollar: sıkışan birlik varken hücum (darbe onu sarsar), yoksa pusu. */
+export const jamWings: WingPolicy = (b) =>
+  b.corps.some((c) => c.alive > 0 && c.jam >= 0.5) ? BOTH_CHARGE : BOTH_AMBUSH
+
 /** Ölçüm yardımcısı: bir botun tohum tohum sonuçları (her koşuya taze bot). */
-export function sweep(makeBot: () => Bot, seeds: readonly number[]): BattleRun[] {
-  return seeds.map((s) => runBattle(makeBot(), s))
+export function sweep(
+  makeBot: () => Bot,
+  seeds: readonly number[],
+  layout: BattleLayout = MALAZGIRT,
+): BattleRun[] {
+  return seeds.map((s) => runBattle(makeBot(), s, undefined, layout))
 }
 
 export { BATTLE_CONFIG }

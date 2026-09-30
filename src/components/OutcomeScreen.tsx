@@ -18,7 +18,8 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const kills = useGameStore((s) => s.totalKills)
   const score = useGameStore((s) => s.score)
   const bestScore = useGameStore((s) => s.bestScore)
-  const battle = useGameStore((s) => s.commander === 'alp-arslan')
+  const commander = useGameStore((s) => s.commander)
+  const battle = commander !== 'metehan'
   const stars = useGameStore((s) => s.stars)
   const captured = useGameStore((s) => s.emperorCaptured)
   const report = useGameStore((s) => s.debrief)
@@ -41,11 +42,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           {showClose && <span className="close-chip">AZ KALDI</span>}
           {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
         </div>
-        {captured && (
-          <div className="epilogue">
-            Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.
-          </div>
-        )}
+        {captured && <div className="epilogue">{EPILOGUE[commander]}</div>}
 
         <div className="result-stats">
           <div>
@@ -93,6 +90,13 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
       </div>
     </div>
   )
+}
+
+/** Üç yıldızın (imparator / Manuel) tarihteki sonucu. */
+const EPILOGUE: Partial<Record<string, string>> = {
+  'alp-arslan': 'Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.',
+  kilicarslan:
+    "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
 }
 
 function Stars({ count }: { count: number }) {
@@ -193,6 +197,7 @@ function Timeline({
           <>
             <span className="tl-key-charge">hamle</span>
             {dusk !== null && <span className="tl-key-dusk">gün batımı</span>}
+            {marks.some((m) => m.kind === 'block') && <span className="tl-key-block">yol kesildi</span>}
           </>
         ) : (
           <span className="tl-key-wave">dalga sonu</span>

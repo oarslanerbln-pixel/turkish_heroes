@@ -35,9 +35,16 @@ describe('ilerleme', () => {
     expect(ladderStep()).toBe(LADDER_TOP - 1)
   })
 
-  it('ilk savaş bitince artık ilk savaş değil', () => {
-    expect(isFirstBattle()).toBe(true)
-    recordBattleEnd()
-    expect(isFirstBattle()).toBe(false)
+  it('ilk savaş komutan başına: biri bitince öteki hâlâ ilk', () => {
+    expect(isFirstBattle('alp-arslan')).toBe(true)
+    recordBattleEnd('alp-arslan')
+    expect(isFirstBattle('alp-arslan')).toBe(false)
+    expect(isFirstBattle('kilicarslan')).toBe(true)
+  })
+
+  it('kilit zinciri: Alp Arslan zaferi II. Kılıçarslan\'ı açar', () => {
+    expect(isUnlocked('kilicarslan')).toBe(false)
+    recordVictory('alp-arslan')
+    expect(isUnlocked('kilicarslan')).toBe(true)
   })
 })

@@ -18,7 +18,16 @@
 //
 // Saf: özet (telemetry/summary.ts) + sabitler girer, metin çıkar.
 
-import { BATTLE_CONFIG, BATTLE_SIZE, CENTER, REARGUARD } from '../mechanics/corps'
+import {
+  armySize,
+  BATTLE_CONFIG,
+  BATTLE_SIZE,
+  CENTER,
+  COLUMN_CONFIG,
+  MIRYOKEFALON,
+  REARGUARD,
+} from '../mechanics/corps'
+import { PASS } from '../mechanics/pass'
 import { TOTAL_WAVES, WAVES } from '../mechanics/waves'
 import type { BattleSummary } from '../telemetry/summary'
 
@@ -43,8 +52,13 @@ export type AdviceId =
   | 'breakCenter'
   | 'aimEmperor'
   | 'mastery'
+  // Miryokefalon
+  | 'blockNeck'
+  | 'holdBlock'
+  | 'harvestJam'
+  | 'jamCenter'
 
-export type MarkKind = 'strike' | 'charge' | 'wave' | 'rout' | 'emperor' | 'shock'
+export type MarkKind = 'strike' | 'charge' | 'wave' | 'rout' | 'emperor' | 'shock' | 'block'
 
 export interface TimelineMark {
   /** 0–1: savaşın süresi içindeki yeri. */
@@ -94,7 +108,9 @@ const WINGS_TIRED = 0.5
 const DAY_WOUNDED = 50
 
 export function debrief(s: BattleSummary, ctx: DebriefContext): Debrief {
-  return s.commander === 'alp-arslan' ? battleDebrief(s) : waveDebrief(s, ctx)
+  if (s.commander === 'alp-arslan') return battleDebrief(s)
+  if (s.commander === 'kilicarslan') return passDebrief(s)
+  return waveDebrief(s, ctx)
 }
 
 const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0)
@@ -416,5 +432,166 @@ function emperorAdvice(s: BattleSummary, exposed: boolean, rearLeft: boolean): D
       center !== undefined
         ? `Artçı kaçtı ama merkez dağılmadı (gün batımında %${pct(center)}). Merkezin düzeni %${pct(cfg.emperorThreshold)}'in altına inince imparator korumasız kalır.`
         : `Artçı kaçtı; şimdi merkezi yıprat. Düzeni %${pct(cfg.emperorThreshold)}'in altına inince imparator korumasız kalır.`,
+  }
+}
+
+// ——— II. Kılıçarslan: Miryokefalon ———
+
+/**
+ * Yığının iyi yeri: boğazın biraz gerisinden biraz ötesine. Bot taraması
+ * (column.test.ts): genişte kesen 1, bu aralıkta kesen 3, çıkışa yakın kesen
+ * ≤ 2 yıldız alıyor.
+ */
+const BLOCK_WINDOW = { before: 2, after: 4 }
+
+type Placement = 'none' | 'wide' | 'late' | 'good'
+
+function placement(s: BattleSummary): Placement {
+  if (!s.blockade) return 'none'
+  if (s.blockade.z < PASS.neckZ - BLOCK_WINDOW.before) return 'wide'
+  if (s.blockade.z > PASS.neckZ + BLOCK_WINDOW.after) return 'late'
+  return 'good'
+}
+
+/** "Nerede" dersi: yığının yeri iyi değilse söylenecek tek cümle. */
+function placementAdvice(p: Placement): Debrief['advice'] | null {
+  switch (p) {
+    case 'none':
+      return {
+        id: 'blockNeck',
+        text: "YOLU KES'i hiç kullanmadın. Boğazın hemen ötesinde kes: kolun başı durur, arkası darda üst üste biner.",
+      }
+    case 'wide':
+      return {
+        id: 'blockNeck',
+        text: 'Yolu geniş vadide kestin; kol yayıldı, sıkışmadı. Boğazın hemen ötesinde kes.',
+      }
+    case 'late':
+      return {
+        id: 'blockNeck',
+        text: 'Yolu çıkışa yakın kestin; merkez boğaza gelmeden durdu. Boğazın hemen ötesinde kes.',
+      }
+    case 'good':
+      return null
+  }
+}
+
+function passDebrief(s: BattleSummary): Debrief {
+  const has = (e: string) => s.events.some((x) => x.event === e)
+  const fallen = sum(s.strikes.map((x) => x.kills))
+  const peakStrike = bestStrike(s)
+  const where = placement(s)
+  const cleared = has('blockadeCleared')
+
+  const marks: TimelineMark[] = [
+    ...s.strikes.map((x) => ({ at: at(s, x.t), kind: 'strike' as const, size: x.kills })),
+    ...(s.blockade ? [{ at: at(s, s.blockade.t), kind: 'block' as const }] : []),
+    ...s.events.flatMap((e): TimelineMark[] => {
+      if (e.event === 'charge') return [{ at: at(s, e.t), kind: 'charge' }]
+      if (e.event === 'emperorCaptured') return [{ at: at(s, e.t), kind: 'emperor' }]
+      if (e.event === 'wingShockLeft' || e.event === 'wingShockRight') {
+        return [{ at: at(s, e.t), kind: 'shock' }]
+      }
+      return []
+    }),
+  ]
+  const timeline = { dusk: null, marks }
+
+  const captured = s.stars >= 3
+  let peak: string | null = null
+  if (captured) peak = 'Manuel barış istedi: savaşı tek hilal bitirdi.'
+  else if (peakStrike) peak = `En büyük hilalin: tek vuruşta ${peakStrike.kills} asker`
+
+  const nightAt = COLUMN_CONFIG.nightAt
+  if (s.outcome !== 'victory') {
+    const left = Math.max(0, Math.ceil(nightAt - s.simTime))
+    const goal = { label: 'Geceye dayan', value: Math.round(s.simTime), target: nightAt, unit: 'sn' }
+    if (s.cause === 'camp') {
+      return {
+        headline: `Bizans ordusu geçidi aştı — geceye ${left} sn kala.`,
+        close: left <= CLOSE_SECONDS,
+        peak,
+        advice: cleared
+          ? {
+              id: 'holdBlock',
+              text: 'Öncü kaya yığınını temizledi. Yığının önündeki öncüyü taciz et: ok altında üç kat yavaş temizler.',
+            }
+          : (placementAdvice(where) ?? {
+              id: 'harass',
+              text: 'Kolun başını taciz et: ok altındaki öncü yavaşlar, arkası da onunla yavaşlar.',
+            }),
+        goal,
+        timeline,
+      }
+    }
+    return {
+      headline: `Dar geçitte düştün — geceye ${left} sn vardı.`,
+      close: left <= CLOSE_SECONDS,
+      peak,
+      advice: {
+        id: 'evade',
+        text: 'Dar geçitte yana kaçacak yer yok. Kırmızı kamayı görünce hemen kuzeye çekil; hamle 2,5 sn sürer.',
+      },
+      goal,
+      timeline,
+    }
+  }
+
+  if (captured) {
+    return {
+      headline: 'Manuel Komnenos barış istedi; ordu geçitten geri döndü.',
+      close: false,
+      peak,
+      advice: {
+        id: 'mastery',
+        text:
+          s.health >= 100
+            ? 'Üç yıldız, tek yara almadan. Rekor için Manuel\'i daha erken sıkıştır.'
+            : `Üç yıldız. Rekor için: daha az yara (canın %${s.health}), daha erken barış.`,
+      },
+      goal: null,
+      timeline,
+    }
+  }
+
+  const exposed = has('emperorExposed')
+  if (s.stars >= 2) {
+    const steps = (s.blockade ? 1 : 0) + (has('jam') ? 1 : 0) + (exposed ? 1 : 0)
+    return {
+      headline: `Gece çöktü; kol geçitte kaldı. ${fallen} asker düştü.`,
+      close: exposed,
+      peak,
+      advice: exposed
+        ? {
+            id: 'aimEmperor',
+            text: "Manuel açıktaydı. Merkezin kuzeyinden yaklaş, yayı ona çevir — tek vuruş savaşı bitirir.",
+          }
+        : (placementAdvice(where) ?? {
+            id: 'jamCenter',
+            text: 'Manuel merkezde. Merkez boğaza yığılınca muhafızları dağılır: yolu kesip öncüyü orada tut.',
+          }),
+      goal: { label: '3. yıldız: Manuel', value: steps, target: 3, unit: 'adım' },
+      timeline,
+    }
+  }
+
+  const need = Math.ceil(armySize(MIRYOKEFALON) / 2)
+  return {
+    headline: `Gece çöktü; kol geçitte kaldı. ${fallen} asker düştü.`,
+    close: need - fallen <= CLOSE_STAR_GAP,
+    peak,
+    advice:
+      placementAdvice(where) ??
+      (cleared || !has('jam')
+        ? {
+            id: 'holdBlock',
+            text: 'Kol sıkışmadan yol açıldı. Yığının önündeki öncüyü taciz et: temizlemesi yavaşlar, arkası sıkışır.',
+          }
+        : {
+            id: 'harvestJam',
+            text: 'Kol sıkıştı ama az vurdun. Sıkışan birliğin disiplini sıfırlanır: yayı ona kapat.',
+          }),
+    goal: { label: '2. yıldız: ordunun yarısı', value: fallen, target: need, unit: 'asker' },
+    timeline,
   }
 }

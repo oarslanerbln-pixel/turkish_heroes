@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, Group, Mesh, MeshBasicMaterial } from 'three'
-import { BATTLE_CONFIG, CORPS } from '../mechanics/corps'
+import { BATTLE_CONFIG, CORPS, corpsDiscipline } from '../mechanics/corps'
 import { world } from '../sim/world'
 
 // Birlik başına, askerlerin üstünde süzülen ince düzen çubuğu (tasarım
@@ -55,8 +55,9 @@ export function CorpsBanners() {
       group.quaternion.copy(camera.quaternion)
 
       // Doluluk düzen; dönüşte düzen çöktüğü için disiplin üzerinden değil,
-      // birliğin kalıcı düzeni üzerinden — oyuncu yatırımını görsün.
-      const v = Math.max(0.001, c.cohesion)
+      // birliğin kalıcı düzeni üzerinden — oyuncu yatırımını görsün. Geçitte
+      // sıkışma da gösterilir: çubuğun çökmesi "şimdi kuşat" demek.
+      const v = Math.max(0.001, b.layout.pass ? corpsDiscipline(c) : c.cohesion)
       fill.scale.x = v
       fill.position.x = (-BAR_WIDTH / 2) * (1 - v)
       const material = fill.material as MeshBasicMaterial

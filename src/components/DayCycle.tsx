@@ -97,7 +97,10 @@ export function DayCycle() {
     if (time === lastTime.current) return
     lastTime.current = time
 
-    const { dayLength } = BATTLE_CONFIG
+    // Geçitte gün batımı dönüşü yok: ışık gece çökmesine göre kararır.
+    const layout = world.battle?.layout
+    const dayLength =
+      layout && !Number.isFinite(layout.dayLength) ? layout.nightAt - DUSK_TO_NIGHT : BATTLE_CONFIG.dayLength
     const toSunset = smoothstep(dayLength - GOLDEN_HOUR, dayLength, time)
     const toNight = smoothstep(dayLength, dayLength + DUSK_TO_NIGHT, time)
 

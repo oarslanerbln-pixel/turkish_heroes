@@ -7,7 +7,7 @@
 
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import { createBattle, type BattleState } from '../mechanics/corps'
-import type { CommanderId } from '../mechanics/scenario'
+import { battleLayout, type CommanderId } from '../mechanics/scenario'
 import type { Debrief } from '../debrief/debrief'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
@@ -115,14 +115,15 @@ export interface World {
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
 function initialWorld(commander: CommanderId): World {
   // Her savaş biraz farklı dizilişle başlasın; kurallar aynı.
-  const battle =
-    commander === 'alp-arslan' ? createBattle(Math.floor(Math.random() * 2 ** 31)) : null
+  const layout = battleLayout(commander)
+  const battle = layout ? createBattle(Math.floor(Math.random() * 2 ** 31), layout) : null
 
   return {
     commander,
     battle: battle?.battle ?? null,
-    // Alp Arslan ordugahın önünde başlar; ordu ufukta, -z'de.
-    player: battle ? { x: 0, z: 16 } : { x: 0, z: 8 },
+    // Ordu savaşlarında oyuncu ordunun önünde başlar (ordugah / geçidin kuzeyi);
+    // ordu ufukta, -z'de.
+    player: layout ? { ...layout.playerStart } : { x: 0, z: 8 },
     playerVel: { x: 0, z: 0 },
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,

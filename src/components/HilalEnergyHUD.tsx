@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
-import { BATTLE_CONFIG } from '../mechanics/corps'
+import { BATTLE_CONFIG, COLUMN_CONFIG } from '../mechanics/corps'
 import { WING_CONFIG, type WingOrder } from '../mechanics/wings'
 import { commanderInfo } from '../mechanics/scenario'
 import type { HilalPhase } from '../mechanics/types'
@@ -31,6 +31,11 @@ const WINGS = [
   { name: 'SOL KOL', key: 'Q' },
   { name: 'SAĞ KOL', key: 'E' },
 ]
+/** Geçitte kollar yamaçları tutar. */
+const PASS_WINGS = [
+  { name: 'SOL YAMAÇ', key: 'Q' },
+  { name: 'SAĞ YAMAÇ', key: 'E' },
+]
 
 const PHASE_COLOR: Record<HilalPhase, string> = {
   idle: '#8b7355',
@@ -56,7 +61,8 @@ export function HilalEnergyHUD() {
   const outcome = useGameStore((s) => s.outcome)
   const paused = useGameStore((s) => s.paused)
   const waveIndex = useGameStore((s) => s.waveIndex)
-  const battle = useGameStore((s) => s.commander === 'alp-arslan')
+  const battle = useGameStore((s) => s.commander !== 'metehan')
+  const pass = useGameStore((s) => s.commander === 'kilicarslan')
   const [touch] = useState(isTouchDevice)
 
   if (!started) return <StartScreen touch={touch} />
@@ -67,12 +73,13 @@ export function HilalEnergyHUD() {
       <Corner />
       <EnergyPanel touch={touch} />
       {touch && <TouchStrikeButton />}
-      {battle && outcome === 'playing' && <DayLine />}
-      {battle && outcome === 'playing' && <WingButtons touch={touch} />}
+      {battle && outcome === 'playing' && <DayLine pass={pass} />}
+      {battle && outcome === 'playing' && <WingButtons touch={touch} pass={pass} />}
+      {pass && outcome === 'playing' && <BlockadeButton touch={touch} />}
       {outcome === 'playing' && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {outcome === 'playing' &&
-        (battle ? <BattleBanner /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
+        (battle ? <BattleBanner pass={pass} /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
       {outcome === 'playing' && paused && <PauseScreen touch={touch} />}
       {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
     </div>
@@ -89,18 +96,19 @@ function StatusCard() {
   const commander = useGameStore((s) => s.commander)
   const battleTime = useGameStore((s) => s.battleTime)
   const campDistance = useGameStore((s) => s.campDistance)
-  const battle = commander === 'alp-arslan'
-  const isDay = battleTime < BATTLE_CONFIG.dayLength
+  const battle = commander !== 'metehan'
+  const pass = commander === 'kilicarslan'
+  const isDay = pass || battleTime < BATTLE_CONFIG.dayLength
 
   return (
     <div className="hud-card">
       <div className="hud-row">
         {battle ? (
-          // Gündüz asıl tehdit ordunun ordugaha varması; akşam artık yok.
+          // Gündüz asıl tehdit ordunun hedefe (ordugah / geçidin çıkışı) varması.
           <span className={isDay && campDistance < 6 ? 'contact' : undefined}>
             {isDay ? (
               <>
-                Ordugaha <b>{Math.ceil(campDistance)}</b>
+                {pass ? 'Çıkışa' : 'Ordugaha'} <b>{Math.ceil(campDistance)}</b>
               </>
             ) : (
               'Ordu dönüyor'
@@ -276,7 +284,8 @@ function TouchStrikeButton() {
  * kendi yanında; dokunmatikte sol alt joystick'in, ikisi de vuruş düğmesinin
  * üstünde sağ başparmağın erişiminde.
  */
-function WingButtons({ touch }: { touch: boolean }) {
+function WingButtons({ touch, pass }: { touch: boolean; pass: boolean }) {
+  const names = pass ? PASS_WINGS : WINGS
   const orders = useGameStore((s) => s.wingOrders)
   const strength = useGameStore((s) => s.wingStrength)
   const cycleWing = useGameStore((s) => s.cycleWing)
@@ -295,8 +304,8 @@ function WingButtons({ touch }: { touch: boolean }) {
             onPointerDown={() => cycleWing(i)}
           >
             <span className="wing-name">
-              {WINGS[i].name}
-              {!touch && <kbd>{WINGS[i].key}</kbd>}
+              {names[i].name}
+              {!touch && <kbd>{names[i].key}</kbd>}
             </span>
             <b>{resting ? 'DİNLENİYOR' : ORDER_LABEL[order]}</b>
             <span className="wing-bar">
@@ -314,9 +323,11 @@ function WingButtons({ touch }: { touch: boolean }) {
  * saati oyuncunun asıl kararını belirliyor (şimdi mi vurmalı, akşamı mı
  * beklemeli), o yüzden her an görünür.
  */
-function DayLine() {
+function DayLine({ pass }: { pass: boolean }) {
   const time = useGameStore((s) => s.battleTime)
-  const { dayLength, nightAt } = BATTLE_CONFIG
+  // Geçitte gün batımı dönüşü yok: çizgi doğrudan geceye akar.
+  const nightAt = pass ? COLUMN_CONFIG.nightAt : BATTLE_CONFIG.nightAt
+  const dayLength = pass ? nightAt : BATTLE_CONFIG.dayLength
   const isDay = time < dayLength
   const left = Math.max(0, Math.ceil((isDay ? dayLength : nightAt) - time))
   const pct = (Math.min(time, nightAt) / nightAt) * 100
@@ -327,7 +338,7 @@ function DayLine() {
         <span className={isDay ? 'sun' : 'sun is-moon'} style={{ left: `${pct}%` }} />
       </div>
       <div className="day-label">
-        {isDay ? `Gün batımına ${left}` : `Gece çökmesine ${left}`}
+        {pass ? `Geceye ${left}` : isDay ? `Gün batımına ${left}` : `Gece çökmesine ${left}`}
       </div>
     </div>
   )
@@ -344,13 +355,42 @@ function Announcement() {
   )
 }
 
-function BattleBanner() {
+function BattleBanner({ pass }: { pass: boolean }) {
   return (
     <div className="wave-banner">
-      <h2>MALAZGİRT</h2>
+      <h2>{pass ? 'MİRYOKEFALON' : 'MALAZGİRT'}</h2>
       <Ornament width={200} />
-      <p>26 Ağustos 1071 — Bizans ordusu ufukta</p>
+      <p>
+        {pass
+          ? '17 Eylül 1176 — Bizans ordusu Tzivritze geçidinde'
+          : '26 Ağustos 1071 — Bizans ordusu ufukta'}
+      </p>
     </div>
+  )
+}
+
+/**
+ * YOLU KES: geçidin tek kararı. Savaş başına bir kez; düştükten sonra düğme
+ * yığının kalan sağlamlığını gösterir — öncü temizlerken oyuncu görsün,
+ * tacizle yavaşlatsın. Hiçbir zaman disabled değil: tekrar basış gerekçe söyler.
+ */
+function BlockadeButton({ touch }: { touch: boolean }) {
+  const canBlock = useGameStore((s) => s.canBlock)
+  const strength = useGameStore((s) => s.blockade)
+  const dropBlockade = useGameStore((s) => s.dropBlockade)
+  const state = canBlock ? 'is-ready' : strength > 0 ? 'is-up' : 'is-spent'
+
+  return (
+    <button className={`wing-btn block-btn ${state}`} onPointerDown={dropBlockade}>
+      <span className="wing-name">
+        KAYA YIĞINI
+        {!touch && <kbd>R</kbd>}
+      </span>
+      <b>{canBlock ? 'YOLU KES' : strength > 0 ? 'YOL KESİK' : 'YOL AÇIK'}</b>
+      <span className="wing-bar">
+        <span style={{ width: `${Math.round((canBlock ? 1 : strength) * 100)}%` }} />
+      </span>
+    </button>
   )
 }
 

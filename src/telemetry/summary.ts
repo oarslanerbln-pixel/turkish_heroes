@@ -29,6 +29,8 @@ export type TelemetryEvent =
   | { type: 'wave_clear'; wave: number; health: number }
   /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
   | { type: 'rout'; count: number }
+  /** Miryokefalon: YOLU KES — yığının düştüğü z (geçidin neresi: asıl karar). */
+  | { type: 'blockade'; z: number }
   /** alive: vuruştan önce sahada (Malazgirt'te teslim olmamış) kalan. */
   | { type: 'strike'; kills: number; alive: number }
   | { type: 'strike_refused'; reason: Refusal }
@@ -86,6 +88,8 @@ export interface BattleSummary {
   refusals: Record<Refusal, number>
   waves: { wave: number; t: number; health: number }[]
   routs: { t: number; count: number }[]
+  /** Miryokefalon: yolun kesildiği an ve yer; kesilmediyse null. */
+  blockade: { t: number; z: number } | null
   events: { event: BattleEvent; t: number }[]
   pauses: { t: number; auto: boolean }[]
   /** Kollara verilen emirler — oyuncu kolları kullanıyor mu, ne zaman. */
@@ -123,6 +127,7 @@ export function startSummary(
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],
     routs: [],
+    blockade: null,
     events: [],
     pauses: [],
     orders: [],
@@ -146,6 +151,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'rout':
       s.routs.push({ t: e.t, count: e.count })
+      break
+    case 'blockade':
+      s.blockade = { t: e.t, z: e.z }
       break
     case 'strike':
       s.strikes.push({ t: e.t, kills: e.kills, alive: e.alive })

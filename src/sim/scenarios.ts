@@ -17,7 +17,9 @@ import {
   stepBattle,
   strikeBudget,
   type BattleEvent,
+  type BattleState,
 } from '../mechanics/corps'
+import { PASS } from '../mechanics/pass'
 import { stepEnemies } from '../mechanics/enemySim'
 import { WING_CONFIG } from '../mechanics/wings'
 import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
@@ -40,9 +42,9 @@ export interface Scenario {
    * Temas hasarının çarpanı (1 = tam): Metehan'da zorluk merdiveni, Malazgirt'te
    * ilk savaşın yarı hasarı. Olay takibi de kaydeder — zafer oranı buna göre okunur.
    */
-  assist(): number
+  assist(w: World): number
   /** Temas eden düşman başına saniyelik hasar. */
-  contactDamage(): number
+  contactDamage(w: World): number
   /** Düşmanları bir kare ilerletir (EnemySwarm, öncelik 1). */
   moveEnemies(w: World, dt: number): void
   /** Hilal enerjisini besleyen kuşatılabilirlik. */
@@ -146,9 +148,33 @@ const EVENT_TEXT: Record<BattleEvent, string> = {
   emperorCaptured: 'İmparator esir alındı',
   wingShockLeft: 'Sol kol dönen orduya yüklendi!',
   wingShockRight: 'Sağ kol dönen orduya yüklendi!',
+  // Geçitte (Miryokefalon) bu olayların kendi metni var: bkz. PASS_TEXT.
   wingTiredLeft: 'Sol kol yoruldu — pusuya dönüyor',
   wingTiredRight: 'Sağ kol yoruldu — pusuya dönüyor',
+  blockade: 'Yol kesildi — kol duruyor',
+  blockadeCleared: 'Öncü yığını temizledi — yol açıldı',
+  jam: 'Kol sıkıştı — şimdi kuşat',
 }
+
+/** Miryokefalon'da aynı olayın geçitteki anlatımı. */
+const PASS_TEXT: Partial<Record<BattleEvent, string>> = {
+  emperorExposed: 'Manuel açıkta — muhafızları sıkıştı!',
+  emperorCaptured: 'Manuel barış istedi',
+  wingShockLeft: 'Sol yamaç sıkışan kola indi!',
+  wingShockRight: 'Sağ yamaç sıkışan kola indi!',
+  wingTiredLeft: 'Sol yamaç yoruldu — sırta dönüyor',
+  wingTiredRight: 'Sağ yamaç yoruldu — sırta dönüyor',
+}
+
+function eventText(b: BattleState, event: BattleEvent): string {
+  return (b.layout.pass && PASS_TEXT[event]) || EVENT_TEXT[event]
+}
+
+/** Kol boğaza bu kadar yaklaşınca, yol henüz kesilmediyse (bir kez) ipucu. */
+const BLOCKADE_HINT = 'Kol boğaza yaklaşıyor — boğazın hemen ötesinde YOLU KES'
+const BLOCKADE_HINT_DISTANCE = 12
+/** Sıkışma kuşatma anı: ilk kez ağır sıkışınca kısa ağır çekim. */
+const JAM_SLOWMO = 0.6
 
 /** İlk gün batımında (oyuncu başına bir kez) gösterilen ipucu. */
 const DUSK_HINT = 'Dönen birlik savunmasız — şimdi kuşat'
@@ -163,11 +189,15 @@ const round2 = (v: number) => Math.round(v * 100) / 100
 const FIRST_CHARGE_SLOWMO = 0.45
 const SUNSET_SLOWMO = 0.9
 
-/** Alp Arslan: birlik düzeninde ilerleyen Bizans ordusu, gün batımında dönüş. */
+/**
+ * Ordu düzeninde savaş: Alp Arslan (Malazgirt, açık bozkır, gün batımında
+ * dönüş) ve II. Kılıçarslan (Miryokefalon, geçitte kol). Kurallar ortak;
+ * farkı savaş alanı düzeni (corps.ts BattleLayout) taşır.
+ */
 const battle: Scenario = {
-  // İlk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
-  assist: () => (isFirstBattle() ? 0.5 : 1),
-  contactDamage: () => BATTLE_CONFIG.contactDamage * (isFirstBattle() ? 0.5 : 1),
+  // Komutanla ilk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
+  assist: (w) => (isFirstBattle(w.commander) ? 0.5 : 1),
+  contactDamage: (w) => BATTLE_CONFIG.contactDamage * (isFirstBattle(w.commander) ? 0.5 : 1),
 
   moveEnemies(w, dt) {
     if (w.battle) stepBattle(w.battle, w.enemies, w.player, dt)
@@ -184,10 +214,19 @@ const battle: Scenario = {
   advance(w) {
     const b = w.battle
     if (!b) return
+    // Geçit: kol boğaza yaklaşırken yol hâlâ açıksa, bir kez.
+    if (
+      b.layout.pass &&
+      !b.blockadeUsed &&
+      b.frontZ > PASS.neckZ - BLOCKADE_HINT_DISTANCE &&
+      takeHint('blockade')
+    ) {
+      announce(BLOCKADE_HINT)
+    }
     // Oyuncu kolları kendi keşfettiyse tanıtım gereksiz.
     if (
       b.time >= WINGS_HINT_AT &&
-      b.time < BATTLE_CONFIG.dayLength &&
+      b.time < b.layout.dayLength &&
       b.wings.every((x) => x.order === 'ambush') &&
       takeHint('wings')
     ) {
@@ -232,14 +271,26 @@ const battle: Scenario = {
         case 'wingShockRight':
           play('wingCharge')
           haptic(40)
-          announce(EVENT_TEXT[event])
+          announce(eventText(b, event))
           break
         case 'emperorExposed':
           play('horn')
-          announce(EVENT_TEXT.emperorExposed)
+          announce(eventText(b, event))
+          break
+        case 'blockade':
+          play('rockslide')
+          haptic([30, 20, 60])
+          announce(EVENT_TEXT.blockade)
+          break
+        case 'jam':
+          // Sıkışma geçidin hasat anı (Malazgirt'teki dönüş gibi): ağır çekimle okunsun.
+          play('dusk')
+          w.slowmo = JAM_SLOWMO
+          takeHint('jam')
+          announce(EVENT_TEXT.jam)
           break
         default:
-          announce(EVENT_TEXT[event])
+          announce(eventText(b, event))
       }
     }
     b.events.length = 0
@@ -265,6 +316,7 @@ const battle: Scenario = {
 const SCENARIOS: Record<CommanderId, Scenario> = {
   metehan: waves,
   'alp-arslan': battle,
+  kilicarslan: battle,
 }
 
 export function scenarioOf(w: World): Scenario {

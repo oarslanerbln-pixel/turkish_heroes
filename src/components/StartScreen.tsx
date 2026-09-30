@@ -38,7 +38,11 @@ export function StartScreen({ touch }: { touch: boolean }) {
                 onClick={() => selectCommander(c.id)}
               >
                 <b>{c.name}</b>
-                <span>{locked ? 'Metehan ile zafer kazanınca açılır' : c.battle}</span>
+                <span>
+                  {locked && c.unlockedBy
+                    ? `${commanderInfo(c.unlockedBy).name} ile zafer kazanınca açılır`
+                    : c.battle}
+                </span>
               </button>
             )
           })}

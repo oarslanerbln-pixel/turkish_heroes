@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { BufferAttribute, Color, PlaneGeometry } from 'three'
 import { useQuality } from '../../perf/quality'
+import { useGameStore } from '../../store/gameStore'
 import type { QualityTier } from '../../perf/quality'
 import { terrainColor, terrainHeight } from './terrainShape'
 
@@ -21,6 +22,8 @@ const SEGMENTS: Record<QualityTier, number> = { high: 150, medium: 110, low: 70 
  */
 export function Terrain() {
   const segments = useQuality((s) => SEGMENTS[s.tier])
+  // Miryokefalon: aynı zemin, iki yanında geçidin duvarları.
+  const pass = useGameStore((s) => s.commander === 'kilicarslan')
 
   const geometry = useMemo(() => {
     const g = new PlaneGeometry(SIZE, SIZE, segments, segments)
@@ -31,8 +34,8 @@ export function Terrain() {
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i)
       const z = pos.getZ(i)
-      pos.setY(i, terrainHeight(x, z))
-      terrainColor(x, z, c)
+      pos.setY(i, terrainHeight(x, z, pass))
+      terrainColor(x, z, c, pass)
       colors[i * 3] = c.r
       colors[i * 3 + 1] = c.g
       colors[i * 3 + 2] = c.b
@@ -40,7 +43,7 @@ export function Terrain() {
     g.setAttribute('color', new BufferAttribute(colors, 3))
     g.computeVertexNormals()
     return g
-  }, [segments])
+  }, [segments, pass])
 
   // Kademe değişince eski ızgara GPU belleğinde kalmasın.
   useEffect(() => () => geometry.dispose(), [geometry])
