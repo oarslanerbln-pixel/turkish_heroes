@@ -170,6 +170,7 @@ const battle: Scenario = {
           play('dusk')
           // Dönüş savaşın kilit anı: her seferinde kısa bir ağır çekimle başlar.
           w.slowmo = SUNSET_SLOWMO
+          w.cameraCue = 'dusk'
           announce(takeHint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
           break
         case 'emperorExposed':

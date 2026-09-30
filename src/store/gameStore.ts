@@ -121,6 +121,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     unlockAudio()
     startAmbience()
     world.started = true
+    // Açılış çekimi yalnızca menüden girerken: YENİDEN'de oyuncu hemen oynamak ister.
+    world.cameraCue = 'intro'
     set({ started: true })
   },
 
