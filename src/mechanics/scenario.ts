@@ -17,8 +17,6 @@ export interface CommanderInfo {
   battle: string
   /** Başlangıç ekranındaki üç adım. */
   steps: readonly { title: string; text: string }[]
-  /** Prototip aşamasındaki bölüm (oyun testi için açık, cilası eksik). */
-  prototype?: boolean
 }
 
 export const COMMANDERS: readonly CommanderInfo[] = [
@@ -36,7 +34,6 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     id: 'alp-arslan',
     name: 'Alp Arslan',
     battle: 'Malazgirt · 1071',
-    prototype: true,
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
       { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },

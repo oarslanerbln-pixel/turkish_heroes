@@ -16,6 +16,8 @@ export type Sfx =
   | 'defeat'
   | 'charge'
   | 'dusk'
+  | 'horn'
+  | 'volley'
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
@@ -55,9 +57,21 @@ export function unlockAudio(): void {
     master = ctx.createGain()
     master.gain.value = muted ? 0 : MASTER_VOLUME
     master.connect(ctx.destination)
-    noiseBuffer = makeNoise(ctx)
+    noiseBuffer = makeNoise(ctx, 0.5)
+    // Ortam sesleri (ambience.ts) sürekli çalıyor: uygulama arka plana
+    // geçince susmalı, dönünce devam etmeli.
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx) return
+      if (document.hidden) void ctx.suspend()
+      else void ctx.resume()
+    })
   }
   if (ctx.state === 'suspended') void ctx.resume()
+}
+
+/** Açılmış ses bağlamı ve ana kanal; kilit açılmadıysa null. Ortam sesleri için. */
+export function audioGraph(): { ctx: AudioContext; master: GainNode } | null {
+  return ctx && master ? { ctx, master } : null
 }
 
 /** Kısa titreşim — yalnızca destekleyen mobil cihazlarda, ses kapalıysa da. */
@@ -106,6 +120,16 @@ export function play(sfx: Sfx, intensity = 1): void {
       tone(t, 'sawtooth', 147, 139, 0.45, 0.22, 700)
       noise(t, 0.5, 300, 120, 0.35)
       break
+    case 'horn':
+      // Selçuklu borusu: yükselen üç nota — "imparator korumasız".
+      horn(t, 196, 0.22)
+      horn(t + 0.2, 262, 0.22)
+      horn(t + 0.4, 392, 0.7)
+      break
+    case 'volley':
+      // Ok yağmuru: kısa, yüksek frekanslı vızıltı; intensity ok sayısını izler.
+      noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
+      break
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.
       for (let i = 0; i < 3; i++) tone(t + i * 0.42, 'sine', 90, 40, 0.5, 0.7)
@@ -113,7 +137,8 @@ export function play(sfx: Sfx, intensity = 1): void {
   }
 }
 
-function tone(
+/** @param dest Verilmezse ana kanal; ortam sesleri kendi kanallarını verir. */
+export function tone(
   start: number,
   type: OscillatorType,
   fromHz: number,
@@ -121,6 +146,7 @@ function tone(
   duration: number,
   volume: number,
   lowpassHz?: number,
+  dest?: AudioNode,
 ): void {
   if (!ctx || !master) return
   const osc = ctx.createOscillator()
@@ -139,7 +165,7 @@ function tone(
     out = filter
   }
   osc.connect(gain)
-  out.connect(master)
+  out.connect(dest ?? master)
   osc.start(start)
   osc.stop(start + duration + 0.05)
 }
@@ -148,7 +174,15 @@ function horn(start: number, hz: number, duration: number): void {
   tone(start, 'sawtooth', hz, hz, duration, 0.18, 900)
 }
 
-function noise(start: number, duration: number, fromHz: number, toHz: number, volume: number): void {
+/** @param dest Verilmezse ana kanal. */
+export function noise(
+  start: number,
+  duration: number,
+  fromHz: number,
+  toHz: number,
+  volume: number,
+  dest?: AudioNode,
+): void {
   if (!ctx || !master || !noiseBuffer) return
   const src = ctx.createBufferSource()
   src.buffer = noiseBuffer
@@ -159,7 +193,7 @@ function noise(start: number, duration: number, fromHz: number, toHz: number, vo
   filter.frequency.exponentialRampToValueAtTime(toHz, start + duration)
   const gain = ctx.createGain()
   envelope(gain, start, duration, volume)
-  src.connect(filter).connect(gain).connect(master)
+  src.connect(filter).connect(gain).connect(dest ?? master)
   src.start(start)
   src.stop(start + duration + 0.05)
 }
@@ -171,8 +205,8 @@ function envelope(gain: GainNode, start: number, duration: number, volume: numbe
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
 }
 
-function makeNoise(audio: AudioContext): AudioBuffer {
-  const buffer = audio.createBuffer(1, audio.sampleRate * 0.5, audio.sampleRate)
+export function makeNoise(audio: AudioContext, seconds: number): AudioBuffer {
+  const buffer = audio.createBuffer(1, audio.sampleRate * seconds, audio.sampleRate)
   const data = buffer.getChannelData(0)
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
   return buffer

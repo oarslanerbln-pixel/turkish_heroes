@@ -1,4 +1,4 @@
-import { useGameStore } from '../store/gameStore'
+import { isCommanderAvailable, useGameStore } from '../store/gameStore'
 import { COMMANDERS, commanderInfo } from '../mechanics/scenario'
 import { Ornament } from './Ornament'
 
@@ -24,21 +24,24 @@ export function StartScreen({ touch }: { touch: boolean }) {
         <Ornament width={260} />
 
         <div className="commanders" role="radiogroup" aria-label="Komutan">
-          {COMMANDERS.map((c) => (
-            <button
-              key={c.id}
-              role="radio"
-              aria-checked={c.id === commander}
-              className={c.id === commander ? 'commander is-selected' : 'commander'}
-              onClick={() => selectCommander(c.id)}
-            >
-              <b>{c.name}</b>
-              <span>
-                {c.battle}
-                {c.prototype && <em>prototip</em>}
-              </span>
-            </button>
-          ))}
+          {COMMANDERS.map((c) => {
+            const locked = !isCommanderAvailable(c.id)
+            return (
+              <button
+                key={c.id}
+                role="radio"
+                aria-checked={c.id === commander}
+                aria-disabled={locked}
+                className={
+                  c.id === commander ? 'commander is-selected' : locked ? 'commander is-locked' : 'commander'
+                }
+                onClick={() => selectCommander(c.id)}
+              >
+                <b>{c.name}</b>
+                <span>{locked ? 'Metehan ile zafer kazanınca açılır' : c.battle}</span>
+              </button>
+            )
+          })}
         </div>
 
         <div className="steps">

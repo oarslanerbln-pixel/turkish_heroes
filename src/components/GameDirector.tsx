@@ -14,10 +14,12 @@ import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import { BATTLE_CONFIG } from '../mechanics/corps'
 import type { StrikeRefusal, Vec2 } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
-import { isPlaying, simDelta, world } from '../sim/world'
+import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
+import { recordBattleEnd, recordVictory } from '../sim/progress'
 import { scenarioOf, SCORE_PER_KILL } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
+import { duck, setBattleMusic } from '../audio/ambience'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -86,7 +88,6 @@ export function GameDirector() {
       )
 
       world.refusalTimer = Math.max(0, world.refusalTimer - dt)
-      world.announceTimer = Math.max(0, world.announceTimer - dt)
 
       const wasReady = isStrikeReady(world.energy)
       if (world.strikeTimer > 0) {
@@ -113,7 +114,9 @@ export function GameDirector() {
         )
         scenario.afterStrike(world)
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
-        play('strike', kills / Math.max(1, aliveBefore))
+        const share = kills / Math.max(1, aliveBefore)
+        play('strike', share)
+        duck(share)
         haptic(kills >= 5 ? [40, 30, 60] : 40)
         // Hitstop: kuşatmanın kapandığı an kısa bir süre asılı kalır. Oyun hissi
         // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
@@ -146,12 +149,19 @@ export function GameDirector() {
       const prevOutcome = world.outcome
       world.outcome = scenario.outcome(world)
       if (world.outcome !== 'playing' && prevOutcome === 'playing') {
-        if (world.outcome === 'victory') world.score += scenario.victoryBonus(world)
+        if (world.outcome === 'victory') {
+          world.score += scenario.victoryBonus(world)
+          recordVictory(world.commander)
+        }
+        if (world.battle) recordBattleEnd()
         world.bestScore = saveBestScore(world.commander, world.score)
         play(world.outcome)
         if (world.outcome === 'defeat') haptic(200)
       }
     }
+
+    // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
+    setBattleMusic(isPlaying(), world.energy / HILAL_CONFIG.strikeThreshold)
 
     // İstek her karede tüketilir: vuruş hazır değilken basılan tuş birikip
     // enerji dolar dolmaz kendiliğinden patlamasın.
@@ -160,7 +170,11 @@ export function GameDirector() {
     // Hitstop gerçek zamanla erir (dt donmuşken sıfır olduğu için ona bakılmaz).
     // Yönetmen en son çalışan simülasyon adımı: donma bir sonraki karede
     // oyuncu ve düşmanlar için de geçerli olur.
-    if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - Math.min(delta, 0.1))
+    const realDelta = Math.min(delta, 0.1)
+    if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - realDelta)
+    // Ağır çekim ve duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
+    else if (world.slowmo > 0) world.slowmo = Math.max(0, world.slowmo - realDelta)
+    if (isPlaying()) stepAnnouncements(realDelta)
 
     hudTimer.current += dt
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {

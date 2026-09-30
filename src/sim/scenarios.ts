@@ -24,6 +24,7 @@ import type { CommanderId } from '../mechanics/scenario'
 import { spawnWave, TOTAL_WAVES, waveClearBonus, waveConfig } from '../mechanics/waves'
 import { haptic, play } from '../audio/sfx'
 import { announce, type World } from './world'
+import { isFirstBattle, takeHint } from './progress'
 
 export interface Scenario {
   /** Temas eden düşman başına saniyelik hasar. */
@@ -121,9 +122,16 @@ const EVENT_TEXT: Record<BattleEvent, string> = {
   emperorCaptured: 'İmparator esir alındı',
 }
 
+/** İlk gün batımında (oyuncu başına bir kez) gösterilen ipucu. */
+const DUSK_HINT = 'Dönen birlik savunmasız — şimdi kuşat'
+/** Ağır çekim süreleri (gerçek zaman, sn). */
+const FIRST_CHARGE_SLOWMO = 0.45
+const SUNSET_SLOWMO = 0.9
+
 /** Alp Arslan: birlik düzeninde ilerleyen Bizans ordusu, gün batımında dönüş. */
 const battle: Scenario = {
-  contactDamage: () => BATTLE_CONFIG.contactDamage,
+  // İlk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
+  contactDamage: () => BATTLE_CONFIG.contactDamage * (isFirstBattle() ? 0.5 : 1),
 
   moveEnemies(w, dt) {
     if (w.battle) stepBattle(w.battle, w.enemies, w.player, dt)
@@ -140,16 +148,34 @@ const battle: Scenario = {
   advance(w) {
     const b = w.battle
     if (!b) return
-    // İlk hamlenin duyurusu bir kez; sonrakilerde yalnızca ses ve titreşim.
     for (const event of b.events) {
-      if (event === 'charge') {
-        play('charge')
-        haptic(30)
-        if (b.seen.has('charge')) continue
-        b.seen.add('charge')
+      switch (event) {
+        case 'harass':
+          // İpucu oyuncu başına bir kez: ikinci savaşta artık biliyor.
+          if (takeHint('harass')) announce(EVENT_TEXT.harass)
+          break
+        case 'charge':
+          play('charge')
+          haptic(30)
+          // İlk hamle: ağır çekim + ipucu. Oyuncu ne olduğunu görsün, kaçabilsin.
+          if (takeHint('charge')) {
+            announce(EVENT_TEXT.charge)
+            w.slowmo = FIRST_CHARGE_SLOWMO
+          }
+          break
+        case 'sunset':
+          play('dusk')
+          // Dönüş savaşın kilit anı: her seferinde kısa bir ağır çekimle başlar.
+          w.slowmo = SUNSET_SLOWMO
+          announce(takeHint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
+          break
+        case 'emperorExposed':
+          play('horn')
+          announce(EVENT_TEXT.emperorExposed)
+          break
+        default:
+          announce(EVENT_TEXT[event])
       }
-      if (event === 'sunset') play('dusk')
-      announce(EVENT_TEXT[event])
     }
     b.events.length = 0
   },
