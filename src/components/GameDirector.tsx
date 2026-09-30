@@ -14,7 +14,15 @@ import {
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
-import { earnedLore, isUnlocked, recordBattleEnd, recordLadder, recordLore, recordVictory } from '../sim/progress'
+import {
+  earnedLore,
+  isUnlocked,
+  recordBattleEnd,
+  recordLadder,
+  recordLore,
+  recordStars,
+  recordVictory,
+} from '../sim/progress'
 import { pickLore } from '../lore/lore'
 import { scenarioOf, SCORE_PER_KILL, type Scenario } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
@@ -55,8 +63,10 @@ function finishBattle(scenario: Scenario): void {
   const victory = world.outcome === 'victory'
   const locked = COMMANDERS.filter((c) => !isUnlocked(c.id)).map((c) => c.id)
   if (victory) {
+    // victoryBonus yıldızları da yazar (world.stars); kayıt ondan sonra.
     world.score += scenario.victoryBonus(world)
     recordVictory(world.commander)
+    recordStars(world.commander, world.stars)
   }
   if (world.battle) recordBattleEnd(world.commander)
   else recordLadder(victory)

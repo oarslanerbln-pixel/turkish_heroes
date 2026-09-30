@@ -15,8 +15,18 @@ export interface CommanderInfo {
   name: string
   /** Savaş ve tarih — kartın alt satırı. */
   battle: string
+  /**
+   * Komutanın öğrettiği karar ekseni. Üç komutan üç soru: Metehan NASIL
+   * (hilalin kendisi), Alp Arslan NE ZAMAN (hilali akşama saklamak),
+   * II. Kılıçarslan NEREDE (yolu nerede kesmeli). Menü bu sırayla okunur.
+   */
+  axis: 'NASIL' | 'NE ZAMAN' | 'NEREDE'
+  /** Eksenin sorusu — menüdeki brifingin başlığı. */
+  question: string
   /** Başlangıç ekranındaki üç adım. */
   steps: readonly { title: string; text: string }[]
+  /** Klavyede bu savaşa özgü tuşlar (dokunmatikte düğmeler zaten ekranda). */
+  keys?: string
   /** Bu komutanla zafer kazanınca açılır; yoksa hep açık. */
   unlockedBy?: CommanderId
 }
@@ -26,6 +36,8 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     id: 'metehan',
     name: 'Metehan',
     battle: 'Hilal taktiği · MÖ 209',
+    axis: 'NASIL',
+    question: 'Düşmanı nasıl kuşatırsın?',
     steps: [
       { title: '1 · Çekil', text: 'Kaçıyormuş gibi yap. Düşman peşine düştükçe düzeni bozulur.' },
       { title: '2 · Topla', text: 'Düzeni bozulan düşman kümelenir. Hilal enerjisi böyle dolar.' },
@@ -36,6 +48,9 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     id: 'alp-arslan',
     name: 'Alp Arslan',
     battle: 'Malazgirt · 1071',
+    axis: 'NE ZAMAN',
+    question: 'Hilali ne zaman kapatırsın?',
+    keys: 'Q / E: kol emirleri',
     unlockedBy: 'metehan',
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
@@ -47,6 +62,9 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     id: 'kilicarslan',
     name: 'II. Kılıçarslan',
     battle: 'Miryokefalon · 1176',
+    axis: 'NEREDE',
+    question: 'Yolu nerede kesersin?',
+    keys: 'R: yolu kes · Q / E: yamaçlar',
     unlockedBy: 'alp-arslan',
     steps: [
       { title: '1 · Yolu kes', text: 'Kol geçide girerken boğazın hemen ötesinde YOLU KES. Kolun başı durur.' },

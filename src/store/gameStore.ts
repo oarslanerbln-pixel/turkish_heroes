@@ -3,7 +3,7 @@ import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
-import { parseCommander, type CommanderId } from '../mechanics/scenario'
+import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scenario'
 import { announce, isPlaying, resetWorld, world } from '../sim/world'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
@@ -58,10 +58,23 @@ interface GameState extends HudSnapshot {
   paused: boolean
   commander: CommanderId
   muted: boolean
+  /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
+  archive: CommanderId | null
   syncHud: (snapshot: HudSnapshot) => void
-  /** Başlangıç ekranında komutan seçimi; savaşı henüz başlatmaz. */
+  /**
+   * Başlangıç ekranında komutan seçimi; savaşı henüz başlatmaz. Kilitli
+   * komutan da seçilebilir: savaş alanı arkada görünür, brifing okunur ama
+   * savaşa girilemez — açılacak olanı görmek açma isteğini besler.
+   */
   selectCommander: (id: CommanderId) => void
+  /** Menüde sıradaki / önceki komutan (klavye: ↑ ↓). */
+  stepCommander: (dir: 1 | -1) => void
+  /** Seçili komutanla savaşa gir; komutan kilitliyse hiçbir şey yapmaz. */
   start: () => void
+  /** Komutanı seç ve hemen savaşa gir (Hazine'deki kilitli notun çağrısı). */
+  enterBattle: (id: CommanderId) => void
+  openArchive: (id: CommanderId) => void
+  closeArchive: () => void
   requestStrike: () => void
   /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
   cycleWing: (wing: number) => void
@@ -132,25 +145,43 @@ export const useGameStore = create<GameState>((set, get) => ({
   paused: false,
   commander: world.commander,
   muted: isMuted(),
+  archive: null,
 
   syncHud: (snapshot) => set(snapshot),
 
   selectCommander: (id) => {
-    if (id === world.commander || !isCommanderAvailable(id)) return
+    if (id === world.commander || world.started) return
     // Sahne arkada seçilen savaşı göstersin: ordu, ordugah, oyuncunun yeri.
     resetWorld(id)
     set({ commander: id, bestScore: loadBestScore(id) })
   },
 
+  stepCommander: (dir) => {
+    const i = COMMANDERS.findIndex((c) => c.id === get().commander)
+    const next = COMMANDERS[(i + dir + COMMANDERS.length) % COMMANDERS.length]
+    get().selectCommander(next.id)
+  },
+
   // Kullanıcı hareketinin içinde çağrılır: sesin kilidi burada açılır.
   start: () => {
+    if (world.started || !isCommanderAvailable(world.commander)) return
     unlockAudio()
     startAmbience()
     world.started = true
     // Açılış çekimi yalnızca menüden girerken: YENİDEN'de oyuncu hemen oynamak ister.
     world.cameraCue = 'intro'
-    set({ started: true })
+    set({ started: true, archive: null })
   },
+
+  enterBattle: (id) => {
+    if (!isCommanderAvailable(id)) return
+    get().selectCommander(id)
+    get().start()
+  },
+
+  openArchive: (id) => set({ archive: id }),
+
+  closeArchive: () => set({ archive: null }),
 
   toggleMute: () => {
     const muted = !get().muted
@@ -234,6 +265,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     endUnfinished('quit')
     world.started = false
     resetWorld()
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false, archive: null })
   },
 }))

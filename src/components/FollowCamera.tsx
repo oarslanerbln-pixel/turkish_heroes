@@ -97,7 +97,17 @@ export function FollowCamera() {
     look.copy(smooth)
 
     let weight = 0
-    if (shot.cue) {
+    if (!world.started) {
+      // Menüde kamera açılış çekiminin ilk karesinde bekler: menünün arka
+      // planı seçilen savaşın kendisi. SAVAŞA GİR'e basınca çekim bu kareden
+      // (ağırlık 1) başlar; menüden savaşa kesme olmadan geçilir.
+      weight = 1
+      shot.cue = null
+      cinePos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
+      cineLook.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+      camera.position.copy(cinePos)
+      look.copy(cineLook)
+    } else if (shot.cue) {
       // Gerçek zaman: gün batımının ağır çekimi çekimi uzatmasın.
       shot.t += dt
       weight = shotWeight(shot.cue, shot.t)
