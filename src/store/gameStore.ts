@@ -6,6 +6,7 @@ import { resetWorld, world } from '../sim/world'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
 import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
+import { startAmbience } from '../audio/ambience'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -111,6 +112,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Kullanıcı hareketinin içinde çağrılır: sesin kilidi burada açılır.
   start: () => {
     unlockAudio()
+    startAmbience()
     world.started = true
     set({ started: true })
   },

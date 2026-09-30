@@ -11,6 +11,8 @@ import { Camp } from './world/Camp'
 import { CorpsBanners } from './CorpsBanners'
 import { ChargeWarnings } from './ChargeWarnings'
 import { ArrowVolley } from './ArrowVolley'
+import { DustTrails } from './DustTrails'
+import { SteppeWind } from './SteppeWind'
 import { DayCycle } from './DayCycle'
 import { TuningPanel } from './TuningPanel'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
@@ -89,8 +91,8 @@ export function Scene() {
           // Gerçek ACES istenirse efekt zincirine <ToneMapping> eklenmeli; bu
           // görünümü değiştirir, bilinçli bir sanat kararı olarak yapılmalı.
         }}
-        onCreated={({ gl }) => {
-          if (import.meta.env.DEV) Object.assign(globalThis, { __gl: gl })
+        onCreated={({ gl, scene }) => {
+          if (import.meta.env.DEV) Object.assign(globalThis, { __gl: gl, __scene: scene })
         }}
       >
         {/*
@@ -116,6 +118,7 @@ export function Scene() {
           <Terrain />
           <Stones />
           <Grass />
+          <SteppeWind />
           {commander === 'alp-arslan' && <Camp />}
           <MetehanPlaceholder />
           <EnemySwarm />
@@ -124,6 +127,7 @@ export function Scene() {
           <CrescentPreview />
           <StrikeEffect />
           <StrikeSparks />
+          <DustTrails />
           {commander === 'alp-arslan' && (
             <>
               <CorpsBanners />

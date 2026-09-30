@@ -8,17 +8,23 @@ function storageKey(commander: CommanderId): string {
 }
 
 export function loadBestScore(commander: CommanderId): number {
-  if (typeof localStorage === 'undefined') return 0
-  const raw = localStorage.getItem(storageKey(commander))
-  const n = raw ? Number(raw) : 0
-  return Number.isFinite(n) ? n : 0
+  try {
+    const raw = localStorage.getItem(storageKey(commander))
+    const n = raw ? Number(raw) : 0
+    return Number.isFinite(n) ? n : 0
+  } catch {
+    // Erişilemeyen depolama (gizli sekme, engellenmiş çerezler, Node'un yolsuz localStorage'ı).
+    return 0
+  }
 }
 
 /** Skoru mevcut en iyiyle karşılaştırır, yüksekse kaydeder. Güncel en iyiyi döndürür. */
 export function saveBestScore(commander: CommanderId, score: number): number {
   const best = Math.max(score, loadBestScore(commander))
-  if (typeof localStorage !== 'undefined') {
+  try {
     localStorage.setItem(storageKey(commander), String(best))
+  } catch {
+    // Gizli sekme: rekor bu oturumla sınırlı.
   }
   return best
 }

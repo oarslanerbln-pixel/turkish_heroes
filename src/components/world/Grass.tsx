@@ -12,6 +12,7 @@ import {
 import { useQuality } from '../../perf/quality'
 import type { QualityTier } from '../../perf/quality'
 import { mulberry32, terrainHeight } from './terrainShape'
+import { GUST_GLSL, WIND_DIR } from './wind'
 
 /** Kademe başına çimen öbeği. Düşükte hiç yok: en ucuz kademe oynanışa odaklanır. */
 const TUFTS: Record<QualityTier, number> = { high: 8000, medium: 3500, low: 0 }
@@ -99,7 +100,8 @@ function buildTuft(): BufferGeometry {
 /**
  * Rüzgâr köşe gölgelendiricide: sapın ucu (y) ne kadar yüksekse o kadar
  * salınır, kök yerinde kalır. Faz her öbeğin konumundan: dalga alan boyunca
- * yürüyor gibi görünür. CPU'da kare başına iş yok.
+ * yürüyor gibi görünür. Esinti (wind.ts) salınımı büyütür ve otu rüzgâr
+ * yönüne yatırır; esinti cephesi alan boyunca ilerler. CPU'da kare başına iş yok.
  */
 function windMaterial(): MeshStandardMaterial {
   const material = new MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: DoubleSide })
@@ -108,14 +110,17 @@ function windMaterial(): MeshStandardMaterial {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uTime
     shader.vertexShader =
-      'uniform float uTime;\n' +
+      `uniform float uTime;\n${GUST_GLSL}\n` +
       shader.vertexShader.replace(
         '#include <begin_vertex>',
         [
           '#include <begin_vertex>',
           'float phase = instanceMatrix[3].x * 0.31 + instanceMatrix[3].z * 0.23;',
-          'transformed.x += sin(uTime * 1.6 + phase) * 0.16 * position.y;',
-          'transformed.z += cos(uTime * 1.2 + phase * 1.3) * 0.07 * position.y;',
+          'float gust = windGust(uTime, instanceMatrix[3].xz);',
+          'float sway = 0.6 + 0.7 * gust;',
+          'transformed.x += sin(uTime * 1.6 + phase) * 0.16 * sway * position.y;',
+          'transformed.z += cos(uTime * 1.2 + phase * 1.3) * 0.07 * sway * position.y;',
+          `transformed.xz += vec2(${WIND_DIR.x}, ${WIND_DIR.z}) * gust * 0.22 * position.y;`,
         ].join('\n'),
       )
   }

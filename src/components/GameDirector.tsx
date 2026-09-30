@@ -19,6 +19,7 @@ import { recordBattleEnd, recordVictory } from '../sim/progress'
 import { scenarioOf, SCORE_PER_KILL } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
+import { duck, setBattleMusic } from '../audio/ambience'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 // Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
@@ -113,7 +114,9 @@ export function GameDirector() {
         )
         scenario.afterStrike(world)
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
-        play('strike', kills / Math.max(1, aliveBefore))
+        const share = kills / Math.max(1, aliveBefore)
+        play('strike', share)
+        duck(share)
         haptic(kills >= 5 ? [40, 30, 60] : 40)
         // Hitstop: kuşatmanın kapandığı an kısa bir süre asılı kalır. Oyun hissi
         // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
@@ -156,6 +159,9 @@ export function GameDirector() {
         if (world.outcome === 'defeat') haptic(200)
       }
     }
+
+    // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
+    setBattleMusic(isPlaying(), world.energy / HILAL_CONFIG.strikeThreshold)
 
     // İstek her karede tüketilir: vuruş hazır değilken basılan tuş birikip
     // enerji dolar dolmaz kendiliğinden patlamasın.
