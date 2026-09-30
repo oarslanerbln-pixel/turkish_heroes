@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type { HilalPhase, StrikeRefusal } from '../mechanics/types'
 import type { Outcome } from '../mechanics/combat'
+import { parseCommander, type CommanderId } from '../mechanics/scenario'
 import { resetWorld, world } from '../sim/world'
+import { loadBestScore } from '../sim/score'
 import { isMuted, setMuted, unlockAudio } from '../audio/sfx'
 
 /**
@@ -26,16 +28,28 @@ export interface HudSnapshot {
   waveIndex: number // 0 tabanlı
   score: number
   bestScore: number
+  announcement: string // tek satırlık duyuru; boşsa gösterilmez
+  stars: number // 0–3, yıldızlı senaryonun sonucunda
+  battleTime: number // savaşın başından beri (sn) — gün çizgisi
+  campDistance: number // ordunun ön hattının ordugaha uzaklığı
+  corpsCohesion: number[] // birlik başına düzen; -1 = birlik yok
+  defeatCause: 'health' | 'camp'
+  emperorCaptured: boolean
 }
 
 interface GameState extends HudSnapshot {
   /** Başlangıç ekranı geçildi mi — world.started'ın sunum kopyası. */
   started: boolean
+  commander: CommanderId
   muted: boolean
   syncHud: (snapshot: HudSnapshot) => void
+  /** Başlangıç ekranında komutan seçimi; savaşı henüz başlatmaz. */
+  selectCommander: (id: CommanderId) => void
   start: () => void
   requestStrike: () => void
   restart: () => void
+  /** Sonuç ekranından komutan seçimine dön. */
+  backToMenu: () => void
   toggleMute: () => void
 }
 
@@ -58,14 +72,34 @@ const INITIAL_HUD: HudSnapshot = {
   // İlk render, yönetmenin ilk sync'inden önce olabilir; world zaten
   // localStorage'dan taze okumuş durumda, onu kullan.
   bestScore: world.bestScore,
+  announcement: '',
+  stars: 0,
+  battleTime: 0,
+  campDistance: 0,
+  corpsCohesion: [],
+  defeatCause: 'health',
+  emperorCaptured: false,
 }
+
+// ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır.
+const urlCommander = typeof window !== 'undefined' ? parseCommander(window.location.search) : null
+if (urlCommander) resetWorld(urlCommander)
 
 export const useGameStore = create<GameState>((set, get) => ({
   ...INITIAL_HUD,
+  bestScore: world.bestScore,
   started: false,
+  commander: world.commander,
   muted: isMuted(),
 
   syncHud: (snapshot) => set(snapshot),
+
+  selectCommander: (id) => {
+    if (id === world.commander) return
+    // Sahne arkada seçilen savaşı göstersin: ordu, ordugah, oyuncunun yeri.
+    resetWorld(id)
+    set({ commander: id, bestScore: loadBestScore(id) })
+  },
 
   // Kullanıcı hareketinin içinde çağrılır: sesin kilidi burada açılır.
   start: () => {
@@ -92,5 +126,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
     // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
     set({ ...INITIAL_HUD, bestScore: world.bestScore })
+  },
+
+  backToMenu: () => {
+    world.started = false
+    resetWorld()
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false })
   },
 }))

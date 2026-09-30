@@ -24,7 +24,7 @@ export const WAVES: readonly WaveConfig[] = [
 
 export const TOTAL_WAVES = WAVES.length
 
-/** instancedMesh'in ayırması gereken en büyük kapasite — en kalabalık dalga. */
+/** Metehan'ın en kalabalık dalgası; örnekleme kapasitesi scenario.ts'te (ENEMY_CAPACITY). */
 export const MAX_WAVE_ENEMIES = Math.max(...WAVES.map((w) => w.enemyCount))
 
 export function waveConfig(index: number): WaveConfig {

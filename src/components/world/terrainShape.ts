@@ -75,14 +75,5 @@ export function terrainColor(x: number, z: number, out: Color): Color {
   return out
 }
 
-/** Belirlenimci sözde-rastgele üreteç: dağılım her yüklemede aynı olsun. */
-export function mulberry32(seed: number): () => number {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
+// Üreteç simülasyonla ortak (bot testleri de tohumlu); süsleme buradan alıyor.
+export { mulberry32 } from '../../mechanics/random'

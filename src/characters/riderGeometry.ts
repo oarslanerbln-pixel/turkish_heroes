@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 /** Beyaz = boyanabilir: instanceColor bu parçalara olduğu gibi geçer. */
 const TINT = '#ffffff'
 
-interface Placement {
+export interface Placement {
   x?: number
   y?: number
   z?: number
@@ -21,7 +21,7 @@ interface Placement {
   rz?: number
 }
 
-function paint(geometry: BufferGeometry, hex: string, p: Placement = {}): BufferGeometry {
+export function paint(geometry: BufferGeometry, hex: string, p: Placement = {}): BufferGeometry {
   if (p.rx) geometry.rotateX(p.rx)
   if (p.rz) geometry.rotateZ(p.rz)
   geometry.translate(p.x ?? 0, p.y ?? 0, p.z ?? 0)
@@ -37,7 +37,7 @@ function paint(geometry: BufferGeometry, hex: string, p: Placement = {}): Buffer
   return geometry
 }
 
-function merge(parts: BufferGeometry[]): BufferGeometry {
+export function merge(parts: BufferGeometry[]): BufferGeometry {
   const merged = mergeGeometries(parts)
   for (const p of parts) p.dispose()
   if (!merged) throw new Error('riderGeometry: parçalar birleştirilemedi')

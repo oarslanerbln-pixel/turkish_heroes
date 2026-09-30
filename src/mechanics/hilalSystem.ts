@@ -145,7 +145,7 @@ export function calcFacing(
   // ile birebir aynı, yani sonuç da aynı (bkz. hilalSystem.test.ts).
   let n = 0
   for (const e of enemies) {
-    if (!e.alive) continue
+    if (!e.alive || e.guarded) continue
     const dx = e.pos.x - origin.x
     const dz = e.pos.z - origin.z
     const dist = Math.hypot(dx, dz)
@@ -193,15 +193,18 @@ export interface SiegeState {
  * Kümenin durumunu tek seferde çıkarır.
  * Merkez, sıkışıklık ve disiplin aynı veriden türediği için tek fonksiyonda
  * toplandı — her karede sürü üzerinde üç ayrı geçiş yapılmasın.
+ *
+ * @param corps Verilirse yalnızca o birliğin askerleri hesaba katılır: birlik
+ *   düzeninde savaşan ordu tek küme değil, her birlik ayrı kuşatılır.
  */
-export function calcSiegeState(enemies: readonly Enemy[]): SiegeState {
+export function calcSiegeState(enemies: readonly Enemy[], corps?: number): SiegeState {
   let cx = 0
   let cz = 0
   let disciplineSum = 0
   let n = 0
 
   for (const e of enemies) {
-    if (!e.alive) continue
+    if (!e.alive || (corps !== undefined && e.corps !== corps)) continue
     cx += e.pos.x
     cz += e.pos.z
     disciplineSum += e.discipline
@@ -223,7 +226,7 @@ export function calcSiegeState(enemies: readonly Enemy[]): SiegeState {
 
   let totalDist = 0
   for (const e of enemies) {
-    if (!e.alive) continue
+    if (!e.alive || (corps !== undefined && e.corps !== corps)) continue
     totalDist += Math.hypot(e.pos.x - centroid.x, e.pos.z - centroid.z)
   }
 
@@ -294,13 +297,15 @@ export function executeStrike(
   facing: number,
   /** Verilirse düşenlerin konumları buna eklenir (görsel efektler için). */
   killedAt?: Vec2[],
+  /** Senaryonun sınırı: yaydaki askerden hangisi düşebilir (bkz. FallFilter). */
+  canFall?: FallFilter,
 ): number {
   let kills = 0
 
   for (const e of enemies) {
     if (!e.alive) continue
 
-    if (isInCrescent(e.pos, origin, facing)) {
+    if (!e.guarded && isInCrescent(e.pos, origin, facing) && (!canFall || canFall(e))) {
       e.alive = false
       kills++
       killedAt?.push({ x: e.pos.x, z: e.pos.z })
@@ -312,15 +317,25 @@ export function executeStrike(
   return kills
 }
 
+/**
+ * Yaydaki askerden hangisinin düşebileceğine senaryo karar verebilir. Durumlu
+ * olabilir (ör. birlik başına bütçe): her vuruş ve her sayım için yenisi
+ * oluşturulur, askerler sırayla sorulur.
+ */
+export type FallFilter = (e: Enemy) => boolean
+
 /** Yay şu an tetiklense kaç düşman düşerdi — önizleme ve HUD için. */
 export function countInCrescent(
   enemies: readonly Enemy[],
   origin: Vec2,
   facing: number,
+  canFall?: FallFilter,
 ): number {
   let n = 0
   for (const e of enemies) {
-    if (e.alive && isInCrescent(e.pos, origin, facing)) n++
+    if (e.alive && !e.guarded && isInCrescent(e.pos, origin, facing) && (!canFall || canFall(e))) {
+      n++
+    }
   }
   return n
 }

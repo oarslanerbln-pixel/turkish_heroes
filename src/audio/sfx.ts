@@ -7,7 +7,15 @@
 // Tarayıcılar AudioContext'i ancak bir kullanıcı hareketinden sonra açar.
 // unlockAudio() bu yüzden BAŞLA düğmesinin tıklamasında çağrılır.
 
-export type Sfx = 'strike' | 'refuse' | 'ready' | 'wave' | 'victory' | 'defeat'
+export type Sfx =
+  | 'strike'
+  | 'refuse'
+  | 'ready'
+  | 'wave'
+  | 'victory'
+  | 'defeat'
+  | 'charge'
+  | 'dusk'
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
@@ -92,6 +100,15 @@ export function play(sfx: Sfx, intensity = 1): void {
       break
     case 'defeat':
       tone(t, 'sawtooth', 196, 98, 1.2, 0.25, 600)
+      break
+    case 'charge':
+      // Hamle uyarısı: sert, alçak Bizans borusu + nal gürültüsü.
+      tone(t, 'sawtooth', 147, 139, 0.45, 0.22, 700)
+      noise(t, 0.5, 300, 120, 0.35)
+      break
+    case 'dusk':
+      // Gün batımı: üç ağır kös vuruşu.
+      for (let i = 0; i < 3; i++) tone(t + i * 0.42, 'sine', 90, 40, 0.5, 0.7)
       break
   }
 }
