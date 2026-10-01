@@ -48,6 +48,7 @@ hilal (kuşatma) taktiği — sahte ricat → disiplin çöküşü → kümelenm
 | 22 | **Gizlilik sayfası** — `public/gizlilik.html` (oyundan bağımsız, PWA önbelleğinde): ne gider / ne gitmez, oturum kodu, Supabase Frankfurt, IP'nin altyapı günlüklerinde kalması, iznin geri alınması, iletişim GitHub Issues. Sonuç ekranındaki sorudan "Ne gönderiliyor?" bağlantısı. `toPayload` alanları değişirse sayfa da güncellenmeli. Açık: "en fazla iki yıl" saklama sözü için temizlik işi (pg_cron) henüz yok; metin hukukçu gözünden geçmedi. | ✅ |
 | 23 | **Paylaşım kartı** — `public/og.jpg` (1200×630, 50 KB; kadife zemin, gümüş çerçeve, hilal, üç komutan) ve `index.html`'de Open Graph / Twitter etiketleri. Açıklama ve manifest metni üç komutanı anar. Adresler mutlak (`turkish-heroes.vercel.app`): alan adı değişirse `og:url` ve `og:image` da değişmeli. | ✅ |
 | 24 | **Sefer haritası** — menüdeki komutan listesi yerine bozkırdan Anadolu'ya inen yol: Metehan → Malazgirt → Miryokefalon. Yol kilit zincirini izler (açık yol kesik, kapalı yol noktalı); mühürde hilal (kazanıldı) ya da kilit, adın yanında yıldız ya da YENİ. Sancak sıradaki hedefte durur: önce kazanılmamış ilk açık savaş, hepsi kazanılınca yıldızı en az olan, hepsi tam yıldızsa sancak yok. Yol SVG'de, düğümler HTML radyo düğmeleri (odak, ekran okuyucu, ↑/↓). Kurallar saf `mechanics/campaign.ts`'te. Komutan başına tarih notu sayısı brifingin altına taşındı. | ✅ |
+| 25 | **Gerçek sesler** — sentezin taklit edemediği sesler artık kayıttan: vuruşta kılıç savrulması + zırh darbesi, ok yağmurunda yay kirişi + okların vınlaması (aynı savrulma 1,6× hızlı), hamle/kol hücumu/bozgunda üst üste binen dörtnal adımlarıyla bölük nalı (bozgunda kısılarak uzaklaşır), kaya yığınında taş çatırtısı. Metehan'ın atı her dörtnal döngüsünde bir adım çalar; görünen sekmeyle aynı ritim, ortam kanalından geçer (vuruşta kısılır). 14 dosya, ~220 KB, yalnız CC0 (Kenney, OpenGameArt); service worker önbelleğe alır. Örnek yüklenemezse (iOS 18.4 öncesi OGG) eski sentez çalar. Çeşitler arka arkaya tekrarlamaz, perde her çalışta ±%4 kayar. Kalan: gerçek hoparlörde seviye ayarı; kös ve boru için CC0 kayıt bulunamadı, sentezde. Modeller faz 26'da; adaylar iki CC0 Quaternius atı (poly.pizza `D3hAeqeDBE` animasyonlu 232 KB, `F8HAAcLeBL` 690 üçgen 288 KB). | 🔄 |
 
 **Kanıt disiplini:** Her denge kararı headless simülasyon taramasıyla
 (iyi/orta/kötü bot) ölçülmüş, her görsel/etkileşim hatası gerçek tarayıcıda
@@ -102,6 +103,11 @@ oxlint (lint)
 - `src/audio/sfx.ts` — sentezlenmiş efektler. AudioContext BAŞLA tıklamasında
   açılır (tarayıcı kuralı); efektler GameDirector'dan tetiklenir. Sekme
   gizlenince context askıya alınır.
+- `src/audio/samples.ts` — gerçek kayıtlar (faz 25): nal, zırh, yay, kaya.
+  Dosyalar `public/audio`'da (~220 KB, yalnız CC0; kaynaklar `CREDITS.md`'de,
+  test her dosyanın orada geçtiğini sınar). Kilit açılınca çözülür; örnek
+  yoksa `playSample` false döner ve `play()` eski sentez tarifini çalar.
+  Boru, kös ve arayüz sesleri bilerek sentezde.
 - `src/audio/ambience.ts` — rüzgâr + müzik ayrı bir veriyolunda (bus → duck →
   master); `duck()` yalnızca onu kısar, vuruş efekti tam duyulur. Kös ses
   saatine göre planlanır (100 ms'lik zamanlayıcı, 0,3 sn ileri bakış), kare

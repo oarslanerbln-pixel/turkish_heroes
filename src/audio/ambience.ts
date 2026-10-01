@@ -1,4 +1,5 @@
-// Sürekli sesler: bozkır rüzgârı ve savaş müziği (bordun + kös).
+// Sürekli sesler: bozkır rüzgârı, savaş müziği (bordun + kös) ve Metehan'ın
+// atının nalları.
 //
 // Efektler (sfx.ts) tek seferlik; buradakiler ses açıldığı andan itibaren
 // hep çalar ve tek bir ortam kanalından geçer. Vuruşta bu kanal kısılır
@@ -7,6 +8,7 @@
 // Telefon hoparlörü ~150 Hz altını çalamıyor; bu yüzden bordun testere dişi
 // (üst harmonikleri duyulur), kösün de deri sesi var.
 
+import { playSample } from './samples'
 import { audioGraph, isMuted, makeNoise, noise, tone } from './sfx'
 
 /** Rüzgârın durgun ve tam esintideki seviyesi. */
@@ -29,6 +31,8 @@ const BEAT_TENSE = 0.75
 /** Bu gerilimin üstünde vuruşların arasına hafif bir ara vuruş girer. */
 const GHOST_TENSION = 0.45
 const KOS_VOLUME = 0.28
+/** Metehan'ın atı tam dörtnalda: kösün altında, rüzgârın üstünde. */
+const HOOF_VOLUME = 0.16
 /** Zamanlayıcı her tikte bu kadar ilerisini planlar (sn). */
 const LOOKAHEAD = 0.3
 const SCHEDULER_MS = 100
@@ -118,6 +122,16 @@ export function setWind(gust: number): void {
   const whistle = Math.max(0, (gust - WHISTLE_FROM_GUST) / (1 - WHISTLE_FROM_GUST))
   graph.whistleGain.gain.setTargetAtTime(WHISTLE_VOLUME * whistle, t, 0.3)
   graph.whistleFilter.frequency.setTargetAtTime(750 + 550 * gust, t, 0.3)
+}
+
+/**
+ * Metehan'ın atının bir dörtnal adımı; at her adım döngüsünde bir kez çağırır.
+ * Ortam kanalından geçer: vuruşta o da kısılır. Örnek yoksa sessiz.
+ * @param gait 0–1, atın hızı.
+ */
+export function hoofbeat(gait: number): void {
+  if (!graph || isMuted() || graph.ctx.state !== 'running') return
+  playSample(graph.ctx, graph.bus, 'gallop', { at: graph.ctx.currentTime, gain: HOOF_VOLUME * gait })
 }
 
 /**

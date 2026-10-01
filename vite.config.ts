@@ -10,8 +10,9 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       // Varsayılan desen yazı tipi dosyalarını önbelleğe almıyor; çevrimdışı
       // açılışta başlıklar sistem yazı tipine düşerdi. İkonlar zaten
-      // includeAssets ve manifest üzerinden geliyor, desene eklenmez.
-      workbox: { globPatterns: ['**/*.{js,css,html,woff2}'] },
+      // includeAssets ve manifest üzerinden geliyor, desene eklenmez. Ses
+      // örnekleri (public/audio, ~220 KB) çevrimdışı savaşta da duyulsun.
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2,ogg,mp3,wav}'] },
       manifest: {
         name: 'HİLAL',
         short_name: 'HİLAL',

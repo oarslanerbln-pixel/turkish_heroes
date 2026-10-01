@@ -1,11 +1,13 @@
-// Ses efektleri — tamamen WebAudio ile sentezleniyor.
+// Ses efektleri: WebAudio sentezi, gerçek kayıtlarla katmanlı.
 //
-// Bilinçli tercih: ses dosyası yok. Offline çalışması gereken bir PWA'da her
-// varlık önbellek ve indirme maliyeti demek; birkaç osilatör ve gürültü
-// tamponu bu oyunun ihtiyacı olan kısa, kuru efektleri karşılıyor.
+// Boru, kös ve arayüz sesleri sentezleniyor; kısa, kuru ve dosyasız. Nal,
+// zırh, yay ve kaya sesleri örnekten gelir (samples.ts). Örnek yüklenemezse
+// aynı yerde eski sentez tarifi çalar.
 //
 // Tarayıcılar AudioContext'i ancak bir kullanıcı hareketinden sonra açar.
 // unlockAudio() bu yüzden BAŞLA düğmesinin tıklamasında çağrılır.
+
+import { loadSamples, playSample, type SampleId } from './samples'
 
 export type Sfx =
   | 'strike'
@@ -25,6 +27,10 @@ export type Sfx =
 
 const MUTE_KEY = 'hilal_muted'
 const MASTER_VOLUME = 0.5
+/** Ok vınlaması: kılıç savrulması örneği hızlı çalınır, tiz ve kısa duyulur. */
+const ARROW_RATE = 1.6
+/** Bölük nalında adımlar arası (sn): adımlar üst üste biner, bölük gürler. */
+const HERD_STEP = 0.2
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
@@ -62,6 +68,7 @@ export function unlockAudio(): void {
     master.gain.value = muted ? 0 : MASTER_VOLUME
     master.connect(ctx.destination)
     noiseBuffer = makeNoise(ctx, 0.5)
+    loadSamples(ctx)
     // Ortam sesleri (ambience.ts) sürekli çalıyor: uygulama arka plana
     // geçince susmalı, dönünce devam etmeli.
     document.addEventListener('visibilitychange', () => {
@@ -94,8 +101,11 @@ export function play(sfx: Sfx, intensity = 1): void {
 
   switch (sfx) {
     case 'strike':
-      // Kılıç savrulması (filtreli gürültü) + yere inen darbe (düşen ton).
-      noise(t, 0.35, 1800, 400, 0.5 + 0.4 * intensity)
+      // Kılıç savrulması, zırha inen darbe ve yere inen gövde (düşen ton).
+      if (!sample('swish', t, 0.45 + 0.3 * intensity)) {
+        noise(t, 0.35, 1800, 400, 0.5 + 0.4 * intensity)
+      }
+      sample('plate', t + 0.06, 0.2 + 0.5 * intensity)
       tone(t, 'sine', 140, 45, 0.45, 0.8 * (0.6 + 0.4 * intensity))
       break
     case 'refuse':
@@ -122,7 +132,7 @@ export function play(sfx: Sfx, intensity = 1): void {
     case 'charge':
       // Hamle uyarısı: sert, alçak Bizans borusu + nal gürültüsü.
       tone(t, 'sawtooth', 147, 139, 0.45, 0.22, 700)
-      noise(t, 0.5, 300, 120, 0.35)
+      if (!herd(t, 3, 0.3)) noise(t, 0.5, 300, 120, 0.35)
       break
     case 'horn':
       // Selçuklu borusu: yükselen üç nota — "imparator korumasız".
@@ -131,8 +141,12 @@ export function play(sfx: Sfx, intensity = 1): void {
       horn(t + 0.4, 392, 0.7)
       break
     case 'volley':
-      // Ok yağmuru: kısa, yüksek frekanslı vızıltı; intensity ok sayısını izler.
-      noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
+      // Ok yağmuru: yay kirişi + okların vınlaması; intensity ok sayısını izler.
+      if (sample('bow', t, 0.2 + 0.2 * intensity)) {
+        sample('swish', t + 0.04, 0.1 + 0.15 * intensity, ARROW_RATE)
+      } else {
+        noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
+      }
       break
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.
@@ -147,19 +161,41 @@ export function play(sfx: Sfx, intensity = 1): void {
       // Kol dönen orduya yüklendi: yükselen boru + nal gürültüsü.
       horn(t, 262, 0.2)
       horn(t + 0.16, 392, 0.5)
-      noise(t, 0.9, 380, 140, 0.45)
+      if (!herd(t, 5, 0.4)) noise(t, 0.9, 380, 140, 0.45)
       break
     case 'rockslide':
-      // Kaya yığını: alçak gürleme + ardışık darbeler.
+      // Kaya yığını: alçak gürleme, ardışık darbeler ve taş çatırtısı.
       noise(t, 1.1, 260, 60, 0.55)
       for (let i = 0; i < 4; i++) tone(t + 0.08 + i * 0.13, 'sine', 80 - i * 8, 35, 0.3, 0.5)
+      for (let i = 0; i < 3; i++) sample('rocks', t + 0.05 + i * 0.18, 0.6 - i * 0.15, 1 - i * 0.12)
       break
     case 'rout':
       // Bozgun: düşmanın borusu düşerek susar, nal sesi uzaklaşır.
       tone(t, 'sawtooth', 220, 147, 0.7, 0.16, 800)
-      noise(t + 0.1, 1.3, 420, 110, 0.3)
+      if (!herd(t + 0.1, 5, 0.35, true)) noise(t + 0.1, 1.3, 420, 110, 0.3)
       break
   }
+}
+
+/** @returns false: örnek yok, çağıran sentezle çalsın. */
+function sample(id: SampleId, at: number, volume: number, rate?: number, lowpassHz?: number): boolean {
+  if (!ctx || !master) return false
+  return playSample(ctx, master, id, { at, gain: volume, rate, lowpassHz })
+}
+
+/**
+ * Bir bölük atın nalı: dörtnal adımları birbirinden biraz kayık başlar, her
+ * biri ayrı çeşit ve perde. fading ise bölük uzaklaşır (kısılır, tizi gider).
+ * @returns false: örnek yok, çağıran sentezle çalsın.
+ */
+function herd(start: number, strides: number, volume: number, fading = false): boolean {
+  for (let i = 0; i < strides; i++) {
+    const far = fading ? i / strides : 0
+    const at = start + i * HERD_STEP + Math.random() * 0.06
+    const lowpass = fading ? 2400 - 1800 * far : undefined
+    if (!sample('gallop', at, volume * (1 - 0.8 * far), 1, lowpass)) return false
+  }
+  return true
 }
 
 /** @param dest Verilmezse ana kanal; ortam sesleri kendi kanallarını verir. */
