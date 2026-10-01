@@ -15,7 +15,7 @@ export default defineConfig({
       manifest: {
         name: 'HİLAL',
         short_name: 'HİLAL',
-        description: "Metehan'ın hilal taktiğiyle düşmanı kuşat — 3D taktik oyunu",
+        description: "Metehan, Alp Arslan ve II. Kılıçarslan'ın taktikleriyle 3D taktik oyunu",
         lang: 'tr',
         theme_color: '#1a0a00',
         background_color: '#0d0500',

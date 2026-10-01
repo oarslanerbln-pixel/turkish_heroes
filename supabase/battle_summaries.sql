@@ -19,3 +19,16 @@ create policy "anonim ekleme" on public.battle_summaries
 
 revoke all on public.battle_summaries from anon, authenticated;
 grant insert on public.battle_summaries to anon;
+
+-- Saklama süresi: gizlilik sayfasındaki söz (public/gizlilik.html) "en fazla iki
+-- yıl". Her gece iki yıldan eski satırlar silinir; gecikme en çok bir gündür.
+-- İndeks silmenin ve zamana göre analizlerin tabloyu baştan taramasını önler.
+create extension if not exists pg_cron with schema pg_catalog;
+
+create index battle_summaries_created_at_idx on public.battle_summaries (created_at);
+
+select cron.schedule(
+  'battle-summaries-retention',
+  '17 3 * * *',
+  $$delete from public.battle_summaries where created_at < now() - interval '2 years'$$
+);
