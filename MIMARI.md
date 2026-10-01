@@ -1,0 +1,699 @@
+# HİLAL — Mimari ve Risk Raporu
+
+**Tarih:** 1 Ekim 2026 · **Kapsam:** faz 25 sonu (PR #15, `0fadcaa`; satır numaraları `feeee38` içindir)
+**Yöntem:** Kod dört alanda bağımsız incelendi: simülasyon, görüntü ve kamera, platform, arayüz akışı. Ölçümler alındı, Google Flow ve Meshy için dış araştırma yapıldı. Yüksek önemli her iddia ayrıca kodda doğrulandı; yanlış çıkan iddia düzeltildi (Ek A).
+
+Bu belge yaşayan bir kayıttır: her faz sonunda risk kaydı güncellenir (§9).
+
+---
+
+## 1. Özet
+
+**Genel hüküm: çekirdek sağlam.** Kurallar katmanı (`src/mechanics`) React'ten ve three'den bağımsız, tohumlu ve testli. Zaman tek bir kapıdan (`simDelta`) geçiyor. Kodda tek bir `any` yok. Bu büyüklükteki oyun projelerinin çoğunda bu disiplin bulunmaz.
+
+**Asıl risk dikişlerde.** Sorunlar tek tek dosyalarda değil, katmanların birleştiği yerlerde:
+
+1. **Simülasyon, çizim bileşenlerinin içinde koşuyor.** Yer tutucu modeller GLB ile değiştirilince, model yüklenirken oyun mantığı da duruyor. Modellerden önce çözülmeli.
+2. **Olaylar tipsiz ve tek okuyuculu; kameranın bir yönetmeni yok.** Ok kamerası "hangi ok, nereden, nereye" bilgisine ulaşamıyor. Sinematikten önce çözülmeli.
+3. **Zaman ölçeği tek ve sabit; dörtnal duvar saatiyle işliyor.** Ağır çekim yakın planlarda atlar yerinde kayar.
+4. **Oyun akışı örtük.** Akış dediğim menü, oyun, mola ve sonuç ekranları arasındaki geçişler. "Sinematik" diye bir durum ifade edilemiyor. Klavye kısayolu odaktaki düğmeyi ele geçiriyor.
+5. **Çökme ağı yok.** Tek bir çizim hatası ya da WebGL bağlam kaybı boş ekran demek.
+
+**Bugün düzeltilecek kol hatası:** Simülasyon doğru çalışıyor; sorun görselde ve geri bildirimde. Üstelik kolların tacizi, Metehan'ın okları gibi çiziliyor (§6).
+
+**Önerilen sıra:**
+1. Kol düzeltmesi
+2. Küçük bir sağlamlık paketi
+3. Faz 26 Sinematik, önkoşullarıyla
+4. Faz 27 Modeller, önkoşullarıyla
+
+Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza bağlanıyor. Böylece her faz oyuncunun göreceği bir şeyle kapanıyor.
+
+**Video ve modeller:** Flow videosu mümkün, ama her savaştan önce değil. En iyi yol iki parçalı: her savaşta oyun içi bir açılış çekimi, her bölümde bir kez oynayan stilize bir prolog. Meshy yalnızca ücretli katmanla kullanılabilir; ücretsiz katmanın CC BY lisansı CC0 politikamızla çelişiyor. Kahramanlar ve sahne nesneleri için uygun, kalabalık birlikler için değil (§7).
+
+---
+
+## 2. Mimari harita
+
+### Katmanlar
+
+| Katman | Yer | Görev | React/three? |
+|---|---|---|---|
+| Kurallar | `src/mechanics` | birlik, kol, dalga, geçit kuralları, botlar | hayır (saf) |
+| Dünya | `src/sim` | `world` (tek, değişebilir nesne), senaryolar, ilerleme, skor | hayır |
+| Sahne | `src/components` (R3F) | çizim; şimdilik oyuncu ve düşman adımı da burada | evet |
+| Arayüz | `src/components` (DOM), `hud.css` | HUD, menü, mola, sonuç, bilgi hazinesi | React |
+| Durum | `src/store` | zustand: yalnızca HUD için anlık görüntü | React |
+| Yan sistemler | `audio`, `telemetry`, `perf`, `lore`, `debrief`, `hooks` | ses, rızalı telemetri, kalite kademeleri, arşiv, savaş sonrası değerlendirme, girdi | — |
+
+### Kare döngüsü (useFrame öncelikleri)
+
+```
+0   MetehanPlaceholder   oyuncu hareketi        ← simülasyon (çizim bileşeninde)
+1   EnemySwarm           düşman yapay zekâsı    ← simülasyon (çizim bileşeninde)
+2   GameDirector         kurallar ve olaylar → ses, duyuru, ağır çekim, kamera işareti
+                         sonunda b.events silinir
+3   görseller            AlliedWings, CorpsBanners, DustTrails …
+5   FollowCamera         taktik kamera + açılış ve alacakaranlık çekimi
+6   CameraShake          sarsıntı
+10  EffectComposer       çizim (bloom, noise)
+```
+
+- **Zaman:** `simDelta(delta)` tek kapıdır. Adımı 0,1 sn ile sınırlar, mola ve vuruş donmasında 0, ağır çekimde ×0,3 verir.
+- **Olaylar:**
+  - Kurallar `b.events`'e çıplak dizeler iter (`'charge'`, `'sunset'`, `'wingShockLeft'` …).
+  - `scenarios.ts` bunlardan ses, titreşim, duyuru, `world.slowmo` ve `world.cameraCue` üretir.
+  - Olaylar öncelik 2'nin sonunda silinir; kamera (5) onları göremez, yalnızca tek bir `cameraCue` alanını okur.
+- **Durum akışı:** `world` 0,08 sn'de bir `syncHud` ile zustand'a, oradan DOM'a gider. HUD düğmeleri store eylemlerini çağırır; eylem önce `world`'ü, sonra `set()` ile store'u değiştirir.
+- **Kamera:**
+  - Tek gerçek yazıcı FollowCamera; CameraShake onun üstüne ekler.
+  - fov'u kimse yazmıyor.
+  - `cameraShots.ts` saf ve testli eğriler içeriyor.
+- **Oklar:**
+  - Yalnızca görsel. ArrowVolley içinde 64 yuvalı bir halka havuz var, tek bir InstancedMesh ile çiziliyor.
+  - Uçuş, sim zamanıyla işleyen 0,75 sn'lik bir formül.
+  - Yol bırakış anında bilindiği için bir kamera tek bir oku takip edebilir; bunun için havuzun dışarı açılması yeter.
+
+---
+
+## 3. Kod sağlığı
+
+| Ölçü | Değer | Yorum |
+|---|---|---|
+| Kaynak / test satırı | 10.966 / 2.412 | 20 test dosyası, 175 test geçiyor |
+| Tip kaçağı | 0 `any`, 0 `@ts-ignore`, 0 `!.` | çok iyi |
+| `strict` | TS 6 varsayılanıyla açık, `tsconfig`'de yazılı değil | açıkça yazılmalı (P12) |
+| Determinizm | mantıkta `Math.random` yalnızca tohum için (`world.ts:122`) | iyi; ama tohum kaydedilmiyor (S6) |
+| En büyük dosyalar | `corps.ts` 1026, `debrief.ts` 612, `battleBots.ts` 554, `HilalEnergyHUD.tsx` 426 (13 bileşen), `hud.css` 2158 | `corps.ts` ve HUD bölünmeye aday |
+| Paket (sıkıştırmasız) | three 728 KB · render 244 · react 179 · index 122 · CSS 40 | — |
+| Önbellek (precache) | ~1,9 MB, bunun 292 KB'ı ikon | GLB/video gelince yetmez (P2) |
+| CI | lint + test + build | uygulamayı çalıştırmıyor (P7) |
+| Performans testi | kare başına 100 µs bütçe (`corps.test.ts:239`) | nadir ve değerli |
+
+**Korunacak güçlü yanlar**
+
+- **Kurallar ve test:** saf kurallar katmanı, bot denge testleri ve performans bütçe testi.
+- **Zaman ve durum:**
+  - `simDelta` tek zaman kapısı; mola davranışı testli (`pause.test.ts`).
+  - `initialWorld` tek sıfırlama noktası.
+  - Simülasyon durumu zustand'ın dışında.
+- **Çizim:**
+  - Kare döngülerinde vektör ve matris ayırma yok; geçici nesneler bir kez yaratılıp yeniden kullanılıyor.
+  - Kalite kademeleri ölçümlü: MSAA oturum boyunca sabit, yeniden kurulumlar anahtarlı.
+- **Gizlilik:** rıza varsayılan olarak kapalı ve gönderim anında yeniden kontrol ediliyor. Ortam değişkeni yoksa uzak gönderim hiç çalışmıyor.
+- **Dayanıklılık:**
+  - Her sesin bir sentez yedeği var.
+  - Depolama erişimi try/catch içinde.
+  - Dinleyiciler temizleniyor.
+- **Mobil:** `--safe-*` boşlukları, `100dvh`, `viewport-fit=cover`.
+- **Erişilebilirlik örneği:** `LoreArchive` örnek alınacak bileşen (dialog rolü, ok tuşuyla gezinme, aria-live).
+
+---
+
+## 4. Risk kaydı
+
+Kimliğin harfi alanı gösterir: **S** simülasyon · **G** görüntü/kamera · **P** platform, yayın, veri · **A** arayüz akışı. Her maddenin sonunda önerilen zaman yazar (§8).
+
+| Alan | Yüksek | Orta | Düşük |
+|---|---|---|---|
+| S Simülasyon | 3 | 3 | 3 |
+| G Görüntü/kamera | 1 | 4 | 1 |
+| P Platform | 2 | 4 | 5 |
+| A Arayüz akışı | 2 | 4 | 3 |
+| **Toplam** | **8** | **15** | **12** |
+
+Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
+
+### Yüksek
+
+**S1 · Simülasyon çizim bileşenlerinin içinde; tek Suspense sınırı**
+- Kanıt: `EnemySwarm.tsx:67,72`, `MetehanPlaceholder.tsx:78`, `Scene.tsx:109`
+- Etki:
+  - Sahnede bir şey yüklenirken (ör. GLB model) React bütün sahneyi gizler ve `useFrame` aboneliklerini kaldırır. Oyuncu, düşman ve yönetmen mantığı durur.
+  - Bu, drei `Environment` ile bir kez yaşandı (`Scene.tsx:102-108`).
+  - Yer tutucu bileşen silinirse düşman yapay zekâsı da silinir.
+- Öneri:
+  - `stepGame(world, input, dt)` adında, Suspense'in dışında duran tek bir sürücü; bileşenler yalnızca okuyup çizer.
+  - Her model kendi Suspense'ine sarılsın; yükleme sırasında bugünkü prosedürel mesh görünsün.
+- Zaman: **faz 27 önkoşulu**
+
+**S2 · Olaylar tipsiz, konumsuz, tek okuyuculu**
+- Kanıt: `scenarios.ts:300`, `hilalSystem.ts:338`, `ArrowVolley.tsx:40-62`
+- Etki:
+  - Olay çıplak bir dize; nerede olduğu bilinmiyor.
+  - Öncelik 2'de silindiği için kamera (5) olayları göremiyor.
+  - Ok yağmuru yalnızca telemetride var; kurbanlar bırakış anında, kimlik bırakmadan ölüyor.
+  - Ok havuzu bileşenin içine kapalı.
+  - Ok kamerası bu bilgiler olmadan yapılamaz.
+- Öneri: `world.events` adında tipli bir kuyruk:
+  - Olaylar: `volleyFired{origin, facing, victimIds}`, `arrowReleased{slot, origin, target, t0}`, `charge{corps, pos}`, `rout`, `sunset`, `waveSpawn`.
+  - Kare sonunda temizlenir; kamera, ses ve telemetri ona abone olur.
+- Zaman: **faz 26 önkoşulu**
+
+**S3 · Zaman: ağır çekim aç/kapa, dörtnal duvar saatiyle, HUD sim saatiyle**
+- Kanıt: `world.ts:225`, `EnemySwarm.tsx:91`, `AlliedWings.tsx:154`, `MetehanPlaceholder.tsx:102`, `GameDirector.tsx:235`
+- Etki:
+  - Ağır çekimde gövdeler 0,3× hızla giderken dörtnal 1× sürüyor; atlar yerinde kayıyor. İskeletli modellerde bu çok belirgin olur.
+  - Ağır çekim yumuşakça girip çıkamıyor.
+  - HUD ağır çekimde ~3,75 Hz'e düşüyor; zaman durunca hiç güncellenmiyor.
+- Öneri:
+  - Yönetmenin sahip olduğu, kademeli değiştirilebilen bir `world.timeScale` (ağır çekim, sinematik, donma katmanları).
+  - Sim zamanıyla ilerleyen bir `world.animTime` (dörtnal fazı ve animasyon karıştırıcıları için).
+  - HUD senkronu `realDelta` ile.
+- Zaman: **faz 26 önkoşulu**. AlliedWings kısmı bugünkü düzeltmede.
+
+**G1 · Kamera çekim sistemi bir sinematik yönetmen taşıyamıyor**
+- Kanıt: `FollowCamera.tsx:91-92,121`, `world.ts:18`, `CameraShake.tsx:25-27`, `CorpsBanners.tsx:96`
+- Etki:
+  - Çekim işareti veri taşımayan bir enum. Çekim ortasında yeni bir işaret gelirse eğri baştan başlar ve görüntü sert keser.
+  - Hareketli hedef, fov ve odak için bir yol yok.
+  - Sarsıntı ve her zaman üstte çizilen sancaklar çekimlerden habersiz.
+- Öneri:
+  - FollowCamera yalnızca taktik pozu üretsin.
+  - Üstünde, öncelik 5'te bir `CameraDirector` olsun:
+    - Son çizilen pozdan geçiş yapar.
+    - Hedef fonksiyonlu bir çekim yığını tutar.
+    - fov, yakın soluklaşma, sarsıntı ve `world.cinematic` ağırlığı onundur.
+- Zaman: **faz 26'nın çekirdeği**
+
+**G2 · Kolların tacizi oyuncunun oku olarak çiziliyor**
+- Kanıt: `corps.ts:715`, `ArrowVolley.tsx:59,69-70`
+- Etki:
+  - Oyuncunun ve kolların tacizi tek bir sayıda birleşiyor: `c.harass = byPlayer + wingHarass`. ArrowVolley her oku Metehan'ın konumundan çıkarıyor.
+  - Yalnızca bir kolun taciz ettiği ya da hücum ettiği birliğe oklar Metehan'dan uçuyor, onun menzilinin dışından bile.
+  - Kolun yaptığı iş oyuncuya yazılıyor.
+- Öneri: oyuncunun ve kolların tacizini ayrı tut; her ok akışını gerçek atıcıdan çıkar.
+- Zaman: **bugün (§6)**
+- Durum: **kapandı**, PR #16 (`e5d7ead`).
+
+**P1 · Çökme ağı yok**
+- Kanıt: `App.tsx:3-4`
+- Etki:
+  - Hata sınırı (ErrorBoundary) ve WebGL bağlam kaybı işleyicisi yok.
+  - Şu durumlarda uygulama boş ekrana düşer: telefonda GPU belleği dolunca, sekme uzun süre arka planda kalınca, bir model yüklenemeyince. Oyuncu ne olduğunu anlamaz.
+- Öneri: kökte bir ErrorBoundary, `webglcontextlost`/`restored` dinleyicisi ve "Yeniden yükle" ekranı. İlerleme zaten localStorage'da olduğu için kayıp olmaz.
+- Zaman: **sağlamlık paketi**
+
+**P2 · PWA büyük varlıklara hazır değil**
+- Kanıt: `vite.config.ts:15`
+- Etki:
+  - `.glb` önbellek desenlerinde yok. Eklense bile Workbox 2 MiB'ı aşan dosyaları önbelleğe almaz ve bunu yalnızca derleme çıktısında bir uyarıyla bildirir.
+  - Önbellek "ya hep ya hiç".
+  - Draco ile sıkıştırılmış bir model yüklenirse drei çözücüyü varsayılan olarak gstatic.com'dan indirir. Çevrimdışı oyun bozulur, kullanıcının cihazı Google'a istek atar.
+- Öneri:
+  - GLB ve video için ayrı adlı bir çalışma anı önbelleği (CacheFirst).
+  - `maximumFileSizeToCacheInBytes` ayarı.
+  - Çözücüleri kendimiz barındıralım ya da meshopt kullanalım.
+  - CI'da boyut bütçesi.
+- Zaman: **faz 27 önkoşulu**
+
+**A1 · Enter/Space odaktaki düğmeyi ele geçiriyor**
+- Kanıt: `useStrikeInput.ts:48-62` (`preventDefault()` koşulsuz çağrılıyor)
+- Etki:
+  - Klavyeyle BİLGİ HAZİNESİ'ne Enter'a basınca savaş başlıyor.
+  - Mola ve sonuç ekranında odak YENİDEN BAŞLA, KOMUTANLAR ya da rıza EVET/HAYIR'da olsa bile Enter "devam" veya "yeniden"i çalıştırıyor.
+  - İleride eklenecek "Atla" düğmesi de yutulur.
+- Öneri: aktif oyun dışında, odak bir düğme, bağlantı ya da girdi alanındaysa kısayolu hiç işleme.
+- Zaman: **sağlamlık paketi**
+
+**A2 · Oyun akışı örtük**
+- Kanıt: `world.ts:211-213`, `Scene.tsx:58,82`
+- Etki:
+  - `started`, `paused` ve `outcome` hem `world`'de hem store'da tutuluyor; 13 dosyada 20'den fazla yerde ayrı ayrı kontrol ediliyor.
+  - Bunların hiçbir birleşimi "sinematik" durumu ifade edemiyor: çizim açık, sim ölçekli, girdi kilitli, HUD gizli, ama molaya alınabilir.
+  - Bitiş çekimi `outcome` değiştiği anda donar.
+- Öneri:
+  - Store'un sahip olduğu bir `mode`: menu · intro · playing · paused · cinematic · outcome.
+  - Durumlar arası geçişler korumalı olsun.
+  - frameloop, girdi ve HUD görünürlüğü bu moddan türetilsin.
+- Zaman: **faz 26 önkoşulu**
+
+### Orta
+
+**S4 · Botlar oyundan farklı bir döngüde oynuyor**
+- Kanıt: `battleBots.ts:181,192` ↔ `GameDirector.tsx:154`
+- Etki: vuruştan sonraki 0,9 sn'lik enerji donması botlarda yok; denge, gerçeğinden daha kolay bir oyunda ayarlanıyor.
+- Öneri: S1'deki `stepGame`'i botlar da kullansın.
+- Zaman: faz 27
+
+**S5 · Yapıştırıcı kod testsiz**
+- Testsiz parçalar:
+  - `scenarios.ts` dalga geçişi
+  - olaydan ağır çekime, kameraya ve ipucuna giden yol
+  - `victoryBonus`
+  - `simDelta`'nın tavanı ve ölçeği
+  - duyuru kuyruğu
+  - kol emri reddi
+  - ilerleme verisi göçü
+- Öneri: her faz, dokunduğu yapıştırıcı koda test eklesin.
+- Zaman: sürekli
+
+**S6 · Savaşlar yeniden üretilemiyor**
+- Etki: tohum kaydedilmiyor, adım (`dt`) değişken. Tekrar oynatma, hata ayıklama ve "o anı yeniden göster" fikirleri buna bağlı.
+- Öneri: tohumu savaş özetine yaz; ileride sabit adımlı simülasyon.
+- Zaman: faz 26-27
+
+**G3 · Efekt zinciri prop'larla sürülürse bellek sızdırır**
+- Kanıt: `Scene.tsx:158`, `quality.ts:79-80`
+- Etki:
+  - @react-three/postprocessing, kamera değişince bütün efekt zincirini, odak prop'u değişince DepthOfField'ı yeniden kuruyor ve eskisini temizlemiyor.
+  - Çekim başladığı anda bellek sızar ve gölgelendirici derlemesi takılma yaratır.
+- Öneri:
+  - Tek kamera kullan.
+  - Efektler kademe başına bir kez kurulsun ve ref ile canlandırılsın.
+  - Çekim sırasında kalite kademesi değişmesin.
+  - Letterbox DOM'da çizilsin.
+- Zaman: faz 26
+
+**G4 · Örnek sayısı yönetimi `setMorphAt`'i bozar**
+- Kanıt: `EnemySwarm.tsx:88-90,113-116`
+- Etki:
+  - three, morf dokusunu ilk çağrıdaki `count`'a göre boyutlar. Oyun 16 atlıyla başladığı için sonraki 38-41 atlılık dalgalar dokunun dışına taşar.
+  - Ölü atlılar ölçek 0 ile hâlâ çiziliyor.
+- Öneri: kapasite kadar yer ayır, canlıları başa topla, `count`'u düşür.
+- Zaman: faz 27
+
+**G5 · Düşük kademe hâlâ gölge ve efekt zinciri maliyeti ödüyor**
+- Kanıt: `Scene.tsx:80,158`, `quality.ts:32`, `DayCycle.tsx:156`
+- Etki:
+  - Her birim gölge için iki kez çiziliyor; yarım-float efekt zinciri açık.
+  - `shadows` bayrağı, three r185'te kullanımdan kaldırılan PCFSoftShadowMap'i seçiyor. Konsoldaki uyarıyla doğrulandı.
+- Öneri:
+  - Düşük kademede damga (blob) gölge kullan ve efekt zincirini atla.
+  - Gölge tipini açıkça seç.
+- Zaman: faz 27
+
+**G6 · Sancak ve toz kameradan bir kare geride dönüyor**
+- Kanıt: `CorpsBanners.tsx:55`, `DustTrails.tsx:203`
+- Etki: öncelik 3'te kameranın (öncelik 5) bir önceki karedeki yönünü kopyalıyorlar. Kamera açısı bugün sabit olduğu için fark edilmiyor; dönen bir çekimde titrer.
+- Öneri: öncelik 7'ye taşı ya da köşe gölgelendiricisinde hesapla.
+- Zaman: faz 26
+
+**P3 · Üretime yayın elle yapılıyor**
+- Etki:
+  - Production Branch Tracking kapalı.
+  - Promote unutulabilir ve CI kapısından geçmiyor.
+- Not: ilk iddia "promote edilen önizleme telemetrisiz yayınlanır" idi. Yanlış çıktı: promote, üretim değişkenleriyle yeniden derliyor; canlı pakette doğrulandı.
+- Öneri: Vercel panelinde Production Branch Tracking'i aç.
+- Zaman: **senin işin**
+
+**P4 · Servis çalışanı güncellemesi**
+- Kanıt: `vite.config.ts:9` (`autoUpdate` + `skipWaiting` + `clientsClaim`)
+- Etki:
+  - Kurulu PWA uykudan dönünce güncelleme olup olmadığına bakmıyor.
+  - Tembel yüklenen, adı hash'li GLB'ler servis çalışanı değiştikten sonra 404 verebilir.
+- Öneri: `virtual:pwa-register` kullan; sayfa görünür olunca `update()` çağır; güncellemeyi menüdeyken uygula.
+- Zaman: faz 27
+
+**P5 · Ses, iOS kesintisinden sonra geri gelmiyor**
+- Kanıt: `sfx.ts:76-80,99`, `gameStore.ts:168,238-241`
+- Etki:
+  - Moladan sonra `ctx.resume()` bir kullanıcı dokunuşunun dışında çağrılıyor.
+  - iOS bunu reddederse savaş sessiz kalır, çünkü DEVAM ve YENİDEN düğmeleri `unlockAudio()` çağırmıyor.
+  - `new AudioContext()` try/catch'siz; BAŞLA düğmesi hata verebilir.
+- Öneri:
+  - resume, restart ve playCommander'da `unlockAudio()` çağır.
+  - `new AudioContext()` çağrısını try/catch içine al.
+- Zaman: sağlamlık paketi
+
+**P6 · Telemetri boşlukları; gizlilik metni kodla uyuşmuyor**
+- Kanıt: `GameDirector.tsx:94`, `track.ts:58-61,71`, `public/gizlilik.html`
+- Etki:
+  - Rıza savaş bittikten sonra soruluyor, bu yüzden ilk savaş hiç gelmiyor.
+  - Yarıda bırakılan savaşlar yalnızca yerelde kalıyor.
+  - Gizlilik metni iki yerde kodla uyuşmuyor:
+    - "Rıza verdiğin savaşın özeti gönderilir" diyor; o savaş gönderilmiyor.
+    - "Oturum kodu cihazında saklanmaz" diyor; kod, son 40 savaş özetiyle birlikte yerel günlükte saklanıyor.
+- Öneri: önce metni kodla eşitle, çünkü metnin doğru olması KVKK açısından da önemli. Kod değişikliği gerekirse sonra.
+- Zaman: **sağlamlık paketi, öncelikli**
+- Durum: **kapandı** (1 Ekim 2026).
+  - Sonuç ekranında verilen EVET, ekrandaki savaşı da gönderiyor. İlk savaşta EVET denirse attempt=1 artık geliyor.
+  - Daha önce cevapsız biten savaşlar bilerek gönderilmiyor, çünkü metin "o savaşın" diyor.
+  - Geçen açılışta yarıda kalan savaş, rıza zaten varsa açılışta gidiyor.
+  - Gizlilik metninde oturum kodu ve yarıda bırakma cümleleri kodla eşitlendi.
+  - Testler: `remote.test.ts`.
+
+**P7 · CI uygulamayı hiç çalıştırmıyor**
+- Kanıt: `.github/workflows/ci.yml`
+- Etki:
+  - Duman testi yok: uygulamayı açıp BAŞLA'ya basan, 5 sn oynayıp konsolda hata olmadığına bakan bir test.
+  - Paket boyutu için bir bütçe yok.
+  - Ana dalda `cancel-in-progress` açık.
+  - `permissions:` bloğu yok.
+- Öneri: Playwright ile duman testi ve paket bütçesi. Playwright yeni bir bağımlılık; senin onayınla.
+- Zaman: sağlamlık paketi
+
+**A3 · Menüde bayat bir kare kalıyor**
+- Kanıt: `Scene.tsx:45`; kodda tek bir `invalidate()` var.
+- Etki:
+  - KOMUTANLAR'a dönünce arkada bitmiş savaşın son karesi donuk kalıyor.
+  - SAVAŞA GİR'e basınca görüntü sert kesiyor; bu, `FollowCamera.tsx:101-103`'teki "kesme yok" niyetine aykırı.
+- Doğrulama: kodda doğrulandı, ekranda değil.
+- Öneri: her akış geçişinde `invalidate()` çağır; A2 bunu kendiliğinden çözer.
+- Zaman: sağlamlık paketi
+
+**A4 · Kamera ve görseller için sıfırlama sinyali yok**
+- Kanıt: `FollowCamera.tsx:65,100-105`
+- Etki: çekimler yalnızca savaş başlamadan önce temizleniyor. Alacakaranlık çekimi sürerken YENİDEN'e basılırsa çekim yeni savaşta devam eder.
+- Öneri: `resetWorld`'de artan bir `world.generation` sayacı; değeri değişince kamera ve sinematikler sıfırlansın.
+- Zaman: faz 26
+
+**A5 · "Hareketi azalt" tercihi yarım uygulanıyor**
+- Kanıt: `hud.css:458,2154-2157`, `CameraShake.tsx:25`
+- Etki:
+  - 18 CSS animasyonunun 7'si bu tercihin kapsamı dışında.
+  - TypeScript tarafı tercihi hiç okumuyor.
+  - Afişler molada ve ağır çekimde oynamaya devam ediyor.
+- Öneri: store'da bir `reducedMotion` bayrağı; sarsıntı, sinematik ve CSS onu okusun.
+- Zaman: faz 26; sinematik kuralı olarak
+
+**A6 · Hata ayıklama anahtarları üretimde açık**
+- Kanıt: `Scene.tsx:35`, `scenario.ts:83`, `progress.ts:88`, `remote.ts:81`
+- Etki:
+  - `?tune` dengeyi değiştiriyor.
+  - `?commander=` kilidi atlıyor. O yolla alınan herhangi bir skor komutanı kalıcı olarak açıyor.
+  - Gönderilen özetlerde "ayarlı oyun" bayrağı yok.
+- Öneri: bu anahtarları DEV ya da oyun-testi derleme bayrağıyla sınırla; ayarlı oyunlarda kayıt ve gönderim yapılmasın.
+- Zaman: sağlamlık paketi
+
+### Düşük
+
+**Simülasyon**
+- **S7 · İlerleme verisi doğrulanmıyor** (`progress.ts:33`). Bozuk bir localStorage değeri (ör. NaN can) kaybedilemeyen bir oyun yaratır.
+- **S8 · Gereksiz ayırma ve yeniden çizim**
+  - Simülasyonda her karede yeni dizi ayrılıyor (`enemySim.ts:207`, `corps.ts:944`).
+  - `wingOrders` her senkronda yeni bir dizi; kol düğmeleri saniyede 12,5 kez yeniden çiziliyor (`GameDirector.tsx:261`, `HilalEnergyHUD.tsx:288`).
+  - Öneri: `useShallow` ya da ilkel değerler.
+- **S9 · Vuruş basışları kayboluyor** (`GameDirector.tsx:154,221`). Vuruştan sonraki 0,9 sn içindeki basışlar sessizce düşüyor; basışları kısa süre tutan bir tampon daha iyi hissettirir.
+
+**Görüntü**
+- **G7 · GPU kaynakları tutarsız temizleniyor** (`ArrowVolley.tsx:37-39`, `ChargeWarnings.tsx:35-46`, `world/Grass.tsx:36-37`). `useMemo` ile yaratılan kaynaklar, komutan ya da kalite kademesi değişince sızıyor. Öneri: ortak bir `useDisposable` kancası.
+
+**Platform**
+- **P8 · Sessizde ses bağlamı çalışmaya devam ediyor** (`ambience.ts:102-113`). Sessize alınca bağlam askıya alınmıyor; ambiyans osilatörleri ve zamanlayıcı sürekli çalışıp pil harcıyor.
+- **P9 · Koruma eksikleri.** Güvenlik başlıkları ve CSP yok (`vercel.json` yok). Anonim kayıt eklemenin hız sınırı yok; tablo istenmeyen kayıtlarla doldurulabilir.
+- **P10 · Sürüm aralıkları geniş.** react `^19.2.7` ama fiber `<19.3` istiyor; postprocessing three `<0.186` istiyor. Öneri: react için `~19.2`, three'yi sabitle.
+- **P11 · Supabase listeleri istemciyle eşleştirilmiyor.** Supabase'deki komutan ve sonuç listeleriyle istemci kimlikleri arasında bir test yok. Öneri: SQL'i `?raw` ile okuyan bir test (CREDITS testi gibi).
+- **P12 · `strict` örtük.** TS 6 varsayılanına dayanıyor; `tsconfig.json`'a açıkça yaz.
+
+**Arayüz**
+- **A7 · Diyalog semantiği yok.** Mola ve sonuç katmanlarında `role="dialog"`, `aria-modal` ve arka plan için `inert` yok. ZAFER/YENİLGİ ekran okuyucuya duyurulmuyor.
+- **A8 · Dokunma hedefleri 44 px'in altında.**
+  - Rıza anahtarı ~16-18 px
+  - EVET/HAYIR ~24 px
+  - Mola ve ses düğmeleri 40 px
+  - Arşivi kapat düğmesi 36 px
+- **A9 · Tek dosyada her ekran.** `HilalEnergyHUD.tsx` (13 bileşen) ve `hud.css` (2158 satır, z-index ölçeği yok) bütün ekranları taşıyor. Öneri: ekran başına böl.
+
+---
+
+## 5. Sistem ve mantık analizi
+
+### Bağımlılık haritası: sıradaki işler nelere basıyor
+
+```
+Ok kamerası
+  ├─ G1 kamera yönetmeni
+  ├─ S2 olay kuyruğu (okun bırakılma olayı)
+  └─ S3 zaman ölçeği (yumuşak ağır çekim) ─► A2 akış modu ("sinematik")
+
+Savaş açılış çekimi
+  └─ G1 + A2 + A5 (atlama, hareketi azalt)
+
+GLB modeller
+  ├─ S1 stepGame + bölünmüş Suspense ─► P1 hata sınırı ─► P2 varlık önbelleği ─► P4 güncelleme
+  └─ S3 animTime (ayak kayması) ─► G4 morf kapasitesi ─► G5 gölge bütçesi
+
+Flow videosu
+  └─ P2 (önbelleğe alınmadan akış) + A2 ("intro" modu) + A1 ("Atla" düğmesi)
+```
+
+Bu yüzden önkoşullar ayrı bir fazda değil, onları ilk kullanacak fazın başında.
+
+### Oyun mantığı gözlemleri
+
+- **Kol kuralları tutarlı ama oyuncuya görünmüyor.**
+  - Açık alanda gündüz, ilerleyen bir birliğe yapılan hücum yalnızca taciz eder, yani düzenini düşürür. Sabitleme, şok ya da olay yok.
+  - Şok yalnızca şu durumlarda var (`shockable`, `corps.ts:705-708`):
+    - açık alanda, gün battıktan sonra ilerlemeyen (dönen, çekilen) bir birliğe;
+    - geçitte, sıkışmış bir sütuna.
+  - Bu iyi bir taktik derinlik, ama oyuncuya hiçbir şey söylenmiyor. Görsel de durağan olunca "hücum çalışmıyor" algısı doğuyor. Bildirdiğin hatanın yarısı bu.
+- **Taciz tek bir sayıda birleşiyor** (G2). "Kim ne yaptı" bilgisi sahnede kayboluyor.
+- **Denge biraz iyimser olabilir** (S4). Botlar vuruş sonrası donmayı yaşamıyor.
+- **Zaman katmanları doğru yerde ama kaba** (S3). Mola, vuruş donması ve ağır çekimin tek fonksiyonda toplanması iyi; ama katsayı sabit ve animasyon saatleri bu kapının dışında.
+- **Akış durumu iki yerde** (A2). `world` ve store'da ayrı kopyalar var. Bugün tutarsızlık riski düşük, ama her yeni mod (sinematik) iki yere yazılmak zorunda.
+
+---
+
+## 6. Kol hücumu hatası: kök neden ve düzeltme
+
+**Durum:** düzeltme PR #16 ile birleşti (`e5d7ead`).
+
+**Belirti (senin sözlerinle):** "Ek birlikler hücum deyince sadece yanına gelip bekliyor düşmanın; animasyonda bir hareket yok."
+
+Alp Arslan'da ve diğer bölümlerde aynı görünüyor, çünkü hepsi aynı bileşeni (`AlliedWings.tsx`) kullanıyor.
+
+**Simülasyon doğru çalışıyor:**
+1. Hücum emri kolu hedef birliğin yanına götürüyor.
+2. Kol varınca taciz uyguluyor; koşul sağlanırsa birliği sabitliyor.
+3. İlk temasta, koşul sağlanırsa birliği sarsıyor (şok).
+4. Kol yoruldukça gücü düşüyor; en alta inince kendiliğinden pusuya dönüyor.
+
+**Kök neden dört katmanlı:**
+
+1. **Görsel durağan.**
+   - Hücum yuvaları hedefe bakan bir hilal. Kol varınca yuvalar sabitleniyor ve atlıların hızı 0'a iniyor.
+   - Dörtnal salınımı hıza bağlı olduğu için o da duruyor.
+   - Temas boyunca ne hareket var, ne ses, ne efekt.
+2. **Oklar yanlış yerden çıkıyor** (G2). Kolun tacizi, Metehan'dan çıkan oklar olarak çiziliyor.
+3. **Kural görünmüyor.** Gündüz ilerleyen birliğe hücum yalnızca taciz eder, ama bunu söyleyen bir ipucu yok.
+4. **Ağır çekimde kayma var** (S3). İlk hücum emri ağır çekimi açıyor, ama dörtnal duvar saatiyle sürüyor; atlar yerinde koşuyormuş gibi görünüyor.
+
+**Düzeltme planı (simülasyona dokunulmuyor):**
+
+| # | Ne | Nerede | Bugün |
+|---|---|---|---|
+| 1 | Temas dalgası: atlılar sırayla hedefe dalıp geri çekilir. Hareketin büyüklüğü kolun gücüne ve hedefe ne kadar vardığına bağlı (`presence × strength`): taze kol derin dalar, yorgun kol sığ. | `AlliedWings.tsx` | ✔ |
+| 2 | Geri çekilirken atlılar hedefe bakmaya devam eder; 180° dönüp kaçmazlar. | `AlliedWings.tsx` | ✔ |
+| 3 | Dörtnal temas boyunca sürer; fazı sim zamanıyla işler, ağır çekime uyar. | `AlliedWings.tsx` | ✔ |
+| 4 | Oklar gerçek atıcıdan çıkar: kolun tacizi kolun konumundan. | `ArrowVolley.tsx` | ✔ |
+| 5 | Temas sesi: seyrek, kısık çelik şakırtısı. | `sfx.ts` | isteğe bağlı |
+| 6 | Gündüz ilerleyen birliğe hücumda tek seferlik bir ipucu. | `scenarios.ts` | isteğe bağlı |
+
+**Ortaya çıkan görsel dil:** dalıp çekilen, ok atarak baskı kuran atlılar. Bu, Türk atlı okçusunun bilinen vur-kaç savaşına uyuyor.
+
+---
+
+## 7. Sinematik yön: profesyonel değerlendirme
+
+### 7.1 Google Flow ile savaş öncesi video
+
+**Bilinenler** (Ekim 2026 araştırması; fiyatlar ve kurallar değişebilir):
+- **Klip uzunluğu:** Veo 3.1 Lite/Fast/Quality sırasıyla 4, 6 ve 8 sn; Gemini Omni Flash ile 10 sn'ye kadar. Ses her zaman üretiliyor.
+- **Çözünürlük:** doğal 720p. Abonelere 1080p'ye büyütme var; 4K yalnızca Ultra'da.
+- **Planlar:**
+  - Ücretsiz: günde 50 kredi
+  - Pro: ayda ~19,99 $ (1000 kredi)
+  - Ultra: 100-200 $
+- **Ticari kullanım:** Google yalnızca "sahiplik iddia etmeyiz" diyor; açık bir lisans yok.
+- **İçerik politikası:** şiddeti kısıtlıyor, sanatsal istisnalar var. Savaş sahnesi istekleri reddedilebilir.
+- **İşaretleme:**
+  - Her karede silinemez bir SynthID filigranı ve C2PA üstverisi var.
+  - Görünür filigran için bir ayar var; ücretsiz katmandaki varsayılanı doğrulanamadı.
+- **Çıktı:** MP4, büyük olasılıkla H.264/AAC ve 24 kare/sn.
+
+**Oyun taşır mı? Evet, şu koşullarla:**
+- **Boyut:**
+  - 10 sn'lik 720p bir klip, ffmpeg ile yeniden sıkıştırılınca tahminen ~2-4 MB tutar. Bugünkü önbelleğin tamamı 1,9 MB.
+  - Bu yüzden video önbelleğe alınmamalı: ağdan akmalı, ilk izlemede çalışma anı önbelleğine girmeli.
+- **Mobilde oynatma:** `muted playsinline` ile otomatik oynar. Sesli oynatmak için `play()`, BAŞLA dokunuşunun içinde çağrılmalı; bu bir iOS kuralı.
+- **Oynatma kuralları:**
+  - Her bölümde yalnızca ilk girişte oynar.
+  - Dokununca atlanır.
+  - Ağ yoksa sessizce geçilir.
+  - İlk kare poster olarak hemen görünür.
+- **Yükleme süresini gizler:** video oynarken sahne arkada hazırlanır.
+
+**Profesyonel riskler:**
+1. **Kalite uçurumu.** Fotogerçek bir videodan alçak poligonlu sahneye geçiş, oyunu kıyasla ucuz gösterebilir. Çare iki adımlı:
+   - Videoyu stilize üret: minyatür, mürekkep, gün batımında silüet.
+   - Son kareyi oyun kamerasının ilk karesiyle eşle ve yumuşak geçiş yap.
+2. **Tarihsel tutarsızlık.** YZ videoları zırh, sancak ve koşum ayrıntılarını karıştırır (Selçuklu yerine Osmanlı yeniçerisi gibi). Dikkatli istem yazmak ve sonuçları elemek gerekir.
+3. **Tutarlılık.** Aynı kahraman farklı kliplerde aynı görünmez.
+4. **Lisans belirsizliği.** CC0 politikamızın yanında zayıf bir zemin. Steam gibi mağazalar YZ kullanımının beyan edilmesini istiyor.
+5. **Şiddet politikası.** Savaş anı yerine savaştan önceki anı çek: şafakta sırtta bekleyen ordu, rüzgârda sancak, atların nefesi. Hem politikaya uygun, hem daha sinematik.
+
+**Seçenekler:**
+
+| Seçenek | Ek boyut | Tutarlılık | Ne zaman |
+|---|---|---|---|
+| **A. Oyun içi açılış çekimi** | 0 | tam: gerçek saha, gerçek birlikler | her savaşta (faz 26) |
+| **B. Flow prolog videosu** | ~2-4 MB / bölüm | orta: stil uçurumu var | bölüm başına bir kez |
+| **C. Minyatür üslubunda prolog** | birkaç yüz KB (katmanlı WebP) | yüksek: bilinçli bir üslup | bölüm başına bir kez |
+
+**Önerim:**
+- **Her savaşın başında A.**
+  - 4-6 sn'lik bir uçuş sahayı tanıtır.
+  - Ekranın üstü ve altı sinema şeridiyle kapanır (letterbox); bir tarih kartı çıkar: "Malazgirt · 26 Ağustos 1071".
+  - Dokununca atlanır.
+- **Bölüm prologu için C.**
+  - Kültürel kimliği en güçlü, en hafif ve stil uçurumu olmayan yol.
+  - Anadolu Selçuklu dönemi resimli el yazmaları üslup referansı olabilir; örneğin 13. yüzyıldan *Varka ve Gülşah*.
+- **Flow'u seviyorsan, B'yi tek bir bölümle dene.** Telefonda 720p kalitesine, dosya boyutuna ve lisans konusunda içinin rahat olup olmadığına bakıp karar veririz.
+- **İş bölümü:** videoyu sen üretirsin; oynatıcıyı, önbellek stratejisini ve atlama katmanını ben kurarım.
+
+### 7.2 Meshy AI ile 3D modeller
+
+**Bilinenler:**
+- **Dışa aktarma:** GLB/FBX/USDZ, 2K-8K PBR dokular.
+- **Üçgen sayısı:**
+  - Yeniden ağlama 100-300k aralığında, varsayılan 30k.
+  - Smart Topology 100-15k aralığında.
+  - Mobil için önerilen sınır 10k'nın altı.
+- **İskelet:**
+  - İnsansı iskelet var.
+  - Dört ayaklı için yalnızca "köpek" iskeleti ve yürüme döngüsü var, dörtnal yok.
+  - API yalnızca insansı iskelet kuruyor.
+- **Lisans:**
+  - Ücretsiz katman CC BY 4.0: modeller herkese açık ve atıf zorunlu. **CC0 politikamızla çelişiyor.**
+  - Ücretli katmanda varlıklar özel ve tamamen senin.
+- **Fiyat:**
+  - Pro 20 $ = 1000 kredi; dokulu model başına ~0,60 $.
+  - API, Pro ve üstünde.
+
+**Oyun taşır mı?**
+- **Kahramanlar** (Metehan, Alp Arslan, Kılıçarslan): evet.
+  - Sahnede birer tane olduklarından 10-15k üçgen ve 1K doku sorun değil.
+  - İnsansı iskelete hazır animasyonlar uygulanabilir.
+- **Sahne nesneleri** (otağ, sancak, kaya, kuşatma aracı): evet, en verimli kullanım. Durağanlar ve sayıları az.
+- **Kalabalık birlikler** (40'tan fazla atlı): Meshy'den doğrudan olmaz.
+  - 10k üçgen × 100 örnek = 1M üçgen; telefon için fazla.
+  - Birim başına en çok ~1,5k üçgen ve ortak bir doku atlası gerekir.
+  - Animasyon için iki yol var: bugünkü gibi prosedürel gövde salınımı ya da dokuya pişirilmiş dörtnal. three'de iskeletli örnekleme hazır gelmiyor ve pahalı.
+- **Doku belleği:**
+  - 2K bir doku sıkıştırmasız ~22 MB GPU belleği tutar (mipmap'lerle). Bir PBR seti (renk, normal, ORM) ~67 MB eder.
+  - Bu yüzden KTX2/Basis sıkıştırma zorunlu.
+  - Doku boyutu: kahramanlarda 1K, kalabalıkta 512 ya da atlas.
+- **At animasyonu:** Meshy dörtnal yapmıyor. Üç seçenek var:
+  - prosedürel animasyon (bugünkü yol, ucuz);
+  - dörtnal animasyonlu bir CC0 at modeli (lisansını ve animasyonunu indirmeden önce doğrulamak gerek);
+  - Blender'da elle animasyon.
+- **Üslup tutarlılığı:** her model başka bir elden çıkmış gibi görünebilir. Bir üslup rehberi (palet, poligon dili, ışık) ve aynı referans görseller gerekir; yoksa ortaya bir varlık salatası çıkar.
+
+**Üretim hattı:**
+1. Meshy (ücretli katman)
+2. Blender: poligon azaltma, pivot ve ölçek, malzemeleri birleştirme
+3. `gltf-transform`: meshopt + KTX2, gereksiz verinin atılması
+4. `public/models/*.glb`
+5. Çalışma anı önbelleği (P2)
+6. Her model ayrı bir Suspense içinde, yüklenirken prosedürel yedek görünür (S1)
+
+**Bütçe önerisi:**
+
+| Varlık | Üçgen | Dosya |
+|---|---|---|
+| Kahraman | en çok 15k | en çok 1,5 MB |
+| Sahne nesnesi | en çok 3k | — |
+| Kalabalık birimi | en çok 1,5k | — |
+| Tüm modeller | — | en çok ~6 MB |
+
+CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılmalı.
+
+**Önerim:** Faz 27'de, önkoşullar bittikten sonra tek bir pilotla başla: **atlı Alp Arslan**.
+1. Telefonunda FPS'i, dosya boyutunu ve görünümü ölçeriz.
+2. Beğenirsen sahne nesnelerine geçeriz.
+3. Kalabalık birlikler en sona kalır.
+
+### 7.3 Daha yaratıcı fikirler
+
+| Fikir | Ne yapar | Ne gerekir | Maliyet → etki |
+|---|---|---|---|
+| **Ok kamerası** (planlı) | Önemli bir atışta kamera oka atılır, uçarken etrafında döner, vuruşta ağır çekimde biter. | S2 + G1 + S3 | orta → çok yüksek |
+| **Ağır çekim ses tasarımı** | Ağır çekime girerken alçak geçiren süzgeç, perde düşüşü, nefes ve kalp atışı. `sfx.ts`'teki `sample(…, lowpassHz)` zaten hazır. | — | çok düşük → yüksek |
+| **Karar anı tekrarı** | Sonuç ekranından önce savaşı kazandıran 4 sn, başka bir açıdan ve ağır çekimde. | Tam deterministik simülasyon gerekmez: son ~6 sn'deki birim konumlarını halka bir bellekte tutmak yeter (~48 birim × 30 Hz × 6 sn ≈ 100 KB). | orta → yüksek |
+| **Renk derecelendirme** | Savaş başına bir LUT (Malazgirt: sıcak toz; Miryokefalon: soğuk dağ geçidi), hafif vinyet ve film greni. | Yalnızca yüksek kademede; G3'e dikkat. | düşük → orta |
+| **Bölüm kartı ve anlatıcı** | Letterbox, hat süslemeli bir tarih kartı ve tek cümlelik Türkçe anlatım. Güçlü bir açılış motifi: kroniklere göre Alp Arslan, Malazgirt'ten önce beyazlar giyip "şehit düşersem kefenim olsun" demiş. | — | düşük → yüksek |
+| **Fotoğraf modu** | Molada serbest kamera ve filtre; paylaşılabilir kareler. PAZARLAMA.md ile örtüşüyor. | G1'den sonra ucuz | düşük → orta |
+
+---
+
+## 8. Yol haritası
+
+**0. ~~Şimdi: kol hücumu düzeltmesi~~** (§6). Yapıldı: PR #16.
+
+**1. Sağlamlık paketi.** Oyuncuya doğrudan dokunan düzeltmeler, tek ve küçük bir PR:
+1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
+2. A1 klavye kısayolu
+3. P1 hata sınırı ve WebGL bağlam kaybı
+4. P5 ses kilidi
+5. A6 hata ayıklama anahtarları
+6. A3 menüdeki bayat kare
+7. P7 CI duman testi (yeni bağımlılık; senin onayınla)
+
+**2. Faz 26 — Sinematik.**
+- Önce önkoşullar:
+  - S2 olay kuyruğu
+  - A2 akış modu
+  - S3 zaman ölçeği
+  - A4 nesil sayacı
+  - A5 hareketi azalt
+  - G6 sancak sırası
+- Sonra sırasıyla:
+  1. G1 kamera yönetmeni
+  2. Ok kamerası
+  3. Savaş açılış çekimi, letterbox ve atlama
+  4. Ağır çekim sesi
+  5. Renk derecelendirme (yüksek kademe)
+
+**3. Faz 27 — Modeller.**
+- Önce önkoşullar:
+  - S1 `stepGame` ve bölünmüş Suspense
+  - S4 botların oyunla aynı döngüyü kullanması
+  - P2 varlık önbelleği
+  - P4 servis çalışanı güncellemesi
+  - G4 morf kapasitesi
+  - G5 gölge bütçesi
+- Sonra sırasıyla:
+  1. Pilot model (atlı Alp Arslan)
+  2. Sahne nesneleri
+  3. Kalabalık birlikler
+
+**Sürekli:** S5 yapıştırıcı testleri, S6 tohum kaydı ve fırsat buldukça düşük önemli maddeler.
+
+**Senin tarafında:**
+- Vercel'de Production Branch Tracking'i açmak (P3)
+- Supabase'de kayıt eklemeye hız sınırı (P9)
+- Flow ile tek bir deneme klibi
+- Meshy ücretli katman kararı
+
+PLAN.md'deki faz 25 satırı faz 26'yı "modeller" diye anıyor. Bu sırayı kabul edersen numaraları ben güncellerim.
+
+---
+
+## 9. Faz sonu denetim disiplini
+
+Bir faz kapanmadan önce:
+
+- [ ] `tsc --noEmit` · `oxlint` · `vitest run` · `vite build` — hepsi yeşil
+- [ ] Paket ve önbellek boyutu bütçe içinde (P7'den sonra CI denetler)
+- [ ] Değişen kod `/simplify` ile gözden geçirildi
+- [ ] Bu dosyadaki risk kaydı güncellendi: kapananlar işaretlendi, yeniler eklendi
+- [ ] Gerçek telefonda 10 dakika oynandı: dokunma, ses, ısınma, FPS
+- [ ] Yayın: birleştir → promote → canlı pakette yeni kod doğrulandı
+- [ ] PLAN.md'de faz kapatıldı
+
+Bu liste bir proje becerisine (skill) dönüştürülebilir. O zaman aynı denetim her faz sonunda tek komutla çalışır.
+
+---
+
+## Ek A — Doğrulama notları
+
+- **İnceleme:** dört bağımsız alan incelemesi ve Flow/Meshy araştırması yapıldı. Ölçümler ve yüksek önemli iddialar ayrıca kodda doğrulandı.
+- **Düzeltilen iddia:** platform incelemesinin "promote edilen önizleme telemetrisiz yayınlanır" iddiası (yüksek önem) yanlış çıktı.
+  - Canlı pakette `battle_summaries` ve `supabase.co` bulunuyor; promote, üretim değişkenleriyle yeniden derliyor.
+  - Bu yüzden orta önemli bir süreç riskine indirildi (P3).
+- **Yalnızca kodla doğrulananlar:**
+  - A3 (bayat kare) ekran görüntüsüyle doğrulanmadı.
+  - P5 (iOS sesi) gerçek cihazda gözlenmedi.
+- **Ölçülmeyenler:** gerçek cihazda FPS, GPU belleği, ısınma.
+- **Araştırma rakamları:** fiyat, kredi ve süreler Ekim 2026 itibarıyla. Satın almadan önce yeniden bakılmalı.

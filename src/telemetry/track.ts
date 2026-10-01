@@ -54,9 +54,12 @@ function pushLog(s: BattleSummary): void {
   if (stored.log.length > LOG_LIMIT) stored.log.splice(0, stored.log.length - LOG_LIMIT)
 }
 
-// Önceki oturum savaşın ortasında kapandı: o savaş yarıda bırakıldı.
-if (stored.pending) {
-  pushLog({ ...stored.pending, outcome: 'abandoned' })
+/** Önceki oturum savaşın ortasında kapandı: o savaş yarıda bırakıldı. */
+export const abandonedOnLoad: BattleSummary | null = stored.pending
+  ? { ...stored.pending, outcome: 'abandoned' }
+  : null
+if (abandonedOnLoad) {
+  pushLog(abandonedOnLoad)
   stored.pending = null
 }
 
