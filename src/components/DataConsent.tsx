@@ -18,7 +18,12 @@ export function DataConsent() {
   if (consent === null) {
     return (
       <div className="consent" role="group" aria-label="Veri paylaşımı">
-        <span>Dengeyi iyileştirmek için savaşların anonim özeti gönderilsin mi?</span>
+        <span>
+          Dengeyi iyileştirmek için savaşların anonim özeti gönderilsin mi?{' '}
+          <a href="/gizlilik.html" target="_blank" rel="noopener">
+            Ne gönderiliyor?
+          </a>
+        </span>
         <button onClick={() => choose('yes')}>EVET</button>
         <button onClick={() => choose('no')}>HAYIR</button>
       </div>

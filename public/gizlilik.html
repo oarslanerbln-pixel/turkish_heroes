@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#22070a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>HİLAL — Gizlilik</title>
+    <!--
+      Aydınlatma metni: sonuç ekranındaki veri paylaşımı sorusundan bağlanır
+      (src/components/DataConsent.tsx). Gönderilen alanlar değişirse
+      (src/telemetry/remote.ts → toPayload) bu sayfa da güncellenmeli.
+    -->
+    <style>
+      :root {
+        --ivory: #f6ece3;
+        --ivory-soft: #e6d3c9;
+        --muted: #cda9a0;
+        --metal: #dfe3e8;
+        --font-display: 'Cinzel', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 32px 16px 48px;
+        color: var(--ivory-soft);
+        background: linear-gradient(172deg, #551a1f, #22070a 60%) fixed;
+        font: 16px/1.6 Georgia, 'Times New Roman', serif;
+      }
+      main { max-width: 680px; margin: 0 auto; }
+      h1, h2 { font-family: var(--font-display); color: var(--ivory); letter-spacing: 0.06em; }
+      h1 { margin: 0 0 4px; font-size: 26px; }
+      h2 { margin: 32px 0 8px; font-size: 17px; border-bottom: 1px solid rgb(225 230 236 / 0.18); padding-bottom: 6px; }
+      p, li { margin: 0 0 10px; }
+      ul { padding-left: 20px; }
+      b { color: var(--ivory); font-weight: 600; }
+      a { color: var(--metal); }
+      .date { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+      .back { display: inline-block; margin-top: 32px; font-family: var(--font-display); letter-spacing: 0.12em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Gizlilik ve veri paylaşımı</h1>
+      <p class="date">HİLAL · Son güncelleme: 1 Ekim 2026</p>
+
+      <h2>Kısaca</h2>
+      <p>
+        HİLAL hesap istemez; adını, e-postanı ya da konumunu sormaz. Bir savaş bittiğinde
+        sonuç ekranında izin verirsen o savaşın <b>anonim bir özeti</b> gönderilir. İzin
+        vermezsen hiçbir şey gönderilmez; oyun aynı şekilde çalışır.
+      </p>
+
+      <h2>Ne gönderilir</h2>
+      <p>Yalnızca EVET dediysen, her savaşın sonunda tek bir özet:</p>
+      <ul>
+        <li>Komutan, sonuç (zafer, yenilgi, yarıda bırakma), yıldız, skor, kalan can, süre, ulaşılan dalga.</li>
+        <li>Vuruşların, kol emirlerinin, molaların ve savaştaki olayların zamanları (her biri en fazla 120 kayıt).</li>
+        <li>Miryokefalon'da yolu kestiğin yer; Malazgirt'te gün batımındaki düzen.</li>
+        <li>Kaçıncı deneme olduğu, zorluk ayarı ve sana gösterilen tavsiye.</li>
+        <li>
+          <b>Oturum kodu:</b> oyun her açıldığında rastgele üretilen kısa bir kod. Cihazında
+          saklanmaz; yalnızca aynı oturumdaki denemeleri birbirine bağlar (ör. "tavsiyeden
+          sonraki deneme daha mı iyi geçti?").
+        </li>
+      </ul>
+      <p>
+        <b>Gönderilmeyenler:</b> ad, e-posta, cihaz kimliği, reklam kimliği, konum, cihazının
+        saati.
+      </p>
+
+      <h2>Neden</h2>
+      <p>
+        Oyunun dengesini ayarlamak için: hangi savaş fazla zor ya da kolay, tavsiyeler işe
+        yarıyor mu. Özetler reklam, profil çıkarma ya da satış için kullanılmaz.
+      </p>
+
+      <h2>Nerede ve ne kadar süre</h2>
+      <p>
+        Özetler Supabase'in Frankfurt'taki (AB) sunucularında bir veritabanında tutulur.
+        Oyunun kullandığı anahtar yalnızca yeni özet ekleyebilir; kayıtları okuyamaz,
+        değiştiremez, silemez. Kayıtları yalnızca geliştirici görür. Özetler en fazla iki yıl
+        saklanır.
+      </p>
+
+      <h2>Teknik kayıtlar</h2>
+      <p>
+        İnternetteki her istekte olduğu gibi, özet gönderilirken IP adresin ve tarayıcı bilgin
+        sunucuya ulaşır. Bizim veritabanımız bunları kaydetmez. Altyapı sağlayıcıları (özetleri
+        alan Supabase ve oyunu sunan Vercel) güvenlik ve hata ayıklama için bunları kendi
+        günlüklerinde sınırlı bir süre tutar. Bu günlükler savaş özetleriyle birleştirilmez.
+      </p>
+
+      <h2>Cihazında kalanlar</h2>
+      <p>
+        İlerlemen, yıldızların, tarih notların ve son 40 savaşın özeti tarayıcının
+        depolamasında tutulur ve cihazından çıkmaz. Tarayıcı verilerini silersen bunlar da
+        silinir.
+      </p>
+
+      <h2>İzni geri almak</h2>
+      <p>
+        Sonuç ekranındaki <b>Anonim savaş verisi: AÇIK</b> düğmesine bas; KAPALI olur ve sonraki
+        savaşlardan itibaren hiçbir şey gönderilmez. Daha önce gönderilen özetler kimseyle
+        eşleşmediği için tek tek bulunup silinemez.
+      </p>
+      <p>13 yaşından küçüksen, izin vermeden önce bir velinle konuş.</p>
+
+      <h2>İletişim</h2>
+      <p>
+        Veri sorumlusu: HİLAL geliştiricisi. Soruların ve talepler için:
+        <a href="https://github.com/oarslanerbln-pixel/turkish_heroes/issues" rel="noopener">GitHub Issues</a>.
+        Bu sayfa herkese açıktır; oraya kişisel bilgi yazma.
+      </p>
+
+      <a class="back" href="/">← OYUNA DÖN</a>
+    </main>
+  </body>
+</html>

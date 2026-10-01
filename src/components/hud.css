@@ -876,6 +876,11 @@
   flex: 1 1 100%;
 }
 
+.consent a {
+  color: var(--metal);
+  white-space: nowrap;
+}
+
 .hud .consent button {
   flex: 1;
   padding: 5px 0;
