@@ -1,20 +1,20 @@
 import { isCommanderAvailable, useGameStore } from '../store/gameStore'
-import { COMMANDERS, commanderInfo, type CommanderId } from '../mechanics/scenario'
+import { commanderInfo, type CommanderId } from '../mechanics/scenario'
 import { archiveCount } from '../lore/archive'
-import type { LoreId } from '../lore/lore'
-import { bestStars, earnedLore, isFirstBattle } from '../sim/progress'
+import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
-import { LockIcon, ScrollIcon, StarIcon } from './icons'
+import { LockIcon, ScrollIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
+import { SeferMap } from './SeferMap'
 
 /**
  * Ana menü — savaş seçimi. Arkada seçilen savaşın açılış karesi durur
  * (FollowCamera): menü bir kapı değil, savaşın ilk anı. İki panel sahnenin
  * iki yanında, ortada kahraman ve ufuktaki ordu görünür.
  *
- *  - Solda komutanlar: üç komutan, üç soru — NASIL, NE ZAMAN, NEREDE. Her
- *    satır ilerlemeyi gösterir (en iyi yıldız, tarih notları);
- *    kilitli komutan da seçilir: savaş alanı arkada görünür, açmak istenir.
+ *  - Solda sefer haritası: üç savaş, bozkırdan Anadolu'ya giden yolun
+ *    üstünde. Düğümler ilerlemeyi gösterir (en iyi yıldız, kilit, sancak);
+ *    kilitli savaş da seçilir: savaş alanı arkada görünür, açmak istenir.
  *  - Sağda brifing: eksenin sorusu, üç adımda taktik, tek ana düğme.
  *  - Bilgi Hazinesi sol panelin dibinde; sayaç yarım kalan koleksiyonu
  *    hatırlatır.
@@ -35,18 +35,14 @@ export function StartScreen({ touch }: { touch: boolean }) {
   return (
     <div className="hud">
       <div className="menu">
-        <section className="menu-panel menu-roster velvet" aria-label="Komutanlar">
+        <section className="menu-panel menu-roster velvet" aria-label="Sefer">
           <header className="menu-brand">
             <h1>HİLAL</h1>
             <Ornament width={132} />
             <span className="menu-tagline">TÜRK KOMUTANLARININ SAVAŞ SANATI</span>
           </header>
 
-          <div className="roster" role="radiogroup" aria-label="Komutan">
-            {COMMANDERS.map((c) => (
-              <RosterRow key={c.id} id={c.id} selected={c.id === commander} earned={earned} />
-            ))}
-          </div>
+          <SeferMap selected={commander} />
 
           <button className="archive-btn" onClick={() => openArchive(commander)}>
             <ScrollIcon size={16} />
@@ -64,84 +60,12 @@ export function StartScreen({ touch }: { touch: boolean }) {
   )
 }
 
-function RosterRow({
-  id,
-  selected,
-  earned,
-}: {
-  id: CommanderId
-  selected: boolean
-  earned: readonly LoreId[]
-}) {
-  const select = useGameStore((s) => s.selectCommander)
-  const c = commanderInfo(id)
-  const available = isCommanderAvailable(id)
-  // Kilidi yeni açılmış, henüz hiç oynanmamış savaş: YENİ.
-  const fresh = available && !!c.unlockedBy && isFirstBattle(id)
-  const lore = archiveCount(earned, id)
-  const className = ['roster-row', selected && 'is-selected', !available && 'is-locked']
-    .filter(Boolean)
-    .join(' ')
-
-  return (
-    <button
-      role="radio"
-      aria-checked={selected}
-      className={className}
-      onClick={() => select(id)}
-      aria-label={`${c.name}, ${c.battle}${available ? '' : ', kilitli'}`}
-    >
-      <span className="roster-axis">{c.axis}</span>
-      <span className="roster-name">
-        {c.name}
-        {fresh && <em className="roster-new">YENİ</em>}
-      </span>
-      <span className="roster-battle">{c.battle}</span>
-      <span className="roster-meta">
-        {available ? (
-          <>
-            <Record id={id} />
-            <span className="roster-lore" title="Tarih notları">
-              <ScrollIcon size={12} />
-              {lore.earned}/{lore.total}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="roster-lock">
-              <LockIcon size={11} />
-              KİLİTLİ
-            </span>
-            {c.unlockedBy && (
-              <span className="roster-unlock">{commanderInfo(c.unlockedBy).name} ile kazan</span>
-            )}
-          </>
-        )}
-      </span>
-    </button>
-  )
-}
-
-/**
- * Komutanın kaydı: en iyi yıldız. Henüz kazanılmamışsa boş yıldızlar hedefi
- * gösterir.
- */
-function Record({ id }: { id: CommanderId }) {
-  const stars = bestStars(id)
-  return (
-    <span className="roster-stars" aria-label={`${stars} yıldız`}>
-      {[1, 2, 3].map((n) => (
-        <StarIcon key={n} size={13} className={n <= stars ? 'on' : undefined} />
-      ))}
-    </span>
-  )
-}
-
 function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
   const start = useGameStore((s) => s.start)
   const best = useGameStore((s) => s.bestScore)
   const c = commanderInfo(id)
   const available = isCommanderAvailable(id)
+  const lore = archiveCount(earnedLore(), id)
   const keys = touch
     ? 'Sol: joystick · Sağ: vuruş'
     : `WASD: hareket · Space: vuruş${c.keys ? ` · ${c.keys}` : ''}`
@@ -179,9 +103,17 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
 
       <div className="brief-foot">
         <span>{keys}</span>
-        {available && best > 0 && (
-          <span>
-            Rekor <b>{best}</b>
+        {available && (
+          <span className="brief-record">
+            <span title="Tarih notları">
+              <ScrollIcon size={11} />
+              {lore.earned}/{lore.total}
+            </span>
+            {best > 0 && (
+              <span>
+                Rekor <b>{best}</b>
+              </span>
+            )}
           </span>
         )}
       </div>
