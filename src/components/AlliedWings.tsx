@@ -16,7 +16,8 @@ import { applyNearFade } from './world/nearFade'
 //   - PUSU: iki sıra, düşmana dönük, kıpırtısız.
 //   - TACİZ: dönen halka — atlı okçunun "dolaşarak ok atma"sı.
 //   - HÜCUM: uçları öne çıkmış hilal, hedef birliğe dönük; kol yerine
-//     vardıkça birliğin yanına gömülür.
+//     vardıkça birliğin yanına gömülür; temasta iki sıra dönüşümlü dalıp
+//     çekilir (vur-kaç).
 
 const VISUAL_PRIORITY = 3
 const RIDERS = WING_CONFIG.riders
@@ -39,6 +40,17 @@ const RING_SPEED = 0.9
 const CHARGE_GAP = 1.4
 const CHARGE_HORN = 0.3
 const CHARGE_PUSH = 2.5
+/**
+ * Vur-kaç: tur hızı (rad/sn); hilal hattının ötesine dalış ve toplam ileri-geri
+ * yol; yana kayış; aynı sıradakilerin birbirinden faz kayması.
+ */
+const SKIRMISH_RATE = 2
+const SKIRMISH_DIVE = 0.75
+const SKIRMISH_DEPTH = 3
+const SKIRMISH_SWAY = 0.6
+const SKIRMISH_STAGGER = 0.15
+/** Tükenmek üzere olan kolun vur-kaçı, taze kolunkinin bu kadarına iner: ağırlaşır ama durmaz. */
+const SKIRMISH_TIRED = 0.5
 
 /** Ordugah kameraya yakın: pusudaki kol da onunla aynı mesafede incelir (bkz. Camp). */
 const FADE_NEAR = 20
@@ -65,6 +77,29 @@ function place(w: WingState, facing: number, side: number, forward: number, out:
   out.facing = facing
 }
 
+/** Süvarinin hilaldeki yerine eklenen yerel sapma (yana, öne). */
+interface Offset {
+  side: number
+  forward: number
+}
+const skirmishOffset: Offset = { side: 0, forward: 0 }
+
+/**
+ * Temas dalgası: hücumdaki kol hedefine varınca süvari i'nin hilaldeki yerinden
+ * sapması. Her atlı dar bir elips çizer: hatta dalar, yana kavis çizip çekilir,
+ * dönüp yeniden dalar. Komşular ters sırada — biri dalarken yanındaki çekilir ve
+ * ters yöne döner; yana kayış ikisinde aynı olduğundan aralarındaki açıklık hep
+ * CHARGE_GAP kalır, atlar birbirinin içinden geçmez. engage 0–1: kol vardıkça
+ * büyür, yoruldukça ağırlaşır. time sim saati: ağır çekimde yavaşlar, molada durur.
+ */
+function skirmish(i: number, time: number, engage: number, out: Offset): void {
+  const theta = time * SKIRMISH_RATE + i * SKIRMISH_STAGGER
+  // 0: tam çekilmiş, 1: dalışın ucunda.
+  const reach = (1 + (i % 2 === 0 ? 1 : -1) * Math.sin(theta)) / 2
+  out.forward = (SKIRMISH_DIVE - (1 - reach) * SKIRMISH_DEPTH) * engage
+  out.side = Math.cos(theta) * SKIRMISH_SWAY * engage
+}
+
 function slotFor(b: BattleState, w: WingState, i: number, time: number, out: Slot): void {
   if (w.order === 'harass') {
     const angle = w.side * time * RING_SPEED + (i / RIDERS) * Math.PI * 2
@@ -81,7 +116,15 @@ function slotFor(b: BattleState, w: WingState, i: number, time: number, out: Slo
       ? Math.atan2(target.x - w.pos.x, target.z - w.pos.z)
       : Math.atan2(-w.side, 0)
     const k = i - (RIDERS - 1) / 2
-    place(w, facing, k * CHARGE_GAP, Math.abs(k) * CHARGE_HORN + w.presence * CHARGE_PUSH, out)
+    const engage = target ? w.presence * (SKIRMISH_TIRED + (1 - SKIRMISH_TIRED) * w.strength) : 0
+    skirmish(i, time, engage, skirmishOffset)
+    place(
+      w,
+      facing,
+      k * CHARGE_GAP + skirmishOffset.side,
+      Math.abs(k) * CHARGE_HORN + w.presence * CHARGE_PUSH + skirmishOffset.forward,
+      out,
+    )
     return
   }
   // Pusu: ordunun geldiği yöne (−z) bakan iki sıra.
@@ -127,7 +170,7 @@ export function AlliedWings() {
   const lastBattle = useRef<BattleState | null>(null)
   const clock = useRef(0)
 
-  useFrame(({ clock: frameClock }, delta) => {
+  useFrame((_, delta) => {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
     if (!horseMesh || !riderMesh) return
@@ -151,7 +194,6 @@ export function AlliedWings() {
     }
     const follow = 1 - Math.exp(-FOLLOW_RATE * dt)
     const turn = 1 - Math.exp(-TURN_RATE * dt)
-    const time = frameClock.elapsedTime
 
     for (let n = 0; n < COUNT; n++) {
       const w = b.wings[n < RIDERS ? 0 : 1]
@@ -180,7 +222,8 @@ export function AlliedWings() {
       pos[n * 2 + 1] = z
 
       const gait = Math.min(1, speed[n] / 3)
-      const phase = time * GALLOP_RATE + n * 1.3
+      // Dörtnal sim saatiyle: ağır çekimde gövdeyle birlikte yavaşlar, at yerinde koşmaz.
+      const phase = clock.current * GALLOP_RATE + n * 1.3
       // Geçitte kollar yamaçta: süvari duvarın üstünde durur.
       const ground = b.layout.pass ? terrainHeight(x, z, true) : 0
       dummy.position.set(x, ground + Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, z)
