@@ -99,6 +99,10 @@ export function playSample(
  * @returns 0..count-1
  */
 export function pickVariant(count: number, last: number, rand: () => number): number {
-  // TODO(human)
-  return 0
+  if (count <= 1) return 0
+  if (last < 0) return Math.floor(rand() * count)
+  // Son çalan dışarıda: kalan count-1 çeşitten eşit olasılıkla seçilir, son
+  // çalanın üstündekiler bir sıra kayar. Sıralı dönüşün aksine ritim kurmaz.
+  const pick = Math.floor(rand() * (count - 1))
+  return pick >= last ? pick + 1 : pick
 }
