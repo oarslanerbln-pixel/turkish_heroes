@@ -3,11 +3,16 @@
 // sonuç ekranında açıkça EVET demiş olmalı. Biri eksikse hiçbir şey gönderilmez; yerel
 // kayıt (track.ts) bundan bağımsız sürer. Modül yüklenince sink'i bağlar.
 //
+// Soru bir savaşın sonunda sorulduğu için EVET o savaşı da kapsar; daha önce
+// cevapsız biten savaşları kapsamaz. Geçen açılışta yarıda kalan savaş yalnızca
+// rıza zaten varsa, açılışta gider. Bu kurallar değişirse public/gizlilik.html de
+// değişmeli.
+//
 // Anahtar yayımlanabilir (publishable) anahtardır: tabloya yalnızca ekleme
 // izni var, okuma yok (bkz. RLS politikası).
 
 import type { BattleSummary } from './summary'
-import { addSink } from './track'
+import { abandonedOnLoad, addSink } from './track'
 
 const URL = import.meta.env.VITE_TELEMETRY_URL as string | undefined
 const KEY = import.meta.env.VITE_TELEMETRY_KEY as string | undefined
@@ -30,12 +35,24 @@ export function getConsent(): Consent {
   return consent
 }
 
+/**
+ * Rıza yokken biten son savaş. Soru yalnızca sonuç ekranında çıktığı için EVET
+ * geldiğinde bu, ekranı açık olan savaştır; o ekrandaki EVET, savaş bittiğinde
+ * rıza 'no' olsa da onu kapsar.
+ */
+let lastUnsent: BattleSummary | null = null
+
 export function setConsent(c: 'yes' | 'no'): void {
   consent = c
   try {
     localStorage.setItem(CONSENT_KEY, c)
   } catch {
     // Cevap bu oturumla sınırlı kalır.
+  }
+  if (c === 'yes' && lastUnsent) {
+    send(lastUnsent)
+    // Aynı ekranda KAPALI → AÇIK savaşı ikinci kez göndermesin.
+    lastUnsent = null
   }
 }
 
@@ -45,8 +62,9 @@ const LIST_CAP = 120
 /**
  * Sunucuya giden özet. commander/outcome/stars zaten ayrı sütunlarda;
  * startedAt gitmez, sunucunun created_at'i yeter (cihaz saati cihazda kalır).
- * session sayfa yüklemesi başına rastgeledir ve saklanmaz: yalnızca aynı
- * oturumdaki denemeleri birbirine bağlar (tavsiye bir sonrakinde işe yaradı mı).
+ * session sayfa yüklemesi başına rastgeledir, kalıcı bir kimlik değildir:
+ * yalnızca aynı oturumdaki denemeleri birbirine bağlar (tavsiye bir sonrakinde
+ * işe yaradı mı).
  */
 function toPayload(s: BattleSummary): Partial<BattleSummary> {
   const { commander: _c, outcome: _o, stars: _s, startedAt: _t, ...rest } = s
@@ -77,7 +95,10 @@ function send(s: BattleSummary): void {
 }
 
 if (remoteConfigured) {
+  if (consent === 'yes' && abandonedOnLoad) send(abandonedOnLoad)
   addSink((e, s) => {
-    if (e.type === 'battle_end' && consent === 'yes') send(s)
+    if (e.type !== 'battle_end') return
+    if (consent === 'yes') send(s)
+    else lastUnsent = s
   })
 }

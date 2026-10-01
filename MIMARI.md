@@ -117,10 +117,12 @@ Kimliğin harfi alanı gösterir: **S** simülasyon · **G** görüntü/kamera �
 | Alan | Yüksek | Orta | Düşük |
 |---|---|---|---|
 | S Simülasyon | 3 | 3 | 3 |
-| G Görüntü/kamera | 2 | 4 | 1 |
-| P Platform | 2 | 5 | 5 |
+| G Görüntü/kamera | 1 | 4 | 1 |
+| P Platform | 2 | 4 | 5 |
 | A Arayüz akışı | 2 | 4 | 3 |
-| **Toplam** | **9** | **16** | **12** |
+| **Toplam** | **8** | **15** | **12** |
+
+Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 
 ### Yüksek
 
@@ -182,6 +184,7 @@ Kimliğin harfi alanı gösterir: **S** simülasyon · **G** görüntü/kamera �
   - Kolun yaptığı iş oyuncuya yazılıyor.
 - Öneri: oyuncunun ve kolların tacizini ayrı tut; her ok akışını gerçek atıcıdan çıkar.
 - Zaman: **bugün (§6)**
+- Durum: **kapandı**, PR #16 (`e5d7ead`).
 
 **P1 · Çökme ağı yok**
 - Kanıt: `App.tsx:3-4`
@@ -323,6 +326,12 @@ Kimliğin harfi alanı gösterir: **S** simülasyon · **G** görüntü/kamera �
     - "Oturum kodu cihazında saklanmaz" diyor; kod, son 40 savaş özetiyle birlikte yerel günlükte saklanıyor.
 - Öneri: önce metni kodla eşitle, çünkü metnin doğru olması KVKK açısından da önemli. Kod değişikliği gerekirse sonra.
 - Zaman: **sağlamlık paketi, öncelikli**
+- Durum: **kapandı** (1 Ekim 2026).
+  - Sonuç ekranında verilen EVET, ekrandaki savaşı da gönderiyor. İlk savaşta EVET denirse attempt=1 artık geliyor.
+  - Daha önce cevapsız biten savaşlar bilerek gönderilmiyor, çünkü metin "o savaşın" diyor.
+  - Geçen açılışta yarıda kalan savaş, rıza zaten varsa açılışta gidiyor.
+  - Gizlilik metninde oturum kodu ve yarıda bırakma cümleleri kodla eşitlendi.
+  - Testler: `remote.test.ts`.
 
 **P7 · CI uygulamayı hiç çalıştırmıyor**
 - Kanıt: `.github/workflows/ci.yml`
@@ -437,6 +446,8 @@ Bu yüzden önkoşullar ayrı bir fazda değil, onları ilk kullanacak fazın ba
 ---
 
 ## 6. Kol hücumu hatası: kök neden ve düzeltme
+
+**Durum:** düzeltme PR #16 ile birleşti (`e5d7ead`).
 
 **Belirti (senin sözlerinle):** "Ek birlikler hücum deyince sadece yanına gelip bekliyor düşmanın; animasyonda bir hareket yok."
 
@@ -608,10 +619,10 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 
 ## 8. Yol haritası
 
-**0. Şimdi: kol hücumu düzeltmesi** (§6). Küçük ve yalıtılmış bir iş; simülasyona dokunmuyor.
+**0. ~~Şimdi: kol hücumu düzeltmesi~~** (§6). Yapıldı: PR #16.
 
 **1. Sağlamlık paketi.** Oyuncuya doğrudan dokunan düzeltmeler, tek ve küçük bir PR:
-1. P6 gizlilik metni (öncelikli)
+1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
 2. A1 klavye kısayolu
 3. P1 hata sınırı ve WebGL bağlam kaybı
 4. P5 ses kilidi
