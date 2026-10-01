@@ -7,6 +7,7 @@ import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
 import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
+import { DataConsent } from './DataConsent'
 
 /**
  * Sonuç ekranı: oyuncunun "bir daha" kararını verdiği yer (Kapı B). Solda
@@ -91,6 +92,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           </button>
         </div>
 
+        <DataConsent />
         {TELEMETRY_DEBUG && <TelemetryExport />}
       </div>
     </div>

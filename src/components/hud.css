@@ -855,6 +855,59 @@
   background: linear-gradient(180deg, #ffffff, var(--metal-soft));
 }
 
+/* Veri paylaşımı sorusu: sonuç düğmelerinin altında, alt kartlar gibi koyu kadife. */
+.consent {
+  align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  font-size: 10px;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+  color: var(--ivory-soft);
+  background: rgb(var(--shade-rgb) / 0.42);
+  border: 1px solid rgb(var(--metal-rgb) / 0.12);
+  border-radius: 10px;
+}
+
+.consent span {
+  flex: 1 1 100%;
+}
+
+.hud .consent button {
+  flex: 1;
+  padding: 5px 0;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--ivory);
+  background: transparent;
+  border: 1px solid rgb(var(--metal-rgb) / 0.35);
+  border-radius: 6px;
+}
+
+.hud .consent button:first-of-type {
+  background: linear-gradient(180deg, #3a52a0, #19244f);
+}
+
+.hud .consent-toggle {
+  align-self: center;
+  padding: 2px 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: none;
+  border: 0;
+}
+
+.consent-toggle b {
+  color: var(--metal);
+  font-weight: 600;
+}
+
 .menu-brief {
   animation: brief-in 0.35s ease;
 }
