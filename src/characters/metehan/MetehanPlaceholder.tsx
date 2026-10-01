@@ -8,6 +8,7 @@ import { isPlaying, simDelta, world } from '../../sim/world'
 import { HILAL_CONFIG } from '../../mechanics/hilalSystem'
 import { ENEMY_CONFIG } from '../../mechanics/enemySim'
 import { buildHorseGeometry, buildRiderGeometry } from '../riderGeometry'
+import { hoofbeat } from '../../audio/ambience'
 
 // Metehan'ın gerçek 3D modeli gelene kadar ilkel şekillerden süvari
 // (bkz. riderGeometry). Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
@@ -17,10 +18,13 @@ const PLAYER_PRIORITY = 0
 const GALLOP_RATE = 9
 const GALLOP_BOB = 0.12
 const GALLOP_PITCH = 0.07
+/** Bunun altındaki adımda (dönüş, yavaşlama) nal sesi çalmaz. */
+const HOOF_MIN_GAIT = 0.25
 
 export function MetehanPlaceholder() {
   const groupRef = useRef<Group>(null)
   const bodyRef = useRef<Group>(null)
+  const strideRef = useRef(0)
   const keys = useKeyboard()
   const touch = useTouchControls()
   const horse = useMemo(buildHorseGeometry, [])
@@ -98,6 +102,12 @@ export function MetehanPlaceholder() {
     const phase = clock.elapsedTime * GALLOP_RATE
     body.position.y = Math.abs(Math.sin(phase)) * GALLOP_BOB * gait
     body.rotation.x = Math.sin(phase) * GALLOP_PITCH * gait
+    // Nal sesi görünen adımla aynı ritimde: her dörtnal döngüsünde bir adım.
+    const stride = Math.floor(phase / (Math.PI * 2))
+    if (stride !== strideRef.current) {
+      strideRef.current = stride
+      if (gait > HOOF_MIN_GAIT) hoofbeat(gait)
+    }
   }, PLAYER_PRIORITY)
 
   return (
