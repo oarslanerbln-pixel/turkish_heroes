@@ -670,92 +670,202 @@
   letter-spacing: 0.22em;
 }
 
-.roster {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* .hud içinde: `.hud button` genel kuralını geçsin. */
-.hud .roster-row {
+/*
+ * Sefer haritası (SeferMap): yol SVG'de, düğümler onun üstünde. Kutunun
+ * oranı çizim alanıyla aynı (300×170): düğümlerin yüzde konumu yolla örtüşür.
+ */
+.sefer {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    'axis meta'
-    'name meta'
-    'battle meta';
-  align-items: center;
-  column-gap: 10px;
-  padding: 7px 11px 7px 14px;
-  text-align: left;
-  color: var(--ivory-soft);
-  background: rgb(var(--shade-rgb) / 0.42);
+  flex: none;
+  aspect-ratio: 300 / 170;
+  background:
+    radial-gradient(90% 80% at 72% 28%, rgb(var(--metal-rgb) / 0.06), transparent 70%),
+    rgb(var(--shade-rgb) / 0.42);
   border: 1px solid rgb(var(--metal-rgb) / 0.12);
   border-radius: 10px;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-/* Seçili satırın sol kenarında lacivert mine çizgi. */
-.roster-row::before {
-  content: '';
+.sefer-route {
   position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: transparent;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.hud .roster-row:hover {
-  border-color: rgb(var(--metal-rgb) / 0.3);
+.sefer-route path {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
 }
 
-/* Seçili satır: açık kadife, gümüş çerçeve (saydam kenarlığın altında metal). */
-.hud .roster-row.is-selected {
+/* Açık yol: kervan izi gibi kesik gümüş çizgi. */
+.sefer-route .is-open {
+  stroke: rgb(var(--metal-rgb) / 0.6);
+  stroke-dasharray: 5 4;
+}
+
+/* Kapalı yol: seyrek nokta, henüz yürünmemiş. */
+.sefer-route .is-closed {
+  stroke: rgb(var(--metal-rgb) / 0.3);
+  stroke-dasharray: 0.1 5;
+  stroke-width: 2;
+}
+
+/* Sancağa giden yol yürür. */
+.sefer-route .is-march {
+  stroke: var(--metal);
+  animation: sefer-march 1.4s linear infinite;
+}
+
+@keyframes sefer-march {
+  to { stroke-dashoffset: -9; }
+}
+
+.sefer-compass path {
+  fill: rgb(var(--metal-rgb) / 0.4);
+}
+
+.sefer-compass .is-south {
+  fill: none;
+  stroke: rgb(var(--metal-rgb) / 0.35);
+  stroke-width: 0.8;
+}
+
+.sefer-compass text {
+  fill: rgb(var(--metal-rgb) / 0.45);
+  font-family: var(--font-display);
+  font-size: 7px;
+}
+
+/*
+ * Düğümün noktası mührün ortası. Etiket sağdaysa düğme mührün solundan,
+ * soldaysa sağından başlar; dikeyde ortalı. Dolgu dokunma alanını büyütür.
+ * .hud içinde: `.hud button` genel kuralını geçsin.
+ */
+.hud .sefer-node {
+  --seal: 22px;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 6px 0;
+  transform: translate(calc(var(--seal) / -2), -50%);
+  color: var(--ivory-soft);
+  text-align: left;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  transition: color 0.2s ease;
+}
+
+.hud .sefer-node.is-left {
+  flex-direction: row-reverse;
+  padding: 6px 0 6px 8px;
+  transform: translate(calc(var(--seal) / 2 - 100%), -50%);
+  text-align: right;
+}
+
+.hud .sefer-node.is-selected {
   color: var(--ivory);
-  background:
-    linear-gradient(90deg, rgba(130, 34, 42, 0.95), rgba(84, 18, 24, 0.75)) padding-box,
-    var(--rim) border-box;
-  border-color: transparent;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.roster-row.is-selected::before {
-  background: var(--indigo);
-}
-
-.hud .roster-row.is-locked {
+.hud .sefer-node.is-locked {
   color: var(--muted-deep);
 }
 
-.roster-axis {
-  grid-area: axis;
+/* Mühür: kadife yuvarlak, gümüş çerçeve. */
+.sefer-seal {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--seal);
+  height: var(--seal);
+  color: var(--metal);
+  background:
+    radial-gradient(circle at 50% 35%, rgb(var(--velvet-rgb)), #2a0a0e) padding-box,
+    var(--rim) border-box;
+  border: 1.5px solid transparent;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Açık ama kazanılmamış savaş: ortada gümüş nokta. */
+.sefer-seal i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--metal);
+}
+
+.is-locked .sefer-seal {
   color: var(--metal-soft);
-  font-size: 8.5px;
-  letter-spacing: 0.26em;
+  background:
+    rgb(var(--shade-rgb) / 0.92) padding-box,
+    linear-gradient(rgb(var(--metal-rgb) / 0.3), rgb(var(--metal-rgb) / 0.3)) border-box;
 }
 
-.roster-name {
-  grid-area: name;
+.hud .sefer-node:hover .sefer-seal {
+  box-shadow: 0 0 0 1px rgb(var(--metal-rgb) / 0.45), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Seçili düğüm: lacivert mine halka, mühür büyür. */
+.hud .sefer-node.is-selected .sefer-seal {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--indigo), 0 0 14px rgb(61 87 163 / 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Sancak: direği mührün tepesine dikili, rüzgârda salınır. */
+.sefer-sancak {
+  position: absolute;
+  left: calc(50% - 4px);
+  bottom: calc(100% - 3px);
+  color: #c8343e;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  transform-origin: 4px 15px;
+  animation: sancak 2.4s ease-in-out infinite;
+}
+
+@keyframes sancak {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.sefer-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.is-left .sefer-label {
+  align-items: flex-end;
+}
+
+.sefer-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.07em;
-  white-space: nowrap;
-}
-
-.roster-battle {
-  grid-area: battle;
-  color: var(--muted);
-  font-size: 10px;
+  line-height: 1.15;
   letter-spacing: 0.06em;
 }
 
-.roster-new {
-  margin-left: 6px;
+.sefer-battle {
+  color: var(--muted);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+}
+
+.is-locked .sefer-battle {
+  color: var(--muted-deep);
+}
+
+.sefer-new {
   padding: 1px 6px;
   font-family: system-ui, sans-serif;
   font-size: 8px;
@@ -765,51 +875,17 @@
   color: #ffffff;
   background: var(--indigo);
   border-radius: 999px;
-  vertical-align: 3px;
 }
 
-.roster-meta {
-  grid-area: meta;
+.sefer-stars {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-size: 10px;
-}
-
-.roster-stars {
-  display: flex;
-  gap: 2px;
+  gap: 1px;
   color: rgba(240, 220, 203, 0.2);
 }
 
-.roster-stars .on {
+.sefer-stars .on {
   color: #eef0f3;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
-}
-
-.roster-lore,
-.roster-lock {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.roster-lore {
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
-.roster-lock {
-  color: var(--metal-soft);
-  font-size: 8.5px;
-  letter-spacing: 0.18em;
-}
-
-.roster-unlock {
-  color: var(--muted);
-  font-size: 9.5px;
-  white-space: nowrap;
 }
 
 .hud .archive-btn {
@@ -1020,6 +1096,17 @@
 .brief-foot b {
   color: var(--metal);
   font-weight: 600;
+}
+
+.brief-record,
+.brief-record span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brief-record {
+  gap: 10px;
 }
 
 /* ---- Bilgi Hazinesi ---- */
@@ -1273,10 +1360,9 @@
   .menu-panel { width: 360px; padding: 38px 20px 18px; gap: 12px; }
   .menu-brand h1 { font-size: 44px; }
   .menu-tagline { font-size: 10px; }
-  .roster { gap: 8px; }
-  .hud .roster-row { padding: 10px 14px 10px 17px; }
-  .roster-name { font-size: 18px; }
-  .roster-battle { font-size: 11px; }
+  .hud .sefer-node { --seal: 26px; }
+  .sefer-name { font-size: 15px; }
+  .sefer-battle { font-size: 10.5px; }
   .menu-brief h2 { font-size: 22px; }
   .brief-steps { gap: 9px; }
   .brief-steps b { font-size: 13.5px; }
@@ -1300,6 +1386,8 @@
     background: linear-gradient(180deg, rgb(var(--shade-rgb) / 0) 0%, rgb(var(--shade-rgb) / 0.7) 45%, rgb(var(--shade-rgb) / 0.9) 100%);
   }
   .menu-panel { width: 100%; flex: none; overflow: visible; }
+  /* Tablette harita paneli doldurup sahneyi örtmesin. */
+  .sefer { width: min(100%, 420px); align-self: center; }
   .archive-tabs { flex-wrap: wrap; }
   .archive-body { grid-template-columns: 1fr; grid-template-rows: auto auto; overflow-y: auto; }
   .archive-list { overflow: visible; }
@@ -2065,5 +2153,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .contact, .energy.is-ready .bar, .strike-touch.is-live, .lore-note,
-  .menu, .menu-brief, .archive, .archive-card, .archive-redacted i { animation: none; }
+  .menu, .menu-brief, .archive, .archive-card, .archive-redacted i,
+  .sefer-route .is-march, .sefer-sancak { animation: none; }
 }

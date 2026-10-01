@@ -80,6 +80,16 @@ export function CrescentIcon(props: IconProps) {
   )
 }
 
+/** Çatallı sancak: sefer haritasında sıradaki hedef. */
+export function SancakIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 22V3" />
+      <path d="M6 4h13l-3.5 4.5L19 13H6Z" fill="currentColor" />
+    </Svg>
+  )
+}
+
 const STAR_POINTS =
   '12,1 13.91,7.38 19.78,4.22 16.62,10.09 23,12 16.62,13.91 19.78,19.78 13.91,16.62 12,23 10.09,16.62 4.22,19.78 7.38,13.91 1,12 7.38,10.09 4.22,4.22 10.09,7.38'
 
