@@ -75,7 +75,7 @@ export function Scene() {
   )
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#0d0500' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#14060a' }}>
       <Canvas
         shadows
         dpr={[1, preset.maxDpr]}

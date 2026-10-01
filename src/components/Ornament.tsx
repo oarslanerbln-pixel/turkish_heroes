@@ -1,7 +1,9 @@
+import { CrescentMark } from './icons'
+
 /**
- * Selçuklu yıldızı ile iki yanında incelen altın çizgi — başlıkların altındaki
- * süsleme. Sekiz köşeli yıldız, iç içe dönmüş iki kareden: Selçuklu çini ve
- * taş işçiliğinin en tanıdık motifi. Tek satır SVG, dosya yok.
+ * Ortada hilal, iki yanında baklava ve incelen çizgi — başlıkların altındaki
+ * süsleme. Eskiden iç içe dönmüş iki kareden Selçuklu yıldızıydı; 12 piksel
+ * boyda dişli çarka benziyordu. Hilal hem oyunun adı hem küçükte okunuyor.
  */
 export function Ornament({ width = 220 }: { width?: number }) {
   const mid = width / 2
@@ -23,12 +25,14 @@ export function Ornament({ width = 220 }: { width?: number }) {
           <stop offset="1" stopColor="currentColor" stopOpacity="0.9" />
         </linearGradient>
       </defs>
-      <rect x="0" y="8.5" width={mid - 16} height="1" fill="url(#ornament-fade-l)" />
-      <rect x={mid + 16} y="8.5" width={mid - 16} height="1" fill="url(#ornament-fade-r)" />
-      <g transform={`translate(${mid} 9)`} fill="none" stroke="currentColor" strokeWidth="1.2">
-        <rect x="-6" y="-6" width="12" height="12" />
-        <rect x="-6" y="-6" width="12" height="12" transform="rotate(45)" />
-        <circle r="1.8" fill="currentColor" stroke="none" />
+      <rect x="0" y="8.5" width={mid - 21} height="1" fill="url(#ornament-fade-l)" />
+      <rect x={mid + 21} y="8.5" width={mid - 21} height="1" fill="url(#ornament-fade-r)" />
+      <g fill="currentColor">
+        <polygon points={`${mid - 18},9 ${mid - 14},5 ${mid - 10},9 ${mid - 14},13`} />
+        <polygon points={`${mid + 10},9 ${mid + 14},5 ${mid + 18},9 ${mid + 14},13`} />
+      </g>
+      <g transform={`translate(${mid - 7} 2) scale(0.58)`}>
+        <CrescentMark />
       </g>
     </svg>
   )

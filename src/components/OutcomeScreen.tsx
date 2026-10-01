@@ -2,8 +2,12 @@ import { useState, type CSSProperties } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { commanderInfo } from '../mechanics/scenario'
 import type { Debrief, TimelineMark } from '../debrief/debrief'
+import { LORE, type LoreCard } from '../lore/lore'
+import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
+import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
+import { DataConsent } from './DataConsent'
 
 /**
  * Sonuç ekranı: oyuncunun "bir daha" kararını verdiği yer (Kapı B). Solda
@@ -24,6 +28,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const captured = useGameStore((s) => s.emperorCaptured)
   const report = useGameStore((s) => s.debrief)
   const unlocked = useGameStore((s) => s.unlocked)
+  const lore = useGameStore((s) => s.lore)
   const isVictory = outcome === 'victory'
   const isNewBest = score > 0 && score >= bestScore
   // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
@@ -37,7 +42,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           {isVictory ? 'ZAFER' : 'YENİLGİ'}
         </div>
         <Ornament width={240} />
-        {battle && isVictory && <Stars count={stars} />}
+        {isVictory && <Stars count={stars} />}
         <div className="subtitle">
           {showClose && <span className="close-chip">AZ KALDI</span>}
           {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
@@ -56,6 +61,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           </div>
         </div>
         {isNewBest && <div className="badge">YENİ REKOR</div>}
+        {lore && <LoreNote card={lore} />}
       </div>
 
       <div className="outcome-side">
@@ -86,6 +92,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           </button>
         </div>
 
+        <DataConsent />
         {TELEMETRY_DEBUG && <TelemetryExport />}
       </div>
     </div>
@@ -99,13 +106,31 @@ const EPILOGUE: Partial<Record<string, string>> = {
     "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
 }
 
+/**
+ * Bu savaşta kazanılan tarih notu: oyuncunun az önce yaptığı hamlenin
+ * tarihteki karşılığı (bkz. lore/lore.ts). Sayaç koleksiyonu hatırlatır.
+ */
+function LoreNote({ card }: { card: LoreCard }) {
+  return (
+    <aside className="lore-note" aria-label="Tarih notu">
+      <span className="lore-label">
+        TARİH NOTU · YENİ
+        <em>
+          {earnedLore().length} / {LORE.length}
+        </em>
+      </span>
+      <b>{card.title}</b>
+      <p>{card.text}</p>
+      <cite>{card.source}</cite>
+    </aside>
+  )
+}
+
 function Stars({ count }: { count: number }) {
   return (
     <div className="stars" aria-label={`${count} yıldız`}>
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= count ? 'is-earned' : undefined}>
-          ★
-        </span>
+        <StarIcon key={n} size={30} className={n <= count ? 'is-earned' : undefined} />
       ))}
     </div>
   )

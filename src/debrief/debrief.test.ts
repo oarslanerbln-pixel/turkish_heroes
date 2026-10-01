@@ -9,8 +9,8 @@ import type { CommanderId } from '../mechanics/scenario'
 
 type Timed = [number, TelemetryEvent]
 
-function summary(commander: CommanderId, events: Timed[]): BattleSummary {
-  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist: 1 }, 'test', 0)
+function summary(commander: CommanderId, events: Timed[], assist = 1): BattleSummary {
+  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist }, 'test', 0)
   for (const [t, e] of events) applyEvent(s, { ...e, t })
   return s
 }
@@ -90,8 +90,8 @@ describe('savaş karnesi — Metehan', () => {
     expect(advice([[5, strike(8)], [9, strike(6)]])).toBe('kite')
   })
 
-  it('zafer: kıl payıysa söylenir; rekorun altındaysa hedef rekor', () => {
-    const d = debrief(summary('metehan', [[80, end('victory', { health: 9, score: 7000 })]]), {
+  it('zafer: kıl payıysa söylenir; üç yıldızdan sonra rekorun altındaysa hedef rekor', () => {
+    const d = debrief(summary('metehan', [[80, end('victory', { health: 9, score: 7000, stars: 3 })]]), {
       best: 9000,
     })
     expect(d.close).toBe(true)
@@ -108,7 +108,7 @@ describe('savaş karnesi — Metehan', () => {
     expect(routed.advice.id).toBe('sweep')
     expect(routed.advice.text).toContain('3 düşman')
 
-    const best = debrief(summary('metehan', [[80, end('victory', { health: 60, score: 9500 })]]), {
+    const best = debrief(summary('metehan', [[80, end('victory', { health: 60, score: 9500, stars: 3 })]]), {
       best: 9500,
     })
     expect(best.close).toBe(false)
@@ -116,6 +116,17 @@ describe('savaş karnesi — Metehan', () => {
 
     const flawless = debrief(summary('metehan', [[80, end('victory', { health: 100 })]]), { best: 0 })
     expect(flawless.advice.id).toBe('flawless')
+  })
+
+  it('zafer: üç yıldız yoksa hedef bir sonraki yıldızın bu basamaktaki canı', () => {
+    const goal = (health: number, stars: number, assist: number) =>
+      debrief(summary('metehan', [[80, end('victory', { health, stars, score: 100 })]], assist), {
+        best: 9000,
+      }).goal
+    // Yarı hasar: 2. yıldız 50, 3. yıldız 68 can ister.
+    expect(goal(40, 1, 0.5)).toEqual({ label: '2. yıldız: az yara', value: 40, target: 50, unit: 'can' })
+    expect(goal(55, 2, 0.5)).toEqual({ label: '3. yıldız: az yara', value: 55, target: 68, unit: 'can' })
+    expect(goal(20, 2, 1)).toMatchObject({ target: 35 })
   })
 })
 

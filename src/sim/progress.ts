@@ -2,6 +2,7 @@
 // gördü. localStorage'da tek anahtar; gizli sekmede okuma/yazma atabilir, o
 // zaman ilerleme o oturumla sınırlı kalır (oyun yine oynanır).
 
+import type { LoreId } from '../lore/lore'
 import { commanderInfo, type CommanderId } from '../mechanics/scenario'
 import { LADDER_TOP, nextLadderStep } from '../mechanics/waves'
 import { loadBestScore } from './score'
@@ -19,6 +20,10 @@ interface Progress {
   battles: Partial<Record<CommanderId, number>>
   /** Metehan'ın zorluk merdivenindeki basamak (bkz. waves.ts DAMAGE_LADDER). */
   ladder: number
+  /** Kazanılan tarih notları, kazanılma sırasıyla (bkz. lore/lore.ts). */
+  lore: LoreId[]
+  /** Ordu savaşlarında kazanılan en iyi yıldız (1–3); menüdeki komutan kartı için. */
+  stars: Partial<Record<CommanderId, number>>
 }
 
 function load(): Progress {
@@ -35,12 +40,31 @@ function load(): Progress {
         // Merdivenden önce Metehan'ı zaten kazanmış oyuncu tam hasarda başlar:
         // o zorluğu yenmiş, kolaylaştırılmış savaş ona hediye değil.
         ladder: p.ladder ?? (won.includes('metehan') ? LADDER_TOP : 0),
+        lore: p.lore ?? [],
+        stars: p.stars ?? inferStars(won, p.lore ?? []),
       }
     }
   } catch {
     // Bozuk kayıt ya da erişilemeyen depolama: sıfırdan başla.
   }
-  return { won: [], hints: [], battles: {}, ladder: 0 }
+  return { won: [], hints: [], battles: {}, ladder: 0, lore: [], stars: {} }
+}
+
+/**
+ * Yıldız kaydı bu sürümle geldi; önceki oyuncunun yıldızları kayıttan
+ * türetilir: zafer en az bir yıldızdır, imparatoru / Manuel'i
+ * kuşatmanın notu (yalnızca o anda kazanılır) üç yıldız. İki yıldız
+ * türetilemez; oyuncu bir sonraki zaferinde kendisi yazar.
+ */
+export function inferStars(
+  won: readonly CommanderId[],
+  lore: readonly LoreId[],
+): Partial<Record<CommanderId, number>> {
+  const stars: Partial<Record<CommanderId, number>> = {}
+  for (const id of won) stars[id] = 1
+  if (lore.includes('esir')) stars['alp-arslan'] = 3
+  if (lore.includes('baris')) stars.kilicarslan = 3
+  return stars
 }
 
 let progress = load()
@@ -62,6 +86,23 @@ export function isUnlocked(id: CommanderId): boolean {
   const by = commanderInfo(id).unlockedBy
   if (!by) return true
   return progress.won.includes(by) || loadBestScore(id) > 0
+}
+
+/** Bu komutanla zafer kazanıldı mı. */
+export function hasWon(id: CommanderId): boolean {
+  return progress.won.includes(id)
+}
+
+/** Bu komutanın ordu savaşında kazanılan en iyi yıldız (0 = henüz yok). */
+export function bestStars(id: CommanderId): number {
+  return progress.stars[id] ?? 0
+}
+
+/** Zafer yıldızı: yalnızca rekor kırarsa yazılır. */
+export function recordStars(id: CommanderId, stars: number): void {
+  if (stars <= bestStars(id)) return
+  progress = { ...progress, stars: { ...progress.stars, [id]: stars } }
+  save()
 }
 
 export function recordVictory(id: CommanderId): void {
@@ -102,4 +143,15 @@ export function takeHint(id: HintId): boolean {
   progress = { ...progress, hints: [...progress.hints, id] }
   save()
   return true
+}
+
+/** Kazanılan tarih notları. */
+export function earnedLore(): readonly LoreId[] {
+  return progress.lore
+}
+
+export function recordLore(id: LoreId): void {
+  if (progress.lore.includes(id)) return
+  progress = { ...progress, lore: [...progress.lore, id] }
+  save()
 }

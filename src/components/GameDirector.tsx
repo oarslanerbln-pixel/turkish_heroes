@@ -14,7 +14,16 @@ import {
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
-import { isUnlocked, recordBattleEnd, recordLadder, recordVictory } from '../sim/progress'
+import {
+  earnedLore,
+  isUnlocked,
+  recordBattleEnd,
+  recordLadder,
+  recordLore,
+  recordStars,
+  recordVictory,
+} from '../sim/progress'
+import { pickLore } from '../lore/lore'
 import { scenarioOf, SCORE_PER_KILL, type Scenario } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
@@ -54,8 +63,10 @@ function finishBattle(scenario: Scenario): void {
   const victory = world.outcome === 'victory'
   const locked = COMMANDERS.filter((c) => !isUnlocked(c.id)).map((c) => c.id)
   if (victory) {
+    // victoryBonus yıldızları da yazar (world.stars); kayıt ondan sonra.
     world.score += scenario.victoryBonus(world)
     recordVictory(world.commander)
+    recordStars(world.commander, world.stars)
   }
   if (world.battle) recordBattleEnd(world.commander)
   else recordLadder(victory)
@@ -77,6 +88,9 @@ function finishBattle(scenario: Scenario): void {
   }
   const summary = projectEnd(end)
   world.debrief = summary ? debrief(summary, { best: world.bestScore }) : null
+  // Kart hemen kaydedilir: oyuncu sonuç ekranını beklemeden kapatsa da kazanılmış sayılır.
+  world.lore = summary ? pickLore(summary, earnedLore()) : null
+  if (world.lore) recordLore(world.lore.id)
   track({ ...end, advice: world.debrief?.advice.id })
 
   play(victory ? 'victory' : 'defeat')
@@ -250,6 +264,7 @@ export function GameDirector() {
         emperorCaptured: b?.emperorCaptured ?? false,
         debrief: world.debrief,
         unlocked: world.unlocked,
+        lore: world.lore,
         canBlock: !!b?.layout.pass && !b.blockadeUsed,
         blockade: b?.blockade?.strength ?? 0,
       })

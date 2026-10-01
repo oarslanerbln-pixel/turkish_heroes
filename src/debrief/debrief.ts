@@ -28,7 +28,7 @@ import {
   REARGUARD,
 } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
-import { TOTAL_WAVES, WAVES } from '../mechanics/waves'
+import { TOTAL_WAVES, WAVES, wavesStarHealth } from '../mechanics/waves'
 import type { BattleSummary } from '../telemetry/summary'
 
 export type AdviceId =
@@ -154,10 +154,7 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
       close: s.health <= 15,
       peak,
       advice: victoryAdvice(s, routed),
-      goal:
-        s.score < ctx.best
-          ? { label: 'Rekor', value: s.score, target: ctx.best, unit: 'puan' }
-          : null,
+      goal: waveVictoryGoal(s, ctx),
       timeline,
     }
   }
@@ -171,6 +168,24 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
     goal: { label: 'Zafere', value: kills + routed, target: WAVE_TOTAL, unit: 'düşman' },
     timeline,
   }
+}
+
+/**
+ * Üç yıldız yoksa hedef bir sonraki yıldız: bu savaşın basamağında kalması
+ * gereken can (merdiven gizli; oyuncu yalnızca can çubuğunu görüyor). Üç
+ * yıldızdan sonra rekor.
+ */
+function waveVictoryGoal(s: BattleSummary, ctx: DebriefContext): Debrief['goal'] {
+  if (s.stars < 3) {
+    const next = s.stars < 2 ? 2 : 3
+    return {
+      label: `${next}. yıldız: az yara`,
+      value: s.health,
+      target: wavesStarHealth(next, s.assist),
+      unit: 'can',
+    }
+  }
+  return s.score < ctx.best ? { label: 'Rekor', value: s.score, target: ctx.best, unit: 'puan' } : null
 }
 
 /**

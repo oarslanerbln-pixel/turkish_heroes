@@ -3,8 +3,8 @@ import { useGameStore } from '../store/gameStore'
 
 /**
  * Space → hilal vuruşu, Q / E → sol / sağ kola emir, R → yolu kes (geçit), Esc / P → mola. Menü ekranlarında klavye ana düğmenin
- * işini görür (BAŞLA: Space/Enter, YENİDEN ve DEVAM: Enter) — klavyedeki
- * oyuncu fareye uzanmasın.
+ * işini görür (SAVAŞA GİR: Space/Enter, YENİDEN ve DEVAM: Enter; menüde ↑ ↓
+ * komutan seçer, Hazine'de Esc kapatır) — klavyedeki oyuncu fareye uzanmasın.
  * Kenar-tetiklemeli: tuş basılı tutulduğunda tarayıcının ürettiği tekrar
  * olayları yok sayılır, yoksa enerji dolar dolmaz vuruş kendiliğinden gider.
  */
@@ -12,6 +12,19 @@ export function useStrikeInput() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return
+      const menu = useGameStore.getState()
+      // Bilgi Hazinesi kendi tuşlarını yönetir (oklar, Enter odaktaki düğmede);
+      // burada yalnızca Esc: kapat. Enter savaşı başlatmasın.
+      if (!menu.started && menu.archive) {
+        if (e.code === 'Escape') menu.closeArchive()
+        return
+      }
+      // Menüde oklar komutan seçer (radyo grubu gibi).
+      if (!menu.started && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+        e.preventDefault()
+        menu.stepCommander(e.code === 'ArrowUp' ? -1 : 1)
+        return
+      }
       if (e.code === 'Escape' || e.code === 'KeyP') {
         const game = useGameStore.getState()
         if (game.paused) game.resume()
