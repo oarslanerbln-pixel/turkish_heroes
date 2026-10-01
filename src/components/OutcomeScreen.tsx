@@ -5,6 +5,7 @@ import type { Debrief, TimelineMark } from '../debrief/debrief'
 import { LORE, type LoreCard } from '../lore/lore'
 import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
+import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 
 /**
@@ -127,9 +128,7 @@ function Stars({ count }: { count: number }) {
   return (
     <div className="stars" aria-label={`${count} yıldız`}>
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= count ? 'is-earned' : undefined}>
-          ★
-        </span>
+        <StarIcon key={n} size={30} className={n <= count ? 'is-earned' : undefined} />
       ))}
     </div>
   )

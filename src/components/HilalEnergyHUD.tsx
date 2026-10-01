@@ -37,7 +37,7 @@ const PASS_WINGS = [
 ]
 
 const PHASE_COLOR: Record<HilalPhase, string> = {
-  idle: '#8b7355',
+  idle: '#cda9a0',
   retreat: '#ffd700',
   gather: '#ff8c00',
   strike: '#ff5a1a',
@@ -100,7 +100,7 @@ function StatusCard() {
   const isDay = pass || battleTime < BATTLE_CONFIG.dayLength
 
   return (
-    <div className="hud-card">
+    <div className="hud-card velvet">
       <div className="hud-row">
         {battle ? (
           // Gündüz asıl tehdit ordunun hedefe (ordugah / geçidin çıkışı) varması.

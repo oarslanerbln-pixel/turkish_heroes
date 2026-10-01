@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 // Menü ikonları — satır içi SVG, `currentColor` ile boyanır.
 //
-// Emoji (🔒, 📜) her platformda başka çizilir ve altın paletten kopar; SVG
+// Emoji (🔒, 📜) her platformda başka çizilir ve paletten kopar; SVG
 // her cihazda aynı ve metnin rengini alır.
 
 interface IconProps {
@@ -53,6 +53,45 @@ export function CloseIcon(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="M6 6l12 12M18 6 6 18" />
+    </Svg>
+  )
+}
+
+/**
+ * Hilal ve yıldız, 24×24 çizim alanında; başka bir SVG'nin içine de konur
+ * (bkz. Ornament). Hilal iki çemberin kesişiminden çizilmiş tek yol: maske
+ * kimliği gerektirmez, sayfada çok kez kullanılabilir.
+ */
+export function CrescentMark() {
+  return (
+    <g fill="currentColor" stroke="none">
+      <path d="M15.42 2.6A10 10 0 1 0 21.57 14.9A7.6 7.6 0 1 1 15.42 2.6Z" />
+      <polygon transform="translate(17.4 7.6) scale(0.22) translate(-12 -12)" points={STAR_POINTS} />
+    </g>
+  )
+}
+
+/** Mola levhasının mührü. */
+export function CrescentIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <CrescentMark />
+    </Svg>
+  )
+}
+
+const STAR_POINTS =
+  '12,1 13.91,7.38 19.78,4.22 16.62,10.09 23,12 16.62,13.91 19.78,19.78 13.91,16.62 12,23 10.09,16.62 4.22,19.78 7.38,13.91 1,12 7.38,10.09 4.22,4.22 10.09,7.38'
+
+/**
+ * Sekiz köşeli yıldız ({8/3}): yıldız puanı. Dolu çizilir; ★ karakteri
+ * yazı tipine göre değişiyor, küçük boyda da dişli çarka benzemesin diye
+ * uçlar sivri.
+ */
+export function StarIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <polygon points={STAR_POINTS} fill="currentColor" stroke="none" />
     </Svg>
   )
 }

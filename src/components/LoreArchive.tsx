@@ -128,7 +128,7 @@ function ArchiveBody({ tab, earned }: { tab: CommanderId; earned: readonly LoreI
         })}
       </ol>
 
-      <article className="archive-card" key={current.id} aria-live="polite">
+      <article className="archive-card velvet" key={current.id} aria-live="polite">
         <span className="archive-card-label">
           NOT {roman(current.no)} · {c.name.toLocaleUpperCase('tr')}
         </span>

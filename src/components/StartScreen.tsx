@@ -4,7 +4,7 @@ import { archiveCount } from '../lore/archive'
 import type { LoreId } from '../lore/lore'
 import { bestStars, earnedLore, isFirstBattle } from '../sim/progress'
 import { Ornament } from './Ornament'
-import { LockIcon, ScrollIcon } from './icons'
+import { LockIcon, ScrollIcon, StarIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
 
 /**
@@ -35,7 +35,7 @@ export function StartScreen({ touch }: { touch: boolean }) {
   return (
     <div className="hud">
       <div className="menu">
-        <section className="menu-panel menu-roster" aria-label="Komutanlar">
+        <section className="menu-panel menu-roster velvet" aria-label="Komutanlar">
           <header className="menu-brand">
             <h1>HİLAL</h1>
             <Ornament width={132} />
@@ -131,9 +131,7 @@ function Record({ id }: { id: CommanderId }) {
   return (
     <span className="roster-stars" aria-label={`${stars} yıldız`}>
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= stars ? 'on' : undefined}>
-          ★
-        </span>
+        <StarIcon key={n} size={13} className={n <= stars ? 'on' : undefined} />
       ))}
     </span>
   )
@@ -150,7 +148,7 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
 
   return (
     <section
-      className={available ? 'menu-panel menu-brief' : 'menu-panel menu-brief is-locked'}
+      className={available ? 'menu-panel menu-brief velvet' : 'menu-panel menu-brief velvet is-locked'}
       aria-label={`${c.name} brifingi`}
     >
       <span className="brief-axis">{c.axis}</span>
