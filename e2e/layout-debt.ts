@@ -1,6 +1,7 @@
 /**
  * Bilinen düzen borcu: bekçinin bugünkü kodda bulduğu ihlaller ("önce" kanıtı,
- * 2 Ekim 2026). Faz 26 Adım 2a bu listeyi boşaltır. Bekçi tam eşitlik ister:
+ * 2 Ekim 2026). Faz 26 Adım 2a bu listeyi boşaltır. Ölçüt CI'nin Linux
+ * koşusu: Windows'ta yazı tipi farkıyla sınırdaki beş satır ayrışır. Bekçi tam eşitlik ister:
  * yeni bir ihlal de, giderilip burada kalan bir ihlal de testi kırar; liste
  * yalnız küçülür. Güncel ihlaller her koşuda rapora "ihlaller" eki olarak düşer.
  */
@@ -15,7 +16,6 @@ export const LAYOUT_DEBT: Record<string, string[]> = {
   'menü @ 568×320': [
     "Alp Arslan × II. Kılıçarslan: kesişiyor",
     "Alp Arslan: 44 px'ten küçük",
-    "BİLGİ HAZİNESİ: 44 px'ten küçük",
     "II. Kılıçarslan: 44 px'ten küçük",
     "Metehan × Alp Arslan: kesişiyor",
     "Metehan: 44 px'ten küçük",
@@ -32,6 +32,7 @@ export const LAYOUT_DEBT: Record<string, string[]> = {
   ],
   'mola @ 375×667': [
     "KOMUTANLAR: 44 px'ten küçük",
+    "KUŞAT × DEVAM: 8 px'ten yakın",
     "KUŞAT × KOMUTANLAR: kesişiyor",
     "SOL KOL × DEVAM: kesişiyor",
   ],
@@ -59,23 +60,22 @@ export const LAYOUT_DEBT: Record<string, string[]> = {
   ],
   'savaş Miryokefalon @ 375×667': [
     "Mola: 44 px'ten küçük",
-    "SAĞ YAMAÇ × KAYA YIĞINI: kesişiyor",
-    "SOL YAMAÇ × KAYA YIĞINI: kesişiyor",
+    "SAĞ YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
+    "SOL YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
     "Sesi aç: 44 px'ten küçük",
   ],
   'savaş Miryokefalon @ 568×320': [
     "Mola × KAYA YIĞINI: 8 px'ten yakın",
     "Mola: 44 px'ten küçük",
-    "SAĞ YAMAÇ × KAYA YIĞINI: kesişiyor",
-    "SOL YAMAÇ × KAYA YIĞINI: kesişiyor",
+    "SAĞ YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
+    "SOL YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
     "Sesi aç × KAYA YIĞINI: kesişiyor",
     "Sesi aç: 44 px'ten küçük",
   ],
   'savaş Miryokefalon @ 667×375': [
     "Mola: 44 px'ten küçük",
-    "SAĞ YAMAÇ × KAYA YIĞINI: kesişiyor",
-    "SOL YAMAÇ × KAYA YIĞINI: kesişiyor",
-    "Sesi aç × KAYA YIĞINI: 8 px'ten yakın",
+    "SAĞ YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
+    "SOL YAMAÇ × KAYA YIĞINI: 8 px'ten yakın",
     "Sesi aç: 44 px'ten küçük",
   ],
   'sonuç yenilgi @ 375×667': [

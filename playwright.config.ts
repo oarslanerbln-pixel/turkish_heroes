@@ -15,7 +15,7 @@ export default defineConfig({
   // Çekim tabanı platform adıyla tutulur: yazı ve WebGL çıktısı işletim sistemine göre değişir.
   snapshotPathTemplate: '{testDir}/__shots__/{arg}-{platform}{ext}',
   fullyParallel: true,
-  // Tabanı olmayan çekim yazılır, test düşmez: yeni çekim ilk koşuda taban olur.
+  // Tabanı olmayan çekim yazılır: o koşuda test düşer, sonrakinden itibaren karşılaştırılır.
   updateSnapshots: 'missing',
   forbidOnly: CI,
   workers: CI ? 2 : undefined,
