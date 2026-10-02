@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { LAYOUT_DEBT } from './layout-debt.ts'
-import { openShot, playToMoment } from './shot.ts'
+import { openShot, playToMoment, settle } from './shot.ts'
 
 // Düzen bekçisi (MIMARI.md §10.8): üç telefon görüşünde hiçbir dokunma hedefi
 // ekrandan taşmaz, başka bir hedefle kesişmez; hedef ≥44 px, komşu aralığı ≥8 px.
@@ -51,18 +51,6 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
     await playToMoment(page)
     await page.getByText('YENİLGİ', { exact: true }).waitFor()
   },
-}
-
-/** Giriş animasyonları bitsin: kayan bir panel ölçümü titretir. Sonsuz olanlar (nabız) beklenmez. */
-async function settle(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-        .map((a) => a.finished.catch(() => {})),
-    ),
-  )
 }
 
 /**

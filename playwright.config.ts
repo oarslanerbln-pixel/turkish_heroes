@@ -3,7 +3,7 @@
 // (`npm run build:e2e`); `npm run e2e` ikisini birlikte yapar.
 //
 // İki proje:
-// - checks: duman testi ve düzen bekçisi. Bloklayan.
+// - checks: duman testi, düzen ve kontrast bekçileri. Bloklayan.
 // - shots: referans çekimler ve görsel fark. Şimdilik yalnız CI çıktısı.
 import { defineConfig, devices } from '@playwright/test'
 
@@ -33,7 +33,7 @@ export default defineConfig({
     toHaveScreenshot: { maxDiffPixelRatio: 0.001 },
   },
   projects: [
-    { name: 'checks', testMatch: ['smoke.spec.ts', 'layout.spec.ts'] },
+    { name: 'checks', testMatch: ['smoke.spec.ts', 'layout.spec.ts', 'contrast.spec.ts'] },
     { name: 'shots', testMatch: 'shots.spec.ts', timeout: 120_000 },
   ],
   webServer: {

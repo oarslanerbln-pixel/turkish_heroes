@@ -470,7 +470,17 @@
   top: 22%;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
   text-align: center;
+  /*
+   * Açılışta kamera alçak, arkada parlak pus var: afiş duyuru gibi koyu bir
+   * şeridin üstünde durur (U2). %72 gölge en açık gökte de fildişini 4,5:1'in
+   * üstünde tutar; dolgu yazıyı şeridin solmayan ortasında bırakır.
+   */
+  padding: 10px 56px 12px;
+  background: linear-gradient(90deg, transparent, rgb(var(--shade-rgb) / 0.72) 48px, rgb(var(--shade-rgb) / 0.72) calc(100% - 48px), transparent);
+  mask-image: linear-gradient(transparent, #000 10px, #000 calc(100% - 10px), transparent);
   animation: banner 2.4s ease forwards;
 }
 
@@ -555,6 +565,10 @@
 }
 
 .day-label {
+  /* Açılış karesinde etiketin arkası gök: .phase gibi hap zemin, gökte yetecek koyulukta (U2). */
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: rgb(var(--shade-rgb) / 0.72);
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;

@@ -694,7 +694,12 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - Hazine sekmeleri iki satır (eksen üstte, ad altta); dikeyde alt alta. 375 px'te komutan adı 4 px'e kırpılıyordu.
     - Dokunmatik VUR düğmesi savaş bitince kalkar; sonuç örtüsünün altında KOMUTANLAR'ın üstüne biniyordu.
     - Yöntem: Linux genişliği yerelde Verdana'yla (DejaVu Sans ölçüsü) taklit edildi; 6 ekran × 3 görüş temiz.
-  - **Kalan:** U2 kontrast, sonuç başlığı, linux çekim tabanı, gerçek cihaz.
+  - **U2 yapıldı:** kontrast bekçisi (`contrast.spec.ts`, bloklayan) R2 açılış (3 komutan, afiş açık), R3 (3 komutan) ve R5'te, iki kademede görünen her yazıyı ölçer. Ölçüt glif kutusundaki zemin piksellerinin en kötü onda birine karşı ≥4,5:1. Yazı gölgesi sayılmaz.
+    - Şimdiki R3/R5 kareleri zaten temizdi: taktik kamera yere bakıyor, gök görünmüyor. İhlaller açılıştaydı: kamera alçak, arkada parlak pus. Savaş afişi başlığı ~1,7:1, alt satırı ~2,4:1, gün çizgisi etiketi 2,15:1.
+    - Afiş, duyuru gibi %72 koyu şeridin üstünde; üst ve alt kenarı yumuşak solar. Gün etiketi `.phase` gibi hap zemin aldı. Hepsi ≥9:1.
+    - Ters deneme: düzeltmesiz CSS'te bekçi R2'nin 6 karesinde de kırmızı.
+    - Yöntem tuzağı: zemin, glifler `-webkit-text-fill-color: transparent` ile gizlenip çekilir (`color`'a dokunmaz, `currentColor` kenarlıklar yerinde kalır). `transition: all` taşıyan düğmede yazı solarken çekilmesin diye geçişler kapatılır.
+  - **Kalan:** sonuç başlığı, linux çekim tabanı, gerçek cihaz.
   - Bulgular:
     - Yatay telefonda sonuç ekranı otomatik odakla düğmelere kayıyor, ZAFER/YENİLGİ başlığı görünmüyor.
     - Linux'ta gövde yazısı (`system-ui` → DejaVu/Liberation) Windows'tan geniş; kol düğmeleri "SAĞ YAMAÇ"a göre boyutlandı.
@@ -910,7 +915,8 @@ Terim tutarsızlığı: düğme KUŞAT/MENZİL/VUR (`HilalEnergyHUD.tsx:274`), m
 Her çekim düşük ve yüksek kademede alınır. Görüşler 667×375 yatay ve 375×667 dikey. R8 ve R9 oyun kamerası değil; model ve renk kararları bu iki sabit açıyla yargılanır.
 
 **Kurallar:**
-- **Düzen bekçisi (bloklayan):** 667×375, 568×320 ve 375×667'de hiçbir dokunma hedefi ekrandan taşmaz ve başka bir hedefle kesişmez. Hedef ≥44 px, komşu aralığı ≥8 px.
+- **Düzen bekçisi (bloklayan):** 667×375, 568×320 ve 375×667'de hiçbir dokunma hedefi ekrandan taşmaz ve başka bir hedefle kesişmez. Hedef ≥44 px, komşu aralığı ≥8 px. Görünen yazı ≥12 px.
+- **Kontrast bekçisi (bloklayan):** R2, R3 ve R5'te iki kademede görünen her yazı zeminine karşı ≥4,5:1 (zemin piksellerinin en kötü onda biri).
 - **Görsel fark:** Playwright `toHaveScreenshot`, toleranslı. Başta CI çıktısı olarak sunulur, birleştirmeyi durdurmaz. Arayüz çekimleri (R1, R7) iki hafta kararlı kalırsa bloklayana geçer.
 - **PR şablonu:** görsele dokunan PR'da etkilenen R çekimlerinin önce/sonra tablosu olur. Renk değişiminde kontrast ya da ΔE sayısı yazılır.
 - **Determinizm:** aynı commit'te aynı çekim iki koşuda en fazla %0,1 piksel farkıyla tekrarlanır.

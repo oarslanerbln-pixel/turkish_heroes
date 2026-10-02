@@ -26,3 +26,15 @@ export async function playToMoment(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'SAVAŞA GİR' }).click()
   await page.locator('html[data-shot="battle"]').waitFor({ state: 'attached', timeout: 90_000 })
 }
+
+/** Giriş animasyonları bitsin: kayan bir panel ölçümü titretir. Sonsuz olanlar (nabız) beklenmez. */
+export async function settle(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  )
+}
