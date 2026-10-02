@@ -216,6 +216,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - İleride eklenecek "Atla" düğmesi de yutulur.
 - Öneri: aktif oyun dışında, odak bir düğme, bağlantı ya da girdi alanındaysa kısayolu hiç işleme.
 - Zaman: **sağlamlık paketi**
+- **Durum (2 Ekim 2026): kapandı.** Ayrıntı §8 Adım 1.3'te.
 
 **A2 · Oyun akışı örtük**
 - Kanıt: `world.ts:211-213`, `Scene.tsx:58,82`
@@ -630,7 +631,12 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 **1. Sağlamlık paketi + ölçüm altyapısı.**
 1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
 2. ~~A6 hata ayıklama anahtarları bayrağın arkasına.~~ **Yapıldı:** `src/playtest.ts`, `DEV || MODE === 'playtest'` (`npm run build:playtest`). Ortam değişkeni değil derleme modu: önizlemeye konan bir değişken promote ile üretime taşınırdı. `?tune` ve `?commander=` canlı pakette okunmuyor, oyun testi paketinde okunuyor (paket taramasıyla doğrulandı). Oyun testi paketi uzak kayda göndermez. `?perf`, `?quality` ve `?telemetry` ölçüm için açık kalır.
-3. A1 klavye kısayolu (veri onayı ve harita radyoları dahil). Kabul: Enter/Space odaktaki düğmeyi çalar; veri onayı ve harita yalnız klavyeyle seçilebilir.
+3. ~~A1 klavye kısayolu (veri onayı ve harita radyoları dahil).~~ **Yapıldı** (`useStrikeInput.ts`), gerçek tuş olaylarıyla ölçüldü:
+   - Savaş dışında odaktaki düğme Enter ve Space'i kendisi alır. BİLGİ HAZİNESİ açılır, haritadan komutan seçilir, moladan KOMUTANLAR çalışır; hiçbiri savaşı başlatmaz.
+   - Tek istisna: mola ve sonuçta kendiliğinden odaklanan ana düğmede Space yutulur, Enter çalışır.
+   - Basılı tutulan Space'in tekrarları da yutulur.
+   - Savaşta odak bir HUD düğmesindeyken Space vuruştur, düğmeyi tetiklemez.
+   - Rıza düğmeleri düz düğme, aynı yoldan geçer. Geliştirmede rıza gösterilmediği için ayrıca ölçülmedi.
 4. P1 hata sınırı ve WebGL bağlam kaybı. Kabul: `WEBGL_lose_context` ile bağlam kaybında kurtarma ekranı çıkar, sayfa beyaz kalmaz.
 5. P5 + P8 + D6 ses yaşam döngüsü (tek kök). Kabul: mola ve sessizde bağlam `suspended`; devam, yeniden başla ve komutan değişiminde ilk dokunuşla `running`; ortam aralığı temizlenir.
 6. A3 menüdeki bayat kare.
