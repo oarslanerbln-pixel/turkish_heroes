@@ -376,6 +376,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - Gönderilen özetlerde "ayarlı oyun" bayrağı yok.
 - Öneri: bu anahtarları DEV ya da oyun-testi derleme bayrağıyla sınırla; ayarlı oyunlarda kayıt ve gönderim yapılmasın.
 - Zaman: sağlamlık paketi
+- **Durum (2 Ekim 2026): kapandı.** Ayrıntı §8 Adım 1.2'de. Oyun testi paketinde yerel kayıt sürüyor; yalnız test edenin kendi cihazını etkiler.
 
 ### Düşük
 
@@ -628,7 +629,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 
 **1. Sağlamlık paketi + ölçüm altyapısı.**
 1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
-2. A6 hata ayıklama anahtarları `DEV || VITE_PLAYTEST` bayrağının arkasına. Kabul: canlı pakette anahtar işleyicisi yok, önizleme yapısında var.
+2. ~~A6 hata ayıklama anahtarları bayrağın arkasına.~~ **Yapıldı:** `src/playtest.ts`, `DEV || MODE === 'playtest'` (`npm run build:playtest`). Ortam değişkeni değil derleme modu: önizlemeye konan bir değişken promote ile üretime taşınırdı. `?tune` ve `?commander=` canlı pakette okunmuyor, oyun testi paketinde okunuyor (paket taramasıyla doğrulandı). Oyun testi paketi uzak kayda göndermez. `?perf`, `?quality` ve `?telemetry` ölçüm için açık kalır.
 3. A1 klavye kısayolu (veri onayı ve harita radyoları dahil). Kabul: Enter/Space odaktaki düğmeyi çalar; veri onayı ve harita yalnız klavyeyle seçilebilir.
 4. P1 hata sınırı ve WebGL bağlam kaybı. Kabul: `WEBGL_lose_context` ile bağlam kaybında kurtarma ekranı çıkar, sayfa beyaz kalmaz.
 5. P5 + P8 + D6 ses yaşam döngüsü (tek kök). Kabul: mola ve sessizde bağlam `suspended`; devam, yeniden başla ve komutan değişiminde ilk dokunuşla `running`; ortam aralığı temizlenir.

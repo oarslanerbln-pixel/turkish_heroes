@@ -12,6 +12,7 @@ import { isUnlocked } from '../sim/progress'
 import { isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
 import { setBattleMusic, startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
+import { PLAYTEST } from '../playtest'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -128,9 +129,10 @@ const INITIAL_HUD: HudSnapshot = {
   blockade: 0,
 }
 
-// ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır
-// ve kilidi atlar.
-const urlCommander = typeof window !== 'undefined' ? parseCommander(window.location.search) : null
+// ?commander=alp-arslan: oyun testi derlemesinde doğrudan o komutan seçili
+// açılır ve kilidi atlar.
+const urlCommander =
+  PLAYTEST && typeof window !== 'undefined' ? parseCommander(window.location.search) : null
 if (urlCommander) resetWorld(urlCommander)
 
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */

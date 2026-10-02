@@ -30,9 +30,10 @@ import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
+import { PLAYTEST } from '../playtest'
 
-/** Canlı ayar paneli yalnızca ?tune ile (oyun testi). */
-const TUNING_ENABLED = new URLSearchParams(window.location.search).has('tune')
+/** Canlı ayar paneli yalnızca oyun testi derlemesinde ?tune ile. */
+const TUNING_ENABLED = PLAYTEST && new URLSearchParams(window.location.search).has('tune')
 
 /**
  * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Başlangıç
