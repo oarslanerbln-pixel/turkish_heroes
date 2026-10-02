@@ -52,3 +52,20 @@ test.describe('dikey telefon', () => {
     await expect(page.getByRole('button', { name: 'DEVAM' })).toBeVisible()
   })
 })
+
+// A5: işletim sisteminin tercihi kökte bayrak olur; arayüz onu okur.
+test.describe('hareketi azalt', () => {
+  test.use({ reducedMotion: 'reduce' })
+
+  test('afiş kaymadan solar; tercih değişince bayrak izler', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('hilal_muted', '1'))
+    await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-reduced-motion', '')
+    await page.getByRole('button', { name: 'SAVAŞA GİR' }).click()
+    await expect(page.locator('.wave-banner')).toHaveCSS('animation-name', 'banner-fade')
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await expect(page.locator('html')).not.toHaveAttribute('data-reduced-motion')
+    await expect(page.locator('.wave-banner')).toHaveCSS('animation-name', 'banner')
+  })
+})

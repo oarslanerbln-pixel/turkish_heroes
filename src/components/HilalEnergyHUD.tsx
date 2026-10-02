@@ -70,7 +70,7 @@ export function HilalEnergyHUD() {
   if (!started) return <StartScreen touch={touch} />
 
   return (
-    <div className={touch ? 'hud is-touch' : 'hud'}>
+    <div className={`hud${touch ? ' is-touch' : ''}${paused ? ' is-paused' : ''}`}>
       <StatusCard />
       <Corner />
       <EnergyPanel touch={touch} />

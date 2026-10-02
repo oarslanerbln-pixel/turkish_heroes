@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { HILAL_CONFIG } from '../mechanics/hilalSystem'
 import { world } from '../sim/world'
+import { useGameStore } from '../store/gameStore'
 
 // FollowCamera'dan (5) sonra, çizimden (10) önce.
 const SHAKE_PRIORITY = 6
@@ -16,7 +17,7 @@ const SHAKE_STRENGTH = 0.5
  */
 export function CameraShake() {
   useFrame(({ camera }) => {
-    if (world.strikeTimer <= 0) return
+    if (world.strikeTimer <= 0 || useGameStore.getState().reducedMotion) return
 
     // En sert vuruş anında, sonra sönümlenir.
     const kalan = world.strikeTimer / HILAL_CONFIG.strikeDuration

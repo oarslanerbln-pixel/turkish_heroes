@@ -9,7 +9,7 @@ import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
-import { holdAudio, isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
+import { holdAudio, isMuted, play, setHaptics, setMuted, unlockAudio } from '../audio/sfx'
 import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 import { PLAYTEST } from '../playtest'
@@ -59,6 +59,11 @@ interface GameState extends HudSnapshot {
   paused: boolean
   commander: CommanderId
   muted: boolean
+  /**
+   * "Hareketi azalt": sarsıntı, titreşim, sinematik çekimler ve arayüzün
+   * kayan/büyüyen animasyonları kapalı. Şimdilik işletim sisteminin tercihi.
+   */
+  reducedMotion: boolean
   /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
   archive: CommanderId | null
   syncHud: (snapshot: HudSnapshot) => void
@@ -135,6 +140,9 @@ const urlCommander =
   PLAYTEST && typeof window !== 'undefined' ? parseCommander(window.location.search) : null
 if (urlCommander) resetWorld(urlCommander)
 
+const reducedMotionQuery =
+  typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
+
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
 export function isCommanderAvailable(id: CommanderId): boolean {
   return id === urlCommander || isUnlocked(id)
@@ -147,6 +155,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   paused: false,
   commander: world.commander,
   muted: isMuted(),
+  reducedMotion: reducedMotionQuery?.matches ?? false,
   archive: null,
 
   syncHud: (snapshot) => set(snapshot),
@@ -275,4 +284,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 // açılmasına ancak böyle izin verir.
 useGameStore.subscribe((s, prev) => {
   if (s.paused !== prev.paused) holdAudio(s.paused)
+  if (s.reducedMotion !== prev.reducedMotion) applyMotion(s.reducedMotion)
 })
+
+/**
+ * Bayrağın tek okuyucusu store değil: titreşim sfx'te, CSS kökteki
+ * `data-reduced-motion`'da. Oyun içi bir ayar gelirse yalnızca store'u yazar.
+ */
+function applyMotion(reduced: boolean): void {
+  setHaptics(!reduced)
+  if (typeof document !== 'undefined') document.documentElement.toggleAttribute('data-reduced-motion', reduced)
+}
+applyMotion(useGameStore.getState().reducedMotion)
+reducedMotionQuery?.addEventListener('change', (e) => useGameStore.setState({ reducedMotion: e.matches }))
