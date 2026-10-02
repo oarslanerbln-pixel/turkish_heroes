@@ -6,6 +6,7 @@ const START: Extract<TelemetryEvent, { type: 'battle_start' }> = {
   commander: 'metehan',
   attempt: 1,
   assist: 0.5,
+  seed: null,
 }
 const END: TelemetryEvent = {
   type: 'battle_end',

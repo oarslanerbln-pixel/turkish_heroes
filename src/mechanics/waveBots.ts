@@ -96,7 +96,7 @@ export function runWaves(
   /** Yenilgide "kalan": savaşmaya devam eden (bozguna uğrayan sayılmaz). */
   const fighting = () => enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0)
 
-  record?.({ type: 'battle_start', commander: 'metehan', attempt: 1, assist: damageScale }, 0)
+  record?.({ type: 'battle_start', commander: 'metehan', attempt: 1, assist: damageScale, seed: null }, 0)
 
   let result: 'victory' | 'defeat' | null = null
   while (result === null && time < MAX_TIME) {

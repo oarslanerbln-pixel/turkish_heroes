@@ -10,7 +10,7 @@ import type { CommanderId } from '../mechanics/scenario'
 type Timed = [number, TelemetryEvent]
 
 function summary(commander: CommanderId, events: Timed[], assist = 1): BattleSummary {
-  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist }, 'test', 0)
+  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist, seed: null }, 'test', 0)
   for (const [t, e] of events) applyEvent(s, { ...e, t })
   return s
 }

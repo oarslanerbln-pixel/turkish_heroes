@@ -255,6 +255,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Etki: tohum kaydedilmiyor, adım (`dt`) değişken. Tekrar oynatma, hata ayıklama ve "o anı yeniden göster" fikirleri buna bağlı.
 - Öneri: tohumu savaş özetine yaz; ileride sabit adımlı simülasyon.
 - Zaman: tohum parametresi sağlamlık paketinde; sabit adım sürekli
+- **Durum (2 Ekim 2026): ilk yarı kapandı** (tohum parametresi ve özette tohum, §8 Adım 1.7). Sabit adım açık.
 
 **G3 · Efekt zinciri prop'larla sürülürse bellek sızdırır**
 - Kanıt: `Scene.tsx:158`, `quality.ts:79-80`
@@ -656,7 +657,11 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 6. ~~A3 menüdeki bayat kare.~~ **Yapıldı:** `Scene.tsx` `InvalidateOnFlow`, komutan ve `started` değişince bir kare ister. Ölçüm (savaş 900 sabit adım ilerletildi, kamera (0.09, 20, 31)):
    - Önce: molada KOMUTANLAR sonrası çizilen kare sayısı değişmiyordu; menüde son savaş karesi kalıyordu.
    - Sonra: KOMUTANLAR'da bir kare çizilir, kamera açılış konumuna (6, 5.5, 30) döner. Bu, ilk yüklemedeki menü kamerasıyla aynı; ekran görüntüsünde menünün arkasında yeni savaşın açılış karesi var. SAVAŞA GİR bu kareden kesmesiz başlar.
-7. S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde. Kabul: aynı tohumla iki koşuda t=6'da düşman konumları eşit.
+7. ~~S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde.~~ **Yapıldı:** `random.ts` `parseSeed`, `world.seed` (dalgalı savaşta null), `battle_start` ve `BattleSummary.seed`. Özet `jsonb`'de; tablo şeması değişmedi. Ölçüm:
+   - `?seed=1071` ile iki ayrı sayfa yüklemesi, savaş 360 sabit adım (t=6) ilerletildi. 41 düşmanın konumları bit düzeyinde eşit, özette `seed: 1071`.
+   - Karşı-olgu: `?seed=7` ile aynı anda konumlar 2,04 birime kadar ayrışıyor.
+   - Paket taraması: `get("seed")` oyun testi paketinde var, canlı pakette yok.
+   - Ölçüm tuzağı: sanal saat gerçek zamandan başlarsa adım süresi kayan noktada yuvarlanır. Bu yüzden `world.time` 6'yı bir koşuda 360., ötekinde 361. adımda geçer. Sanal saati sabit tabandan (10⁶ ms) başlatıp adım sayısını sabitlemek gerekir.
 8. P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).
 
 **2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.

@@ -13,3 +13,9 @@ export function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
+
+/** URL'den tohum: ?seed=1071 oyun testinde her ordu savaşını aynı dizilişle başlatır. */
+export function parseSeed(search: string): number | null {
+  const value = new URLSearchParams(search).get('seed')
+  return value && /^\d{1,10}$/.test(value) ? Number(value) >>> 0 : null
+}

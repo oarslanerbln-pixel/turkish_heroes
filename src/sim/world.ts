@@ -12,6 +12,8 @@ import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave } from '../mechanics/waves'
+import { parseSeed } from '../mechanics/random'
+import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
 
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
@@ -22,6 +24,8 @@ export interface World {
   commander: CommanderId
   /** Alp Arslan savaşının durumu; dalgalı senaryoda null. */
   battle: BattleState | null
+  /** Ordunun dizilişini veren tohum; savaş özetine yazılır. Dalgalı senaryo rastgelelik kullanmaz: null. */
+  seed: number | null
   player: Vec2
   /** Gerçekleşen yer değiştirmeden türetilir, klavye niyetinden değil. */
   playerVel: Vec2
@@ -115,15 +119,20 @@ export interface World {
   lore: LoreCard | null
 }
 
+/** Oyun testinde ?seed= sabitse her savaş o tohumla başlar (karşılaştırma, hata ayıklama). */
+const FIXED_SEED = PLAYTEST && typeof window !== 'undefined' ? parseSeed(window.location.search) : null
+
 // Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
 function initialWorld(commander: CommanderId): World {
   // Her savaş biraz farklı dizilişle başlasın; kurallar aynı.
   const layout = battleLayout(commander)
-  const battle = layout ? createBattle(Math.floor(Math.random() * 2 ** 31), layout) : null
+  const seed = layout ? (FIXED_SEED ?? Math.floor(Math.random() * 2 ** 31)) : null
+  const battle = layout && seed !== null ? createBattle(seed, layout) : null
 
   return {
     commander,
     battle: battle?.battle ?? null,
+    seed,
     // Ordu savaşlarında oyuncu ordunun önünde başlar (ordugah / geçidin kuzeyi);
     // ordu ufukta, -z'de.
     player: layout ? { ...layout.playerStart } : { x: 0, z: 8 },

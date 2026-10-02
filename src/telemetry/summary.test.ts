@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { applyEvent, startSummary, type Stamped } from './summary'
 
 function play(events: Stamped[]) {
-  const s = startSummary({ type: 'battle_start', commander: 'metehan', attempt: 2, assist: 0.7 }, 'abc', 1000)
+  const s = startSummary({ type: 'battle_start', commander: 'metehan', attempt: 2, assist: 0.7, seed: null }, 'abc', 1000)
   for (const e of events) applyEvent(s, e)
   return s
 }
