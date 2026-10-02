@@ -10,8 +10,10 @@ import { world } from '../sim/world'
 // kendisinin üstünde durmalı, köşedeki bir listede değil. Gündüz tabanı (0,6)
 // çubukta çentikle gösterilir: taciz nereye kadar işler, görünsün.
 
-// Görseller yönetmenden sonra: o karenin birlik durumunu kullanırlar.
-const VISUAL_PRIORITY = 3
+// Kameraya bakan görsel: kameradan (5) ve sarsıntıdan (6) sonra, çizimden (10)
+// önce. Öncelik 3'te bir önceki karenin yönünü kopyalıyordu; dönen bir
+// çekimde titrerdi.
+const CAMERA_FACING_PRIORITY = 7
 
 const BAR_WIDTH = 3.4
 const BAR_HEIGHT = 0.2
@@ -78,7 +80,7 @@ export function CorpsBanners() {
         ring.scale.setScalar(1 + 0.15 * Math.sin(clock.elapsedTime * 6))
       }
     }
-  }, VISUAL_PRIORITY)
+  }, CAMERA_FACING_PRIORITY)
 
   return (
     <>

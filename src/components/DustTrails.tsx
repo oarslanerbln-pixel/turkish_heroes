@@ -15,7 +15,10 @@ import { WIND_DIR, WIND_DRIFT_CALM, WIND_DRIFT_GUST, windGust } from './world/wi
 // görüntüsüyle görüldü). Bulutlar kameraya bakar, perdeler yere yatar. Işığı
 // alan malzeme: gün batımında toz da kızarır. Düşük kademede yok, çimen gibi.
 
-const VISUAL_PRIORITY = 3
+// Kameraya bakan görsel: kameradan (5) ve sarsıntıdan (6) sonra, çizimden (10)
+// önce. Öncelik 3'te bir önceki karenin yönünü kopyalıyordu; dönen bir
+// çekimde titrerdi.
+const CAMERA_FACING_PRIORITY = 7
 
 /** Tam dörtnalda süvari başına saniyede toz bulutu. */
 const TRAIL_RATE: Record<QualityTier, number> = { high: 10, medium: 6, low: 0 }
@@ -210,7 +213,7 @@ function DustPool() {
     }
     mesh.count = live
     mesh.instanceMatrix.needsUpdate = true
-  }, VISUAL_PRIORITY)
+  }, CAMERA_FACING_PRIORITY)
 
   return <instancedMesh ref={ref} args={[geometry, material, POOL]} frustumCulled={false} />
 }
