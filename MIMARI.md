@@ -1,6 +1,6 @@
 # HİLAL — Mimari ve Risk Raporu
 
-**Tarih:** 1 Ekim 2026 · **Kapsam:** faz 25 sonu (PR #15, `0fadcaa`; satır numaraları `feeee38` içindir)
+**Tarih:** 1 Ekim 2026 · **Kapsam:** faz 25 sonu (PR #15, `0fadcaa`; satır numaraları `feeee38` içindir) · **Güncelleme:** 2 Ekim 2026, disiplinler arası değerlendirme (§10) ve birleşik yol haritası (§8)
 **Yöntem:** Kod dört alanda bağımsız incelendi: simülasyon, görüntü ve kamera, platform, arayüz akışı. Ölçümler alındı, Google Flow ve Meshy için dış araştırma yapıldı. Yüksek önemli her iddia ayrıca kodda doğrulandı; yanlış çıkan iddia düzeltildi (Ek A).
 
 Bu belge yaşayan bir kayıttır: her faz sonunda risk kaydı güncellenir (§9).
@@ -22,10 +22,11 @@ Bu belge yaşayan bir kayıttır: her faz sonunda risk kaydı güncellenir (§9)
 **Bugün düzeltilecek kol hatası:** Simülasyon doğru çalışıyor; sorun görselde ve geri bildirimde. Üstelik kolların tacizi, Metehan'ın okları gibi çiziliyor (§6).
 
 **Önerilen sıra:**
-1. Kol düzeltmesi
-2. Küçük bir sağlamlık paketi
-3. Faz 26 Sinematik, önkoşullarıyla
-4. Faz 27 Modeller, önkoşullarıyla
+1. ~~Kol düzeltmesi~~ (PR #16)
+2. Küçük bir sağlamlık paketi + ölçüm altyapısı
+3. Faz 26 Okunabilirlik ve denge
+4. Faz 27 Sinematik, önkoşullarıyla
+5. Faz 28 Modeller, önkoşullarıyla
 
 Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza bağlanıyor. Böylece her faz oyuncunun göreceği bir şeyle kapanıyor.
 
@@ -122,7 +123,7 @@ Kimliğin harfi alanı gösterir: **S** simülasyon · **G** görüntü/kamera �
 | A Arayüz akışı | 2 | 4 | 3 |
 | **Toplam** | **8** | **15** | **12** |
 
-Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
+Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplinler arası değerlendirmenin bulguları (O, V, K, U, D, M, T) §10'da ayrı tutulur.
 
 ### Yüksek
 
@@ -135,7 +136,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 - Öneri:
   - `stepGame(world, input, dt)` adında, Suspense'in dışında duran tek bir sürücü; bileşenler yalnızca okuyup çizer.
   - Her model kendi Suspense'ine sarılsın; yükleme sırasında bugünkü prosedürel mesh görünsün.
-- Zaman: **faz 27 önkoşulu**
+- Zaman: **`stepGame`: faz 26 (denge önkoşulu, S4); bölünmüş Suspense: faz 28 önkoşulu**
 
 **S2 · Olaylar tipsiz, konumsuz, tek okuyuculu**
 - Kanıt: `scenarios.ts:300`, `hilalSystem.ts:338`, `ArrowVolley.tsx:40-62`
@@ -148,7 +149,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 - Öneri: `world.events` adında tipli bir kuyruk:
   - Olaylar: `volleyFired{origin, facing, victimIds}`, `arrowReleased{slot, origin, target, t0}`, `charge{corps, pos}`, `rout`, `sunset`, `waveSpawn`.
   - Kare sonunda temizlenir; kamera, ses ve telemetri ona abone olur.
-- Zaman: **faz 26 önkoşulu**
+- Zaman: **faz 27 önkoşulu**
 
 **S3 · Zaman: ağır çekim aç/kapa, dörtnal duvar saatiyle, HUD sim saatiyle**
 - Kanıt: `world.ts:225`, `EnemySwarm.tsx:91`, `AlliedWings.tsx:154`, `MetehanPlaceholder.tsx:102`, `GameDirector.tsx:235`
@@ -160,7 +161,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - Yönetmenin sahip olduğu, kademeli değiştirilebilen bir `world.timeScale` (ağır çekim, sinematik, donma katmanları).
   - Sim zamanıyla ilerleyen bir `world.animTime` (dörtnal fazı ve animasyon karıştırıcıları için).
   - HUD senkronu `realDelta` ile.
-- Zaman: **faz 26 önkoşulu**. AlliedWings kısmı bugünkü düzeltmede.
+- Zaman: **faz 27 önkoşulu**. AlliedWings kısmı bugünkü düzeltmede.
 
 **G1 · Kamera çekim sistemi bir sinematik yönetmen taşıyamıyor**
 - Kanıt: `FollowCamera.tsx:91-92,121`, `world.ts:18`, `CameraShake.tsx:25-27`, `CorpsBanners.tsx:96`
@@ -174,7 +175,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
     - Son çizilen pozdan geçiş yapar.
     - Hedef fonksiyonlu bir çekim yığını tutar.
     - fov, yakın soluklaşma, sarsıntı ve `world.cinematic` ağırlığı onundur.
-- Zaman: **faz 26'nın çekirdeği**
+- Zaman: **faz 27'nin çekirdeği**
 
 **G2 · Kolların tacizi oyuncunun oku olarak çiziliyor**
 - Kanıt: `corps.ts:715`, `ArrowVolley.tsx:59,69-70`
@@ -205,7 +206,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - `maximumFileSizeToCacheInBytes` ayarı.
   - Çözücüleri kendimiz barındıralım ya da meshopt kullanalım.
   - CI'da boyut bütçesi.
-- Zaman: **faz 27 önkoşulu**
+- Zaman: **faz 28 önkoşulu**
 
 **A1 · Enter/Space odaktaki düğmeyi ele geçiriyor**
 - Kanıt: `useStrikeInput.ts:48-62` (`preventDefault()` koşulsuz çağrılıyor)
@@ -226,7 +227,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - Store'un sahip olduğu bir `mode`: menu · intro · playing · paused · cinematic · outcome.
   - Durumlar arası geçişler korumalı olsun.
   - frameloop, girdi ve HUD görünürlüğü bu moddan türetilsin.
-- Zaman: **faz 26 önkoşulu**
+- Zaman: **faz 27 önkoşulu**
 
 ### Orta
 
@@ -234,7 +235,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 - Kanıt: `battleBots.ts:181,192` ↔ `GameDirector.tsx:154`
 - Etki: vuruştan sonraki 0,9 sn'lik enerji donması botlarda yok; denge, gerçeğinden daha kolay bir oyunda ayarlanıyor.
 - Öneri: S1'deki `stepGame`'i botlar da kullansın.
-- Zaman: faz 27
+- Zaman: **faz 26, denge ayarından önce** (§10 O1–O3 bu açıkla ölçüldü)
 
 **S5 · Yapıştırıcı kod testsiz**
 - Testsiz parçalar:
@@ -251,7 +252,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 **S6 · Savaşlar yeniden üretilemiyor**
 - Etki: tohum kaydedilmiyor, adım (`dt`) değişken. Tekrar oynatma, hata ayıklama ve "o anı yeniden göster" fikirleri buna bağlı.
 - Öneri: tohumu savaş özetine yaz; ileride sabit adımlı simülasyon.
-- Zaman: faz 26-27
+- Zaman: tohum parametresi sağlamlık paketinde; sabit adım sürekli
 
 **G3 · Efekt zinciri prop'larla sürülürse bellek sızdırır**
 - Kanıt: `Scene.tsx:158`, `quality.ts:79-80`
@@ -263,7 +264,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - Efektler kademe başına bir kez kurulsun ve ref ile canlandırılsın.
   - Çekim sırasında kalite kademesi değişmesin.
   - Letterbox DOM'da çizilsin.
-- Zaman: faz 26
+- Zaman: faz 27
 
 **G4 · Örnek sayısı yönetimi `setMorphAt`'i bozar**
 - Kanıt: `EnemySwarm.tsx:88-90,113-116`
@@ -271,7 +272,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - three, morf dokusunu ilk çağrıdaki `count`'a göre boyutlar. Oyun 16 atlıyla başladığı için sonraki 38-41 atlılık dalgalar dokunun dışına taşar.
   - Ölü atlılar ölçek 0 ile hâlâ çiziliyor.
 - Öneri: kapasite kadar yer ayır, canlıları başa topla, `count`'u düşür.
-- Zaman: faz 27
+- Zaman: faz 28
 
 **G5 · Düşük kademe hâlâ gölge ve efekt zinciri maliyeti ödüyor**
 - Kanıt: `Scene.tsx:80,158`, `quality.ts:32`, `DayCycle.tsx:156`
@@ -281,13 +282,13 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 - Öneri:
   - Düşük kademede damga (blob) gölge kullan ve efekt zincirini atla.
   - Gölge tipini açıkça seç.
-- Zaman: faz 27
+- Zaman: faz 28
 
 **G6 · Sancak ve toz kameradan bir kare geride dönüyor**
 - Kanıt: `CorpsBanners.tsx:55`, `DustTrails.tsx:203`
 - Etki: öncelik 3'te kameranın (öncelik 5) bir önceki karedeki yönünü kopyalıyorlar. Kamera açısı bugün sabit olduğu için fark edilmiyor; dönen bir çekimde titrer.
 - Öneri: öncelik 7'ye taşı ya da köşe gölgelendiricisinde hesapla.
-- Zaman: faz 26
+- Zaman: faz 27
 
 **P3 · Üretime yayın elle yapılıyor**
 - Etki:
@@ -303,7 +304,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - Kurulu PWA uykudan dönünce güncelleme olup olmadığına bakmıyor.
   - Tembel yüklenen, adı hash'li GLB'ler servis çalışanı değiştikten sonra 404 verebilir.
 - Öneri: `virtual:pwa-register` kullan; sayfa görünür olunca `update()` çağır; güncellemeyi menüdeyken uygula.
-- Zaman: faz 27
+- Zaman: faz 28
 
 **P5 · Ses, iOS kesintisinden sonra geri gelmiyor**
 - Kanıt: `sfx.ts:76-80,99`, `gameStore.ts:168,238-241`
@@ -356,7 +357,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
 - Kanıt: `FollowCamera.tsx:65,100-105`
 - Etki: çekimler yalnızca savaş başlamadan önce temizleniyor. Alacakaranlık çekimi sürerken YENİDEN'e basılırsa çekim yeni savaşta devam eder.
 - Öneri: `resetWorld`'de artan bir `world.generation` sayacı; değeri değişince kamera ve sinematikler sıfırlansın.
-- Zaman: faz 26
+- Zaman: faz 27
 
 **A5 · "Hareketi azalt" tercihi yarım uygulanıyor**
 - Kanıt: `hud.css:458,2154-2157`, `CameraShake.tsx:25`
@@ -365,7 +366,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6.
   - TypeScript tarafı tercihi hiç okumuyor.
   - Afişler molada ve ağır çekimde oynamaya devam ediyor.
 - Öneri: store'da bir `reducedMotion` bayrağı; sarsıntı, sinematik ve CSS onu okusun.
-- Zaman: faz 26; sinematik kuralı olarak
+- Zaman: faz 26 (§8 Adım 2b, ses ve titreşimle birlikte); sinematik kuralı olarak
 
 **A6 · Hata ayıklama anahtarları üretimde açık**
 - Kanıt: `Scene.tsx:35`, `scenario.ts:83`, `progress.ts:88`, `remote.ts:81`
@@ -527,7 +528,7 @@ Alp Arslan'da ve diğer bölümlerde aynı görünüyor, çünkü hepsi aynı bi
 
 | Seçenek | Ek boyut | Tutarlılık | Ne zaman |
 |---|---|---|---|
-| **A. Oyun içi açılış çekimi** | 0 | tam: gerçek saha, gerçek birlikler | her savaşta (faz 26) |
+| **A. Oyun içi açılış çekimi** | 0 | tam: gerçek saha, gerçek birlikler | her savaşta (faz 27) |
 | **B. Flow prolog videosu** | ~2-4 MB / bölüm | orta: stil uçurumu var | bölüm başına bir kez |
 | **C. Minyatür üslubunda prolog** | birkaç yüz KB (katmanlı WebP) | yüksek: bilinçli bir üslup | bölüm başına bir kez |
 
@@ -599,7 +600,7 @@ Alp Arslan'da ve diğer bölümlerde aynı görünüyor, çünkü hepsi aynı bi
 
 CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılmalı.
 
-**Önerim:** Faz 27'de, önkoşullar bittikten sonra tek bir pilotla başla: **atlı Alp Arslan**.
+**Önerim:** Faz 28'de, önkoşullar bittikten sonra tek bir pilotla başla: **atlı Alp Arslan**.
 1. Telefonunda FPS'i, dosya boyutunu ve görünümü ölçeriz.
 2. Beğenirsen sahne nesnelerine geçeriz.
 3. Kalabalık birlikler en sona kalır.
@@ -621,34 +622,52 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 
 **0. ~~Şimdi: kol hücumu düzeltmesi~~** (§6). Yapıldı: PR #16.
 
-**1. Sağlamlık paketi.** Oyuncuya doğrudan dokunan düzeltmeler, tek ve küçük bir PR:
-1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
-2. A1 klavye kısayolu
-3. P1 hata sınırı ve WebGL bağlam kaybı
-4. P5 ses kilidi
-5. A6 hata ayıklama anahtarları
-6. A3 menüdeki bayat kare
-7. P7 CI duman testi (yeni bağımlılık; senin onayınla)
+2 Ekim 2026'da §10'daki değerlendirmeyle birleştirildi. Sıra önkoşula göre; her maddenin kabul ölçütü var. Görsel dokunan her PR §10.8'deki referans çekimlerle önce/sonra gösterir.
 
-**2. Faz 26 — Sinematik.**
+**Senin tarafında, hemen:** P9 (dosya public olduğu için önceliği yükseldi), P3.
+
+**1. Sağlamlık paketi + ölçüm altyapısı.**
+1. ~~P6 gizlilik metni (öncelikli)~~ Yapıldı.
+2. A6 hata ayıklama anahtarları `DEV || VITE_PLAYTEST` bayrağının arkasına. Kabul: canlı pakette anahtar işleyicisi yok, önizleme yapısında var.
+3. A1 klavye kısayolu (veri onayı ve harita radyoları dahil). Kabul: Enter/Space odaktaki düğmeyi çalar; veri onayı ve harita yalnız klavyeyle seçilebilir.
+4. P1 hata sınırı ve WebGL bağlam kaybı. Kabul: `WEBGL_lose_context` ile bağlam kaybında kurtarma ekranı çıkar, sayfa beyaz kalmaz.
+5. P5 + P8 + D6 ses yaşam döngüsü (tek kök). Kabul: mola ve sessizde bağlam `suspended`; devam, yeniden başla ve komutan değişiminde ilk dokunuşla `running`; ortam aralığı temizlenir.
+6. A3 menüdeki bayat kare.
+7. S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde. Kabul: aynı tohumla iki koşuda t=6'da düşman konumları eşit.
+8. P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).
+
+**2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.
+- **2a Yerleşim ve yazı:** sonuç düğmeleri sarılır, dikeyde "telefonu yatay çevir" örtüsü, sağ başparmak bölgesi (U3), A8 ≥44 px, U1 yazı tabanı ≥12 px, U2 panelsiz metne koyu zemin. Kabul: düzen bekçisi 3 görüşte yeşil; HUD'da en küçük yazı ≥12 px; R3/R5'te metin kontrastı ≥4,5:1.
+- **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, A5 + D7. Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
+- **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
+- **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
+- **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
+- **2f Denge (yalnız simülasyon):**
+  1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var.
+  2. Yeniden ölçüm, sonra ayar. O1: kışkırtıcı + sabırsız 30 tohumda 3★ ≤%70, pusu 3★ oranı ≥ sabırsız. O2: önce ilk vuruşun neden hep ~99 sn olduğu ölçülür; sonra ilk vuruş ortancası ≤60 sn, 3★ penceresi ≥3 birim. O3: acemi bot tabanda ≥%20, uzman tam hasarda ≥%90 kazanır. O4 skor basamağa göre ölçeklenir; O6 belge ifadesi.
+  3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
+
+**3. Faz 27 — Sinematik.**
 - Önce önkoşullar:
   - S2 olay kuyruğu
   - A2 akış modu
   - S3 zaman ölçeği
   - A4 nesil sayacı
-  - A5 hareketi azalt
   - G6 sancak sırası
+  - (A5 faz 26'da kapanır.)
+- Paralel: **görsel temel ve stil rehberi** (`STIL.md`): V6 ton eşleme (ölü ACES ayarı kalkar), V1 değer rolleri, V3 tarafa göre at rengi, V4 siluet imzaları, V5 çim yoğunluğu ve otağ, M2 düşük kademe kenar yumuşatma kararı (gerçek cihaz ölçümüyle). Kabul: R3/R5'te birim–zemin parlaklık farkı ΔL ≥0,15 (öğle ve gün batımı); Metehan yüksek kademe ≤55k üçgen; R8/R9 önce/sonra; senin görsel onayın.
 - Sonra sırasıyla:
-  1. G1 kamera yönetmeni
+  1. G1 kamera yönetmeni ve kompozisyon (K1–K3). Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
   2. Ok kamerası
   3. Savaş açılış çekimi, letterbox ve atlama
   4. Ağır çekim sesi
-  5. Renk derecelendirme (yüksek kademe)
+  5. Renk derecelendirme (yüksek kademe; görsel temeldeki ton eşlemeye bağlı)
+- Her çekimin kabulü: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı, sık tekrarlamaz. His ve zamanlamada son söz senin.
 
-**3. Faz 27 — Modeller.**
+**4. Faz 28 — Modeller.**
 - Önce önkoşullar:
-  - S1 `stepGame` ve bölünmüş Suspense
-  - S4 botların oyunla aynı döngüyü kullanması
+  - S1'in ikinci yarısı: bölünmüş Suspense (`stepGame` ve S4 faz 26'da kapanır)
+  - `STIL.md` stil rehberi
   - P2 varlık önbelleği
   - P4 servis çalışanı güncellemesi
   - G4 morf kapasitesi
@@ -657,16 +676,19 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
   1. Pilot model (atlı Alp Arslan)
   2. Sahne nesneleri
   3. Kalabalık birlikler
+- Kabul: pilot R3/R8'de stil rehberine uyar; düşük kademe çizim ve üçgen bütçesi aşılmaz; gerçek telefonda FPS düşmez.
 
-**Sürekli:** S5 yapıştırıcı testleri, S6 tohum kaydı ve fırsat buldukça düşük önemli maddeler.
+**Sonra (içerik):** T13 sefer finali ve Mete epiloğu; O8 yeniden oynama kancası (günlük tohum, S6'nın üstüne).
+
+**Sürekli:** S5 yapıştırıcı testleri, S6'nın ikinci yarısı (sabit adım) ve fırsat buldukça düşük önemli maddeler.
 
 **Senin tarafında:**
 - Vercel'de Production Branch Tracking'i açmak (P3)
 - Supabase'de kayıt eklemeye hız sınırı (P9)
+- Pazarlamadan önce tarihçi incelemesi: T3, T5, T7, T8, T11 ve §10.7'deki sorular
+- Gerçek telefonda düşük ve yüksek kademe FPS ölçümü (M1: GPU süresi tarayıcıdan ölçülemiyor)
 - Flow ile tek bir deneme klibi
 - Meshy ücretli katman kararı
-
-PLAN.md'deki faz 25 satırı faz 26'yı "modeller" diye anıyor. Bu sırayı kabul edersen numaraları ben güncellerim.
 
 ---
 
@@ -678,11 +700,159 @@ Bir faz kapanmadan önce:
 - [ ] Paket ve önbellek boyutu bütçe içinde (P7'den sonra CI denetler)
 - [ ] Değişen kod `/simplify` ile gözden geçirildi
 - [ ] Bu dosyadaki risk kaydı güncellendi: kapananlar işaretlendi, yeniler eklendi
+- [ ] Görsel dokunan PR'larda etkilenen referans çekimlerin önce/sonra tablosu var (§10.8)
+- [ ] Düzen bekçisi yeşil: üç görüşte taşan ya da çakışan dokunma hedefi yok
 - [ ] Gerçek telefonda 10 dakika oynandı: dokunma, ses, ısınma, FPS
 - [ ] Yayın: birleştir → promote → canlı pakette yeni kod doğrulandı
 - [ ] PLAN.md'de faz kapatıldı
 
 Bu liste bir proje becerisine (skill) dönüştürülebilir. O zaman aynı denetim her faz sonunda tek komutla çalışır.
+
+---
+
+## 10. Disiplinler arası değerlendirme (2 Ekim 2026)
+
+**Kapsam:** canlıdaki faz 25 + PR #16 (kol hücumu) + PR #17 (P6), `76012a3`.
+
+**Yöntem:**
+- Yedi bakış açısı: oyun tasarımı, sanat, kamera, UX, ses ve titreşim, teknik, tarih.
+- Ekran görüntüleri:
+  - 3 komutan, düşük ve yüksek kademe, 667×375 yatay dokunmatik.
+  - Dikey 375×667, savaş ve sonuç ekranı.
+  - Malazgirt gün batımı.
+- Çizim ölçümü: `gl.info`.
+- DOM ölçümü.
+- 30 tohumlu bot taramaları.
+- Görsel testler: WCAG kontrastı, renk körlüğü simülasyonu, yazı tipindeki harf tablosu.
+- Kaynak karşılaştırması: Khoniates, Attaleiates, Shiji.
+
+Yüksek önemli iddialar ayrıca kodda doğrulandı.
+
+**Kodlar:** **O** oyun tasarımı · **V** sanat · **K** kamera · **U** UX · **D** ses ve titreşim · **M** teknik ölçüm · **T** tarih. §4'teki S/G/P/A kodları değişmedi.
+
+### 10.1 Oyun tasarımı ve denge
+
+| # | Önem | Bulgu | Kanıt |
+|---|---|---|---|
+| O1 | Yüksek | Malazgirt'te baskın tarif: kışkırtıcı + sabırsız kollar 30/30 tohumda 3★, ~101 sn (gün batımından 2 sn sonra). Brifingin "taciz et, akşamı bekle" önerisi 1–2★. | bot taraması; `wings.test.ts:133-159` bu birleşimi ölçmüyor |
+| O2 | Yüksek | Miryokefalon tek karar: R ~1,3 sn'de, ilk vuruş 8/8 tohumda 99–100 sn; 3★ penceresi ~2 birim; hiç kesmeyen bot da kazanıyor. | `blockerBot(z)` taraması |
+| O3 | Orta | Metehan merdiveninin tabanı acemiyi kurtarmıyor: acemi bot 0,5'te 0/30, Alp Arslan kilidi buna bağlı. | `waves.ts:129`, `scenario.ts:54` |
+| O4 | Düşük | En iyi skor zorluk basamağına göre ölçeklenmiyor. | `score.ts` |
+| O5 | Orta | Metehan'da kapılı ipucu yok; "enerji neden dolmuyor" sorusunun oyun içi cevabı yok. | `progress.ts:12` (7 ipucu, hepsi diğer savaşlarda) |
+| O6 | Orta | "Kuşatılabilirlik = sıkışıklık × (1−disiplin)" biçim olarak doğru. Ama sıkışıklık ortalama yarıçap, ordu savaşında hesaba giren en zayıf birlik. | `hilalSystem.ts:234-235`, `corps.ts:913-934` |
+| O7 | Orta | İlk 60 sn'de enerji dolumu öğretilmiyor. | `StartScreen.tsx:69-71`, tek oyun içi metin `WAVE_HINT` |
+| O8 | Orta | Tarifler bulununca yeniden oynama kancası yalnız skor. | tohum farkı ±1,5 / ±0,3 |
+
+S4 doğrulandı: O1–O3 sayıları botlarda enerji donması olmayan, daha kolay bir oyunda ölçüldü. Ayar S4'ten sonra yapılır.
+
+### 10.2 Sanat yönetimi ve kamera
+
+| # | Önem | Bulgu | Kanıt |
+|---|---|---|---|
+| V1 | Yüksek | Birimler zeminden parlaklıkla değil tonla ayrılıyor. Gün batımında kırmızımsı düşman kırmızımsı zeminde. | L: Bizans .38 / toprak .353; ekran görüntüleri |
+| V2 | Yüksek | Oyuncunun "hazır" hilali ile düşmanın hücum kaması aynı renk (ΔE 0,03). | `CrescentPreview.tsx:43` `0xff4400`, `ChargeWarnings.tsx:39` `#ff2a12` |
+| V3 | Orta | At gövdesi her tarafta aynı ve toprakla aynı (ΔE 0,028). | `riderGeometry.ts:57` |
+| V4 | Yüksek | Siluet imzaları alt-piksel: atlı ~22 px, mızrak/yay/tuğ <1 px. İmparator yalnız 1,25× ve altın; Romanos ile Manuel aynı. | `riderGeometry.ts`, `EnemySwarm.tsx:25` |
+| V5 | Orta | Yüksek kademede çim okunabilirliği düşürüyor; otağ titreşimli koyu leke; menü panelleri yatay genişliğin ~%75'i. | ekran görüntüleri |
+| V6 | Orta | Ton eşleme yok: EffectComposer `NoToneMapping` kuruyor, ACES ayarı ölü. Renk derecelendirmenin önkoşulu. | `Scene.tsx:91-96` |
+| V7 | Düşük | Gölge çerçevesi orijine sabit (±35); kanyona özgü ışık dizisi yok. | `DayCycle.tsx:100-103, 147-166` |
+| V8 | Orta | Cinzel küçük harfleri noktasız küçük büyük harf: karışık harfli metinde i = ı. "→" yedek yazıya düşüyor. 7–10,5 px Cinzel metinler var. | woff harf tablosu, `hud.css` |
+| K1 | Orta | İleriye bakış 180° dönüşte oyuncuyu ekranda ~%25 yükseklik savuruyor. | `FollowCamera.tsx:19`, `hilalSystem.ts:41` |
+| K2 | Orta | 667×375'te düşman cephesi üst kenarda, HUD'un altında. | ekran görüntüsü, Malazgirt t≈6 |
+| K3 | Orta | Tek eğim, sabit fov 55. Sarsıntı ±3,7 px yönsüz gürültü. Kesilen çekim sert kesme yapıyor. | `CameraShake.tsx:21-26`, `cameraShots.ts:91-92` |
+
+### 10.3 UX ve erişilebilirlik
+
+| # | Önem | Bulgu | Kanıt |
+|---|---|---|---|
+| U1 | Yüksek | HUD'da 31 sabit 10–11 px yazı kuralı; rem/clamp yok. | `hud.css` |
+| U2 | Yüksek | Panelsiz metinler gündüz göğünde 1,03–3,64:1; banner alt yazısı ~2:1. | kontrast betiği, ekran görüntüsü |
+| U3 | Yüksek | Dikey 375×667'de enerji çubuğu joystick'le 39 px, KUŞAT'la 19 px çakışıyor. Yatayda YOLU KES ile kol düğmeleri arası 0 px. Sonuç düğmeleri 375 px'te kırpılıyor (−3 / 378). | DOM ölçümü; `hud.css:1420` sarılmıyor |
+| U4 | Orta | Komutan değişince `autoFocus` odağı çalıyor; harita radyolarında gezinme yok. | `StartScreen.tsx:94`, `SeferMap.tsx:100` |
+| U5 | Düşük | HUD düğmeleri yalnız `onPointerDown`; tuş ataması yok. | `HilalEnergyHUD.tsx:272,303,383` |
+| U6 | Orta | Tarayıcıda dikey serbest, döndürme istemi yok. | `vite.config.ts:24` yalnız PWA |
+| U7 | Orta | Sağlık ve hücum uyarısı yalnız renkle. | `HilalEnergyHUD.tsx:138-139` |
+| U8 | Düşük | Duyuru ve ret metninde `aria-live` yok. | `HilalEnergyHUD.tsx:236, 347-355` |
+
+Terim tutarsızlığı: düğme KUŞAT/MENZİL/VUR (`HilalEnergyHUD.tsx:274`), menü "Space: vuruş". "Kol" hem bizim birliklerimiz hem Bizans yürüyüş kolu (T9).
+
+### 10.4 Ses ve titreşim
+
+| # | Önem | Bulgu | Kanıt |
+|---|---|---|---|
+| D1 | Orta | Menüde ses düğmesi ve arayüz sesi yok. | `sfx.ts:12-26` |
+| D2 | Yüksek | Hasar alınca ses, titreşim ve görsel tepki yok. | `GameDirector.tsx:126` |
+| D3 | Orta | Titreşimi kapatma ayarı yok, iOS'ta yok, zafer ve hasarda çağrılmıyor. | `sfx.ts:89-93` |
+| D4 | Orta | Gün batımı, vuruş, emir ve kaya sesleri saf alçak sinüs; telefon hoparlörü ~150 Hz altını çalmıyor. | `sfx.ts:109,153,157,169`, `ambience.ts:9` |
+| D5 | Düşük | Limiter ve ayrı ses sürgüleri yok. | `sfx.ts:29` |
+| D6 | Orta | Molada rüzgâr sürüyor; dönüşte `resume()` jest dışında (P5 ile aynı kök). | `sfx.ts:74-77` |
+| D7 | Düşük | Hareketi azalt sarsıntıyı ve titreşimi kapsamıyor (A5). | `CameraShake.tsx:21-26` |
+
+### 10.5 Teknik ve mobil performans
+
+| # | Bulgu | Kanıt |
+|---|---|---|
+| M1 | Çizim/üçgen, yüksek → düşük: Metehan 36/81,5k → 18/22k (çim ~59k, %72); Malazgirt 55/102k → 36/43k; Miryokefalon 51/98k → 33/39k. CPU gönderimi ~1 ms/kare. GPU süresi gerçek cihaz olmadan ölçülemedi. | `gl.info` |
+| M2 | Düşük kademede hem DPR 1 hem kenar yumuşatma yok; gölge her kademede açık (G5). | `quality.ts:30-32`, `Scene.tsx:88` |
+| M3 | Savaş tohumu `Math.random`; `createBattle` zaten tohum alıyor, dışarı açılmamış. | `world.ts:122` |
+
+### 10.6 Güçlü yanlar (korunacak)
+
+- Savaş sonu karnesi: net cümle, tarih kartı, tek öneri.
+- Kaynaklı kartların çoğu: Baideng, akşam dönüşü, esir, sıkışma.
+- Panelli metinler ≥7:1.
+- `focus-visible` kuralları.
+- Tohumlu bot düzeneği.
+
+### 10.7 Tarih ve anlatı
+
+| # | Önem | Bulgu | Kanıt |
+|---|---|---|---|
+| T1 | Yüksek | "Barışı Manuel istedi" Khoniates'e atfediliyor; Khoniates'te barışı sultan öneriyor. | `lore.ts:184-185`, OutcomeScreen, debrief, scenarios |
+| T2 | Yüksek | "Kolun başı durunca" ve "öncü kaya yığınını temizledi": Khoniates'te öncü geçer, darbe artçıya iner; kaya kurgu. | `lore.ts:167`, `debrief.ts:532` |
+| T3 | Orta | Mete = Modu olgu gibi; Xiongnu kimliği tartışmalı. | `scenario.ts:37`, `lore.ts:75` |
+| T4 | Orta | "MÖ 209" savaş tarihi değil, tahta çıkış yılı. | `scenario.ts:38` |
+| T5 | Orta | "Alp Arslan akşamı bekledi" kaynakta plan olarak yok. | PAZARLAMA.md, `scenario.ts:58` |
+| T6 | Orta | "Ordu teslim oldu": ordu dağıldı. | `debrief.ts:328` |
+| T7 | Orta | "Kalıcı olarak Türk yurdu oldu" teleolojik. | `lore.ts:194`, OutcomeScreen |
+| T8 | Orta | Kefen sözü bir rivayet (topos). | §7.3 |
+| T9 | Orta | "Kol" terimi iki anlamda. | `scenarios.ts:158-186`, `HilalEnergyHUD.tsx:30-36` |
+| T10 | Düşük | Küçük kaynak düzeltmeleri (yirmi dört bey, kataphrakt, körleme sırası). | `lore.ts:84,130,157` |
+| T11 | Düşük | Hilal amblem olarak Hunlar ve büyük olasılıkla Selçuklular için anakronik. | `SeferMap.tsx:112` |
+| T12 | Orta | "Gerçek taktikleriyle" iddiası T1/T2 düzelmeden savunulamaz. | `index.html:6,14` |
+| T13 | Orta | Anlatı yayı yok: bağlam satırı, Mete epiloğu ve sefer finali yok. | `scenario.ts:37-72`, OutcomeScreen |
+
+**Tarihçiye sorular:**
+1. "Manuel barış istedi" yorumu hangi kaynağa dayanıyor?
+2. Tzivritze'de yolun taşla kapatıldığını anlatan bir kaynak var mı?
+3. Kefen sahnesinin en erken kaynağı hangisi?
+4. Selçuklular hilali hanedan ya da sancak işareti olarak kullandı mı?
+5. Xiongnu yaylarının boyu "kısa" sayılır mı?
+6. Mete ile Modu ifadesi MEB müfredatıyla nasıl uzlaştırılmalı?
+
+### 10.8 Görsel disiplin
+
+**Referans çekimler.** Her çekim tohum, komutan, kademe, görüş ve simülasyon anıyla sabitlenir. Playtest bayrağı arkasındaki `?shot=` tohumu kurar, simülasyonu sabit 1/60 adımla o ana götürür, duyuruları gizler, sesi kapalı tutar.
+
+| # | Sahne | An | Görüş |
+|---|---|---|---|
+| R1 | Menü | — | yatay + dikey |
+| R2 | Açılış | t=1 | yatay |
+| R3 | Taktik görünüm, 3 komutan | t=6 | yatay |
+| R4 | İlk vuruş | vuruş karesi | yatay |
+| R5 | Malazgirt gün batımı | t=104 | yatay |
+| R6 | Miryokefalon yığılma | kesişten 5 sn sonra | yatay |
+| R7 | Sonuç: zafer + yenilgi | — | yatay + dikey |
+| R8 | Sanat açısı: yer seviyesi | t=6, sabit poz | yatay |
+| R9 | Sanat açısı: geniş plan | t=6, sabit poz | yatay |
+
+Her çekim düşük ve yüksek kademede alınır. Görüşler 667×375 yatay ve 375×667 dikey. R8 ve R9 oyun kamerası değil; model ve renk kararları bu iki sabit açıyla yargılanır.
+
+**Kurallar:**
+- **Düzen bekçisi (bloklayan):** 667×375, 568×320 ve 375×667'de hiçbir dokunma hedefi ekrandan taşmaz ve başka bir hedefle kesişmez. Hedef ≥44 px, komşu aralığı ≥8 px.
+- **Görsel fark:** Playwright `toHaveScreenshot`, toleranslı. Başta CI çıktısı olarak sunulur, birleştirmeyi durdurmaz. Arayüz çekimleri (R1, R7) iki hafta kararlı kalırsa bloklayana geçer.
+- **PR şablonu:** görsele dokunan PR'da etkilenen R çekimlerinin önce/sonra tablosu olur. Renk değişiminde kontrast ya da ΔE sayısı yazılır.
+- **Determinizm:** aynı commit'te aynı çekim iki koşuda en fazla %0,1 piksel farkıyla tekrarlanır.
 
 ---
 
