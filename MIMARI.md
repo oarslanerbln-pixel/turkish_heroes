@@ -88,7 +88,7 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
 | En büyük dosyalar | `corps.ts` 1026, `debrief.ts` 612, `battleBots.ts` 554, `HilalEnergyHUD.tsx` 426 (13 bileşen), `hud.css` 2158 | `corps.ts` ve HUD bölünmeye aday |
 | Paket (sıkıştırmasız) | three 728 KB · render 244 · react 179 · index 122 · CSS 40 | — |
 | Önbellek (precache) | ~1,9 MB, bunun 292 KB'ı ikon | GLB/video gelince yetmez (P2) |
-| CI | lint + test + build | uygulamayı çalıştırmıyor (P7) |
+| CI | lint + test + build + paket bütçesi; Playwright duman testi, düzen bekçisi, çekimler | görsel fark henüz bloklamıyor (§10.8) |
 | Performans testi | kare başına 100 µs bütçe (`corps.test.ts:239`) | nadir ve değerli |
 
 **Korunacak güçlü yanlar**
@@ -256,6 +256,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Öneri: tohumu savaş özetine yaz; ileride sabit adımlı simülasyon.
 - Zaman: tohum parametresi sağlamlık paketinde; sabit adım sürekli
 - **Durum (2 Ekim 2026): ilk yarı kapandı** (tohum parametresi ve özette tohum, §8 Adım 1.7). Sabit adım açık.
+  - Yalnız çekimler için sabit adım var: `?shot=` kipi (`shot.ts`, `ShotDirector.tsx`) kare döngüsünü elle sürer, 1/60 adımla ilerler, görsel `Math.random`'ı tohumlu akışa bağlar. Oyunun kendi döngüsü hâlâ değişken `dt`.
 
 **G3 · Efekt zinciri prop'larla sürülürse bellek sızdırır**
 - Kanıt: `Scene.tsx:158`, `quality.ts:79-80`
@@ -347,6 +348,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - `permissions:` bloğu yok.
 - Öneri: Playwright ile duman testi ve paket bütçesi. Playwright yeni bir bağımlılık; senin onayınla.
 - Zaman: sağlamlık paketi
+- **Durum (2 Ekim 2026): kapandı** (§8 Adım 1.8). CI'da `e2e` işi, `npm run budget`, `permissions: contents: read`; `cancel-in-progress` yalnız PR'da.
 
 **A3 · Menüde bayat bir kare kalıyor**
 - Kanıt: `Scene.tsx:45`; kodda tek bir `invalidate()` var.
@@ -662,7 +664,19 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - Karşı-olgu: `?seed=7` ile aynı anda konumlar 2,04 birime kadar ayrışıyor.
    - Paket taraması: `get("seed")` oyun testi paketinde var, canlı pakette yok.
    - Ölçüm tuzağı: sanal saat gerçek zamandan başlarsa adım süresi kayan noktada yuvarlanır. Bu yüzden `world.time` 6'yı bir koşuda 360., ötekinde 361. adımda geçer. Sanal saati sabit tabandan (10⁶ ms) başlatıp adım sayısını sabitlemek gerekir.
-8. P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).
+8. ~~P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).~~ **Yapıldı:** `playwright.config.ts` (`checks` bloklayan, `shots` yalnız çıktı), oyun testi derlemesi `dist-e2e`, `npm run e2e`. Ölçüm:
+   - Duman testi (`smoke.spec.ts`): SAVAŞA GİR, 5 sn oyun, mola, devam. Konsol temiz, 19 sn.
+   - Düzen bekçisi (`layout.spec.ts`): 6 ekran (menü, iki savaş, mola, zafer, yenilgi) × 3 görüş. **Bugünkü kodda 18/18 kırmızı;** bulunan ihlaller `e2e/layout-debt.ts`'de borç listesi. Bekçi tam eşitlik ister, liste yalnız küçülür; 2a'nın kabulü listenin boşalması. Başlıcaları:
+     - 44 px altı: menünün komutan satırları ve SAVAŞA GİR (43 px), savaşta Mola ve Sesi aç (40×40), mola ve sonuç düğmeleri.
+     - Yatay menüde sefer haritasının komutan satırları üst üste biniyor.
+     - 568×320 molada KOMUTANLAR ve YENİDEN BAŞLA, 375×667 yenilgide KOMUTANLAR ve YENİDEN ekrandan taşıyor.
+     - Miryokefalon'da KAYA YIĞINI yamaç kanatlarıyla kesişiyor; 568×320'de Sesi aç ile de.
+     - Dikey molada kanat düğmeleri molanın düğmeleriyle kesişiyor.
+   - Referans çekimler (`shots.spec.ts`): R1, R2, R3 (3 komutan), R5, R7 (zafer + yenilgi); iki kademede 22 çekim. İki koşuda 22/22 tabanla eşleşti (≤%0,1). Taban CI'nin linux çekimleri; yerel win32 çekimleri depoya girmez. Kalan: R4 ve R6 oyuncu girdisi ister, R8 ve R9 Faz 27'yle gelir.
+   - Paket bütçesi (`npm run budget`): gzip toplam 348 kB (three 180, render 70, react 54, index 43), bütçe 385 kB.
+   - PR şablonu: `.github/pull_request_template.md`.
+   - Ölçüm tuzakları: hedef adı `textContent`'ten alınınca ilerleme sayacı ("0 / 14") ada giriyor ve liste boşuna kırılıyordu; ad artık erişilebilir adın ya da görünen metnin ilk parçası. Mola paneli kayarak girerken ölçülen konumlar titriyordu; bekçi sonlu animasyonların bitmesini bekler.
+   - Bulgu (2f.1'e): tohum 1071'de hiç dokunmayan oyuncu Malazgirt'i t=160'ta kazanıyor ("Gece çöktü; ordugah korundu"). Faz 17 bot testi "kollar pasif oyuncuyu kurtarmaz" diyor: ya bot ile gerçek döngü ayrışıyor ya da bu tohum istisna; ayrımı 2f.1 yapar. Boşta Miryokefalon t=85'te yenilgi, Metehan'da savaş bitmiyor.
 
 **2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.
 - **2a Yerleşim ve yazı:** sonuç düğmeleri sarılır, dikeyde "telefonu yatay çevir" örtüsü, sağ başparmak bölgesi (U3), A8 ≥44 px, U1 yazı tabanı ≥12 px, U2 panelsiz metne koyu zemin. Kabul: düzen bekçisi 3 görüşte yeşil; HUD'da en küçük yazı ≥12 px; R3/R5'te metin kontrastı ≥4,5:1.
@@ -671,7 +685,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
 - **2f Denge (yalnız simülasyon):**
-  1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var.
+  1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).
   2. Yeniden ölçüm, sonra ayar. O1: kışkırtıcı + sabırsız 30 tohumda 3★ ≤%70, pusu 3★ oranı ≥ sabırsız. O2: önce ilk vuruşun neden hep ~99 sn olduğu ölçülür; sonra ilk vuruş ortancası ≤60 sn, 3★ penceresi ≥3 birim. O3: acemi bot tabanda ≥%20, uzman tam hasarda ≥%90 kazanır. O4 skor basamağa göre ölçeklenir; O6 belge ifadesi.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 

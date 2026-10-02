@@ -29,9 +29,11 @@ import { useStrikeInput } from '../hooks/useStrikeInput'
 import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
 import { CrashScreen } from './CrashScreen'
+import { ShotDirector } from './ShotDirector'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 import { PLAYTEST } from '../playtest'
+import { SHOT } from '../shot'
 
 /** Canlı ayar paneli yalnızca oyun testi derlemesinde ?tune ile. */
 const TUNING_ENABLED = PLAYTEST && new URLSearchParams(window.location.search).has('tune')
@@ -84,7 +86,7 @@ export function Scene() {
       <Canvas
         shadows
         dpr={[1, preset.maxDpr]}
-        frameloop={playing ? 'always' : 'demand'}
+        frameloop={SHOT !== null ? 'never' : playing ? 'always' : 'demand'}
         camera={{ position: [0, 18, 26], fov: 55 }}
         gl={{
           // Kenar yumuşatmayı EffectComposer'ın MSAA'sı yapıyor. Canvas'ın kendi
@@ -129,13 +131,15 @@ export function Scene() {
           {/*
             FPS'i izleyip kademeyi bir basamak indirir/kaldırır (~2,5 sn'lik
             pencereler). Menüde kare çizilmediği için ölçüm de yapılmaz.
+            Çekim kipinde kapalı: ara adımlar çizilmez, ölçülen FPS anlamsızdır.
           */}
-          {adaptive && (
+          {adaptive && SHOT === null && (
             <PerformanceMonitor onIncline={() => step(1)} onDecline={() => step(-1)} />
           )}
           {/* Işık, sis ve gökyüzü: savaş saatine göre (Metehan'da hep öğle). */}
           <DayCycle />
           <InvalidateOnFlow />
+          {SHOT !== null && <ShotDirector moment={SHOT} />}
           <Terrain />
           <Stones />
           <Grass />

@@ -1,6 +1,6 @@
 # Her PR'da ve ana dala her push'ta: lint, testler (mekanik + headless denge),
-# tip kontrolü + üretim derlemesi. Vercel yalnızca derler; denge testi
-# kırılan bir değişiklik buradan geçemez.
+# tip kontrolü + üretim derlemesi + paket bütçesi; ayrı işte tarayıcı testleri.
+# Vercel yalnızca derler; denge testi kırılan bir değişiklik buradan geçemez.
 name: CI
 
 on:
@@ -8,9 +8,14 @@ on:
   push:
     branches: [claude/hilal-game-mvp-hp0ge5]
 
+# İş akışı depoya yazmaz.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # PR'da yeni push eskisini iptal eder; ana dalda her commit sonuna kadar denetlenir.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -26,3 +31,42 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run budget
+
+  # Playwright, oyun testi derlemesine karşı (MIMARI.md §10.8).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:e2e
+      # Duman testi ve düzen bekçisi: bloklayan.
+      - run: npx playwright test --project=checks
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: denetim-raporu
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+      # Referans çekimler: görsel fark şimdilik yalnız çıktı, birleştirmeyi durdurmaz.
+      # Rapor her çekimi ek olarak taşır; PR'daki önce/sonra tablosu buradan.
+      # Denetim kırmızıysa da koşar: çekimler ondan bağımsız.
+      - run: npx playwright test --project=shots
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cekimler
+          path: |
+            playwright-report
+            e2e/__shots__
+          retention-days: 14
