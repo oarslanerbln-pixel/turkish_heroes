@@ -5,8 +5,10 @@ import { BATTLE_CONFIG, COLUMN_CONFIG } from '../mechanics/corps'
 import { WING_CONFIG, type WingOrder } from '../mechanics/wings'
 import type { HilalPhase } from '../mechanics/types'
 import { isTouchDevice } from '../hooks/useTouchControls'
+import { usePortraitPhone } from '../hooks/usePortraitPhone'
 import { OutcomeScreen } from './OutcomeScreen'
 import { PauseScreen } from './PauseScreen'
+import { RotateOverlay } from './RotateOverlay'
 import { StartScreen } from './StartScreen'
 import { Ornament } from './Ornament'
 import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
@@ -63,6 +65,7 @@ export function HilalEnergyHUD() {
   const battle = useGameStore((s) => s.commander !== 'metehan')
   const pass = useGameStore((s) => s.commander === 'kilicarslan')
   const [touch] = useState(isTouchDevice)
+  const portrait = usePortraitPhone()
 
   if (!started) return <StartScreen touch={touch} />
 
@@ -71,16 +74,16 @@ export function HilalEnergyHUD() {
       <StatusCard />
       <Corner />
       <EnergyPanel touch={touch} />
-      {touch && <TouchStrikeButton />}
+      {touch && outcome === 'playing' && <TouchStrikeButton />}
       {battle && outcome === 'playing' && <DayLine pass={pass} />}
       {battle && outcome === 'playing' && <WingButtons touch={touch} pass={pass} />}
-      {pass && outcome === 'playing' && <BlockadeButton touch={touch} />}
       {outcome === 'playing' && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {outcome === 'playing' &&
         (battle ? <BattleBanner pass={pass} /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
       {outcome === 'playing' && paused && <PauseScreen touch={touch} />}
       {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
+      {touch && portrait && outcome === 'playing' && <RotateOverlay />}
     </div>
   )
 }
@@ -292,6 +295,8 @@ function WingButtons({ touch, pass }: { touch: boolean; pass: boolean }) {
 
   return (
     <div className="wings">
+      {/* Kolların kutusunda: aradaki boşluk kol düğmesinin yüksekliğinden doğar, sabit konumdan değil. */}
+      {pass && <BlockadeButton touch={touch} />}
       {orders.map((order, i) => {
         const power = strength[i] ?? 0
         const resting = order === 'ambush' && power < WING_CONFIG.readyStrength
@@ -306,7 +311,7 @@ function WingButtons({ touch, pass }: { touch: boolean; pass: boolean }) {
               {names[i].name}
               {!touch && <kbd>{names[i].key}</kbd>}
             </span>
-            <b>{resting ? 'DİNLENİYOR' : ORDER_LABEL[order]}</b>
+            <b>{resting ? 'YORGUN' : ORDER_LABEL[order]}</b>
             <span className="wing-bar">
               <span style={{ width: `${Math.round(power * 100)}%` }} />
             </span>

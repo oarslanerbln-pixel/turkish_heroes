@@ -15,7 +15,10 @@
 
 import type { CommanderId } from './scenario'
 
-/** Haritanın çizim alanı (SVG viewBox); kutunun en-boy oranı da bu. */
+/**
+ * Haritanın çizim alanı (SVG viewBox). Kutu kısa ekranda bu orandan uzun
+ * olabilir; yol kutuya esner, düğümler yüzde konumla onu izler.
+ */
 export const MAP_WIDTH = 300
 export const MAP_HEIGHT = 170
 
@@ -27,11 +30,20 @@ export interface CampaignNode {
   label: 'left' | 'right'
 }
 
-/** COMMANDERS sırasıyla aynı: yol bu sırayla çizilir. */
+/**
+ * COMMANDERS sırasıyla aynı: yol bu sırayla çizilir. Düğümler arası 61 birim:
+ * kutu 148 px'ken satırlar 52 px arayla durur, 44 px'lik dokunma alanları
+ * arasında 8 px kalır (MIMARI.md §10.8).
+ *
+ * Mühürler kenarlarda, etiketler içeri bakar: yatay telefonda harita ~195 px,
+ * bir etiket 12 px yazıyla ~170 px. Ortadaki bir mühürün etiketi sığmaz.
+ * Bozkır ve Malazgirt doğuda, Miryokefalon batıda; yol önce iner, sonra batıya
+ * döner.
+ */
 export const CAMPAIGN_NODES: readonly CampaignNode[] = [
-  { id: 'metehan', x: 246, y: 36, label: 'left' },
-  { id: 'alp-arslan', x: 136, y: 88, label: 'right' },
-  { id: 'kilicarslan', x: 50, y: 138, label: 'right' },
+  { id: 'metehan', x: 276, y: 24, label: 'left' },
+  { id: 'alp-arslan', x: 266, y: 85, label: 'left' },
+  { id: 'kilicarslan', x: 30, y: 146, label: 'right' },
 ]
 
 /** Bir savaşın ilerlemesi. Bileşen sim/progress'ten doldurur. */

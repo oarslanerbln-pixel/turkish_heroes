@@ -40,7 +40,13 @@ export function SeferMap({ selected }: { selected: CommanderId }) {
 
   return (
     <div className="sefer" role="radiogroup" aria-label="Sefer haritası">
-      <svg className="sefer-route" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} aria-hidden="true">
+      {/* Kutuya esner (none): düğümlerin yüzde konumu yolla örtüşsün. */}
+      <svg
+        className="sefer-route"
+        viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
         {CAMPAIGN_NODES.slice(1).map((to, i) => {
           const open = progress[i + 1].available
           const className = [open ? 'is-open' : 'is-closed', open && to.id === frontier && 'is-march']
@@ -48,14 +54,14 @@ export function SeferMap({ selected }: { selected: CommanderId }) {
             .join(' ')
           return <path key={to.id} d={segmentPath(CAMPAIGN_NODES[i], to)} className={className} />
         })}
-        {/* Pusula: kuzey yukarıda, yol batıya iner. */}
-        <g className="sefer-compass" transform={`translate(${MAP_WIDTH - 16} ${MAP_HEIGHT - 22})`}>
-          <path d="M0 -8 L2.6 0 H-2.6 Z" />
-          <path d="M0 8 L2.6 0 H-2.6 Z" className="is-south" />
-          <text y="-11" textAnchor="middle">
-            K
-          </text>
-        </g>
+      </svg>
+      {/* Pusula: kuzey yukarıda, yol batıya iner. Ayrı SVG: yolla birlikte esnemesin. */}
+      <svg className="sefer-compass" viewBox="-6 -20 12 30" aria-hidden="true">
+        <path d="M0 -8 L2.6 0 H-2.6 Z" />
+        <path d="M0 8 L2.6 0 H-2.6 Z" className="is-south" />
+        <text y="-11" textAnchor="middle">
+          K
+        </text>
       </svg>
 
       {CAMPAIGN_NODES.map((n, i) => (

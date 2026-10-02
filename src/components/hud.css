@@ -122,7 +122,7 @@
   justify-content: space-between;
   align-items: baseline;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -176,9 +176,15 @@
   gap: 8px;
 }
 
+/* Dokunmatikte yan yana: sağ sütun kollara ve KUŞAT'a kalsın. Mola köşede. */
+.is-touch .hud-corner {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+}
+
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: var(--metal);
@@ -226,7 +232,7 @@
 .refusal {
   min-height: 16px;
   color: var(--ember);
-  font-size: 11px;
+  font-size: 12px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   text-align: center;
   white-space: nowrap;
@@ -235,7 +241,7 @@
 
 .phase {
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   background: rgb(var(--shade-rgb) / 0.55);
@@ -267,7 +273,7 @@
 .strike-btn {
   margin-top: 2px;
   padding: 9px 22px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   color: var(--muted);
   background: rgb(var(--shade-rgb) / 0.62);
@@ -343,14 +349,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.14em;
 }
 
 .wing-name kbd {
   padding: 0 5px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   border: 1px solid rgb(var(--metal-rgb) / 0.22);
   border-radius: 3px;
@@ -391,7 +397,6 @@
 }
 
 .wing-btn.is-resting b {
-  font-size: 12px;
   color: var(--muted);
 }
 
@@ -402,8 +407,8 @@
 /* Geçit: YOLU KES — sağ kolun üstünde; hazırken kor rengiyle çağırır. */
 .block-btn {
   position: absolute;
-  right: calc(20px + var(--safe-right));
-  bottom: calc(104px + var(--safe-bottom));
+  right: 0;
+  bottom: calc(100% + 8px);
 }
 
 .wing-btn.block-btn.is-ready {
@@ -424,15 +429,29 @@
   color: var(--muted);
 }
 
-/* Dokunmatik: sol alt joystick'in; kollar vuruş düğmesinin üstünde yan yana. */
+/*
+ * Dokunmatik: sol alt joystick'in; kollar vuruş düğmesinin üstünde yan yana,
+ * geçitte KAYA YIĞINI onların üstünde tam genişlik. Kol adı tek satır: iki
+ * satıra kırılınca sütun uzuyor, kısa ekranda köşe düğmelerine dayanıyordu.
+ * Genişlik, sistem yazısının en genişinde (Linux) "SAĞ YAMAÇ"a göre.
+ */
 .is-touch .wings {
   inset: auto calc(20px + var(--safe-right)) calc(132px + var(--safe-bottom)) auto;
+  width: 192px;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .is-touch .wing-btn {
-  width: 78px;
-  padding: 7px 8px;
+  width: 92px;
+  padding: 6px 7px;
+  gap: 3px;
+}
+
+.is-touch .wing-name {
+  font-size: 12px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .is-touch .wing-btn b {
@@ -440,12 +459,9 @@
 }
 
 .is-touch .wing-btn.block-btn {
-  bottom: calc(204px + var(--safe-bottom));
-  width: 164px;
-}
-
-.is-touch .wing-btn.is-resting b {
-  font-size: 10px;
+  position: static;
+  order: -1;
+  width: 100%;
 }
 
 /* ---- Dalga bannerı ---- */
@@ -454,7 +470,17 @@
   top: 22%;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
   text-align: center;
+  /*
+   * Açılışta kamera alçak, arkada parlak pus var: afiş duyuru gibi koyu bir
+   * şeridin üstünde durur (U2). %72 gölge en açık gökte de fildişini 4,5:1'in
+   * üstünde tutar; dolgu yazıyı şeridin solmayan ortasında bırakır.
+   */
+  padding: 10px 56px 12px;
+  background: linear-gradient(90deg, transparent, rgb(var(--shade-rgb) / 0.72) 48px, rgb(var(--shade-rgb) / 0.72) calc(100% - 48px), transparent);
+  mask-image: linear-gradient(transparent, #000 10px, #000 calc(100% - 10px), transparent);
   animation: banner 2.4s ease forwards;
 }
 
@@ -539,7 +565,11 @@
 }
 
 .day-label {
-  font-size: 11px;
+  /* Açılış karesinde etiketin arkası gök: .phase gibi hap zemin, gökte yetecek koyulukta (U2). */
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: rgb(var(--shade-rgb) / 0.72);
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ivory-soft);
@@ -570,7 +600,7 @@
 */
 @media (max-aspect-ratio: 1/1) {
   .hud-card { width: 156px; padding: 10px 11px; gap: 5px; outline-offset: -6px; }
-  .hud-row { font-size: 10px; flex-wrap: wrap; column-gap: 6px; }
+  .hud-row { flex-wrap: wrap; column-gap: 6px; }
   .hud-score { font-size: 22px; }
   .day-line {
     left: calc(16px + 156px + 12px + var(--safe-left));
@@ -617,7 +647,8 @@
 }
 
 .menu-panel {
-  width: min(300px, 38vw);
+  /* 40vw: yatay telefonda harita ~195 px, 12 px'lik etiketler kenardan sığar. */
+  width: min(300px, 40vw);
   min-height: 0;
   max-height: 100%;
   display: flex;
@@ -666,18 +697,21 @@
 
 .menu-tagline {
   color: var(--muted);
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 /*
- * Sefer haritası (SeferMap): yol SVG'de, düğümler onun üstünde. Kutunun
- * oranı çizim alanıyla aynı (300×170): düğümlerin yüzde konumu yolla örtüşür.
+ * Sefer haritası (SeferMap): yol SVG'de, düğümler onun üstünde. Kutu çizim
+ * alanının oranında (300×170), ama en az 148 px: daha kısası komutan
+ * satırlarını 44 px'lik dokunma alanıyla ayıramaz (bkz. CAMPAIGN_NODES).
+ * Yol kutuya esner, düğümlerin yüzde konumu onunla örtüşür.
  */
 .sefer {
   position: relative;
   flex: none;
   aspect-ratio: 300 / 170;
+  min-height: 148px;
   background:
     radial-gradient(90% 80% at 72% 28%, rgb(var(--metal-rgb) / 0.06), transparent 70%),
     rgb(var(--shade-rgb) / 0.42);
@@ -697,6 +731,8 @@
   fill: none;
   stroke-width: 1.6;
   stroke-linecap: round;
+  /* Esneyen kutuda çizgi ve kesikler kalınlaşmasın. */
+  vector-effect: non-scaling-stroke;
 }
 
 /* Açık yol: kervan izi gibi kesik gümüş çizgi. */
@@ -720,6 +756,15 @@
 
 @keyframes sefer-march {
   to { stroke-dashoffset: -9; }
+}
+
+.sefer-compass {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  width: 10px;
+  height: 25px;
+  overflow: visible;
 }
 
 .sefer-compass path {
@@ -749,7 +794,9 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 8px 6px 0;
+  min-height: 44px;
+  /* Dikey dolgu dar: yükseklik etikete değil 44 px tabanına bağlı, aralar her yazı tipinde 8 px. */
+  padding: 4px 4px 4px 0;
   transform: translate(calc(var(--seal) / -2), -50%);
   color: var(--ivory-soft);
   text-align: left;
@@ -762,7 +809,7 @@
 
 .hud .sefer-node.is-left {
   flex-direction: row-reverse;
-  padding: 6px 0 6px 8px;
+  padding: 4px 0 4px 4px;
   transform: translate(calc(var(--seal) / 2 - 100%), -50%);
   text-align: right;
 }
@@ -857,7 +904,7 @@
 
 .sefer-battle {
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 
@@ -868,7 +915,7 @@
 .sefer-new {
   padding: 1px 6px;
   font-family: system-ui, sans-serif;
-  font-size: 8px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -895,9 +942,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   padding: 9px 12px 10px;
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
   color: var(--ivory);
   background: rgb(var(--shade-rgb) / 0.42);
   border: 1px solid rgb(var(--metal-rgb) / 0.2);
@@ -939,7 +987,7 @@
   align-items: center;
   gap: 6px 8px;
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
   letter-spacing: 0.03em;
   color: var(--ivory-soft);
@@ -959,9 +1007,10 @@
 
 .hud .consent button {
   flex: 1;
+  min-height: 44px;
   padding: 5px 0;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.16em;
   color: var(--ivory);
@@ -976,8 +1025,9 @@
 
 .hud .consent-toggle {
   align-self: center;
+  min-height: 44px;
   padding: 2px 6px;
-  font-size: 9.5px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--muted);
   background: none;
@@ -996,9 +1046,9 @@
 .brief-axis {
   align-self: flex-start;
   padding: 2px 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.14em;
   color: #eef2fa;
   background: linear-gradient(180deg, #3a52a0, #19244f) padding-box, var(--rim) border-box;
   border: 1px solid transparent;
@@ -1018,7 +1068,7 @@
 .brief-sub {
   margin-top: -4px;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 
@@ -1049,7 +1099,7 @@
 
 .brief-steps span {
   color: var(--ivory-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -1067,7 +1117,7 @@
   gap: 8px;
   padding: 10px 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.3;
   border: 1px dashed rgb(var(--metal-rgb) / 0.3);
   border-radius: 8px;
@@ -1084,7 +1134,7 @@
   justify-content: space-between;
   gap: 2px 10px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -1147,29 +1197,32 @@
 
 .archive-total {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 
 .hud .archive-close {
+  flex: none;
   margin-left: auto;
-  width: 36px;
-  height: 36px;
 }
 
 .archive-tabs {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .hud .archive-tab {
   flex: 1 1 0;
   min-width: 0;
-  display: flex;
+  min-height: 44px;
+  /* Eksen üstte, ad altta: dar sekmede ad kırpılmasın. Kilit ve sayaç sağda. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  font-size: 11px;
+  column-gap: 6px;
+  padding: 5px 10px;
+  text-align: left;
+  font-size: 12px;
   color: var(--muted);
   background: rgb(var(--shade-rgb) / 0.42);
   border: 1px solid rgb(var(--metal-rgb) / 0.12);
@@ -1187,12 +1240,14 @@
 }
 
 .archive-tab-axis {
+  grid-area: 1 / 1;
   color: var(--metal-soft);
-  font-size: 8px;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .archive-tab-name {
+  grid-area: 2 / 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1201,8 +1256,12 @@
   letter-spacing: 0.05em;
 }
 
+.archive-tab svg {
+  grid-area: 1 / 2 / 3;
+}
+
 .archive-tab b {
-  margin-left: auto;
+  grid-area: 1 / 3 / 3;
   font-weight: 600;
 }
 
@@ -1221,12 +1280,13 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   overflow-y: auto;
 }
 
 .hud .archive-item {
   width: 100%;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1248,7 +1308,7 @@
   flex: none;
   width: 24px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
   color: var(--metal-soft);
 }
@@ -1277,8 +1337,8 @@
 
 .archive-card-label {
   color: var(--metal-soft);
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .archive-card h3 {
@@ -1300,7 +1360,7 @@
 
 .archive-card cite {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   font-style: italic;
 }
 
@@ -1339,8 +1399,8 @@
 
 .archive-unlock span {
   color: var(--metal-soft);
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .archive-unlock b {
@@ -1359,15 +1419,12 @@
   .menu { padding: 28px 32px; }
   .menu-panel { width: 360px; padding: 38px 20px 18px; gap: 12px; }
   .menu-brand h1 { font-size: 44px; }
-  .menu-tagline { font-size: 10px; }
   .hud .sefer-node { --seal: 26px; }
   .sefer-name { font-size: 15px; }
-  .sefer-battle { font-size: 10.5px; }
   .menu-brief h2 { font-size: 22px; }
   .brief-steps { gap: 9px; }
   .brief-steps b { font-size: 13.5px; }
   .brief-steps span { font-size: 12px; }
-  .brief-foot { font-size: 10.5px; }
   /* Geniş ekranda Hazine ortada bir kitap sayfası gibi durur, üstte yığılmaz. */
   .archive { justify-content: center; padding: 28px max(32px, calc((100vw - 1040px) / 2)); gap: 14px; }
   .archive-body { flex: 0 1 auto; min-height: 300px; }
@@ -1377,20 +1434,61 @@
   .archive-card p { font-size: 14.5px; }
 }
 
+/*
+ * Kısa yatay telefon (568×320). Menü: sefer haritası, Hazine düğmesi ve 44
+ * px'lik dokunma alanları başlığı da sığdırmıyor; süs ve alt yazı düşer, ad
+ * kalır. Savaş: geçitte sağ sütun (KAYA YIĞINI, kollar, KUŞAT) köşe
+ * düğmelerine 8 px'ten yaklaşıyordu; sütun alta iner.
+ */
+@media (max-height: 340px) {
+  .menu-brand .ornament, .menu-tagline { display: none; }
+  /* Brifingde eksen ve komutan satırı düşer: ikisi de yandaki haritada seçili düğümde yazıyor. */
+  .menu-brief .brief-axis, .menu-brief .brief-sub { display: none; }
+  .strike-touch { bottom: calc(20px + var(--safe-bottom)); }
+  .is-touch .wings { bottom: calc(120px + var(--safe-bottom)); }
+  /*
+   * Mola: arma, süs ve adım açıklamaları düşer, başlıklar tek satır. Açıklama
+   * menü brifinginde duruyor; burada düğmeler ekran dışına itiliyordu.
+   */
+  .screen.is-pause { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(12px + var(--safe-bottom)); }
+  .pause-panel { margin-top: 0; padding-top: 28px; }
+  .pause-panel .crest, .pause-panel .ornament, .pause-panel .step span { display: none; }
+  .pause-panel .steps { flex-wrap: nowrap; gap: 8px; align-self: stretch; }
+  .pause-panel .step { flex-basis: 0; }
+}
+
 /* Dikey telefon: paneller alt alta, sahne üstte görünür kalır. */
 @media (max-aspect-ratio: 1/1) {
   .menu {
     flex-direction: column;
-    justify-content: flex-end;
+    /*
+     * Paneller alta yaslı, ama justify-content: flex-end değil: sığmayınca
+     * taşan üst kısım kaydırmayla da açılmaz. Otomatik kenar boşluğu taşmada
+     * sıfırlanır, içerik yukarıdan kayar.
+     */
+    justify-content: flex-start;
     overflow-y: auto;
     background: linear-gradient(180deg, rgb(var(--shade-rgb) / 0) 0%, rgb(var(--shade-rgb) / 0.7) 45%, rgb(var(--shade-rgb) / 0.9) 100%);
   }
   .menu-panel { width: 100%; flex: none; overflow: visible; }
+  .menu-roster { margin-top: auto; }
   /* Tablette harita paneli doldurup sahneyi örtmesin. */
   .sefer { width: min(100%, 420px); align-self: center; }
-  .archive-tabs { flex-wrap: wrap; }
+  .archive-tabs { flex-direction: column; }
   .archive-body { grid-template-columns: 1fr; grid-template-rows: auto auto; overflow-y: auto; }
   .archive-list { overflow: visible; }
+}
+
+/*
+ * Kısa dikey telefon (375×667): iki panel alt alta sığmıyor, SAVAŞA GİR ekran
+ * altına düşüyordu. Başlık süsü düşer, harita en küçük boyuna iner (yol
+ * kutuya esner), aralıklar daralır.
+ */
+@media (max-aspect-ratio: 1/1) and (max-height: 700px) {
+  .menu { gap: 8px; }
+  .menu-panel { gap: 7px; }
+  .menu-brand .ornament, .menu-tagline { display: none; }
+  .sefer { aspect-ratio: auto; height: 148px; }
 }
 
 /* ---- Sonuç: yıldızlar ---- */
@@ -1419,6 +1517,8 @@
 
 .result-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   align-items: center;
 }
@@ -1434,6 +1534,7 @@
   --cut: polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%);
   position: relative;
   isolation: isolate;
+  min-height: 44px;
   font-family: var(--font-display);
   background: var(--rim);
   border: 0;
@@ -1614,6 +1715,37 @@
   background-color: #14060a;
 }
 
+/* Dikey telefon: opak; altındaki HUD ve mola paneli görünmesin. */
+.screen.is-rotate {
+  gap: 12px;
+  background-color: #14060a;
+}
+
+.rotate-icon {
+  color: var(--rim-solid);
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 30% { transform: rotate(-90deg); }
+  60%, 100% { transform: rotate(0deg); }
+}
+
+.rotate-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.rotate-text {
+  margin: 0;
+  color: var(--ivory-soft);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
 .crash-text {
   max-width: 40ch;
   margin: 0;
@@ -1728,7 +1860,7 @@
   flex-direction: column;
   gap: 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -1741,14 +1873,14 @@
 
 .badge {
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   color: var(--ink);
   background: var(--health);
   border-radius: 999px;
 }
 
-/* ---- Sonuç: iki sütun (sonuç | karne) ---- */
+/* ---- Sonuç: iki sütun (sonuç ve karne | eylem); dikeyde alt alta ---- */
 .screen.outcome {
   /* Uzun içerik ortalanırken üstten kesilmesin (desteklemeyen tarayıcı ilkini kullanır). */
   justify-content: center;
@@ -1756,20 +1888,50 @@
 }
 
 .outcome-main,
-.outcome-side {
+.outcome-side,
+.outcome-scroll {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
 }
 
+.outcome-main,
 .outcome-side {
   width: min(420px, 100%);
 }
 
-@media (min-width: 720px) {
+/*
+ * Başlık ve düğmeler yerinde durur; sığmayınca yalnız aradaki kutu (skor,
+ * tarih notu, karne) kısalıp kendi içinde kayar. Ekranın tamamı kayınca
+ * odak düğmeye kaydırıyor, ZAFER görünmüyordu.
+ */
+.outcome-main {
+  min-height: 0;
+  max-height: 100%;
+}
+.outcome-main > *,
+.outcome-side { flex-shrink: 0; }
+.outcome-main > .outcome-scroll {
+  align-self: stretch;
+  flex-shrink: 1;
+  min-height: 0;
+  gap: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--metal-rgb) / 0.35) transparent;
+}
+
+/*
+ * Yan yana: sütun ekrandan uzunsa (568×320'de kilit kutusu ve cevapsız veri
+ * sorusu birlikte) üstten kesilmesin, ekran aşağı kaysın.
+ */
+@media (min-width: 720px), (min-aspect-ratio: 1/1) {
   .screen.outcome {
     flex-direction: row;
+    align-items: center;
+    align-items: safe center;
     gap: 48px;
   }
   .outcome-main { flex: 0 1 380px; }
@@ -1780,7 +1942,7 @@
   display: inline-block;
   margin-right: 8px;
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   color: var(--ink);
   background: var(--metal);
@@ -1806,8 +1968,8 @@
   display: flex;
   justify-content: space-between;
   color: var(--metal-soft);
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .lore-label em {
@@ -1833,7 +1995,7 @@
 
 .lore-note cite {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   font-style: italic;
   letter-spacing: 0.02em;
 }
@@ -1873,7 +2035,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -1889,7 +2051,9 @@
 }
 
 .karne-advice {
+  align-self: stretch;
   padding-left: 10px;
+  text-align: left;
   color: var(--ivory-soft);
   font-size: 13px;
   line-height: 1.45;
@@ -1901,8 +2065,8 @@
   display: block;
   margin-bottom: 2px;
   color: var(--ember);
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 /* Zaman çizelgesi: vuruşlar, hamleler, dalga sonları, gün batımı. */
@@ -1952,7 +2116,7 @@
   left: 50%;
   transform: translateX(-50%);
   color: var(--metal);
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -2015,7 +2179,7 @@
   justify-content: center;
   gap: 14px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
 }
 
@@ -2069,8 +2233,8 @@
 
 .unlock-label {
   color: #aab9ee;
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .unlock b {
@@ -2082,7 +2246,7 @@
 
 .unlock span:not(.unlock-label) {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .hud .unlock .primary-btn {
@@ -2092,16 +2256,24 @@
 
 /* Kısa ekranlı telefonlar (yatay) — menüleri sıkıştır. */
 @media (max-height: 460px) {
+  /*
+   * Menü brifingi: başlık, SAVAŞA GİR ve alt satır yerinde durur, adımlar
+   * kendi içinde kayar. Panelin tamamı kayınca SAVAŞA GİR'in otomatik odağı
+   * onu düğmeye kaydırıyor, başlık görünmüyordu.
+   */
+  .menu-brief { overflow: hidden; }
+  .menu-brief > * { flex-shrink: 0; }
+  .menu-brief .brief-steps { flex-shrink: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
   .screen { gap: 10px; }
   .screen h1 { font-size: clamp(36px, 7vw, 56px); }
   .result-title { font-size: clamp(34px, 6vw, 48px); }
   .step { padding: 8px 10px; }
-  .step span { font-size: 11px; }
   .pause-panel { margin-top: 26px; padding: 36px 18px 14px; gap: 9px; }
   .hud-card { width: 184px; padding: 11px 13px; gap: 6px; }
   .hud-score { font-size: 22px; }
   .announce { top: calc(52px + var(--safe-top)); font-size: 13px; }
   .stars svg { width: 24px; height: 24px; }
+  .screen.outcome { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(12px + var(--safe-bottom)); }
   .outcome-main, .outcome-side { gap: 8px; }
   .result-stats b { font-size: 20px; }
   .karne { gap: 7px; padding: 9px 12px; }
@@ -2111,7 +2283,7 @@
   .unlock b { font-size: 18px; }
   .hud .unlock .primary-btn { margin-top: 4px; padding: 9px 40px; }
   .lore-note { padding: 8px 11px; gap: 3px; }
-  .lore-note p { font-size: 11.5px; line-height: 1.4; }
+  .lore-note p { font-size: 12px; line-height: 1.4; }
 }
 
 @keyframes announce {
@@ -2167,5 +2339,5 @@
 @media (prefers-reduced-motion: reduce) {
   .contact, .energy.is-ready .bar, .strike-touch.is-live, .lore-note,
   .menu, .menu-brief, .archive, .archive-card, .archive-redacted i,
-  .sefer-route .is-march, .sefer-sancak { animation: none; }
+  .sefer-route .is-march, .sefer-sancak, .rotate-icon { animation: none; }
 }

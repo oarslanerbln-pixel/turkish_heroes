@@ -407,7 +407,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 
 **Arayüz**
 - **A7 · Diyalog semantiği yok.** Mola ve sonuç katmanlarında `role="dialog"`, `aria-modal` ve arka plan için `inert` yok. ZAFER/YENİLGİ ekran okuyucuya duyurulmuyor.
-- **A8 · Dokunma hedefleri 44 px'in altında.**
+- ~~**A8 · Dokunma hedefleri 44 px'in altında.**~~ **Yapıldı (Faz 26 2a):** dördü de 44 px. Rıza paneli oyun testi derlemesinde çizilmediği için bekçi onu görmez; ölçüsü yalnız CSS'te.
   - Rıza anahtarı ~16-18 px
   - EVET/HAYIR ~24 px
   - Mola ve ses düğmeleri 40 px
@@ -680,6 +680,36 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 
 **2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.
 - **2a Yerleşim ve yazı:** sonuç düğmeleri sarılır, dikeyde "telefonu yatay çevir" örtüsü, sağ başparmak bölgesi (U3), A8 ≥44 px, U1 yazı tabanı ≥12 px, U2 panelsiz metne koyu zemin. Kabul: düzen bekçisi 3 görüşte yeşil; HUD'da en küçük yazı ≥12 px; R3/R5'te metin kontrastı ≥4,5:1.
+  - **İlk yarı yapıldı:** `LAYOUT_DEBT` boş, bekçi 7 ekran × 3 görüşte yeşil (yerelde; ölçüt CI'nin Linux koşusu).
+    - Bütün dokunma hedefleri ≥44 px, aralar ≥8 px; A8'in dört maddesi dahil.
+    - Dikey telefonda savaşın üstünde "telefonu yatay çevir" örtüsü (U6); savaş arkada molada bekler (duman testi).
+    - U3, kısmen: dokunmatikte Mola ve ses köşede yan yana. KAYA YIĞINI kolların kutusuna girdi; arası sabit konumdan değil düğme boyundan doğar.
+    - Kısa ekranlar: 568×320'de menü başlığının süsü, molada arma ve adım açıklamaları düşer. 375×667'de harita en küçük boyuna iner. Dikey menü `flex-end` yerine otomatik kenar boşluğuyla alta yaslanır, çünkü `flex-end`'de taşan üst kısım kaydırmayla açılmıyordu.
+    - Bekçi Hazine'yi de görür. Ekrandan kısa, kaydırılan bir kutudaki hedef (bölüm listesi) taşma sayılmaz; ekran boyu kaydırma sayılır, yoksa menüde SAVAŞA GİR kıvrımın altına saklanabilirdi.
+    - 22 referans çekimin hepsi değişti. Linux tabanı 41cc4ed'nin `cekimler` çıktısından yenilendi (014e9f4); sonraki koşu 22/22 eşleşti.
+  - **U1 yapıldı:** bekçi görünen her yazı düğümünü de tarar, 12 px altı ihlal sayılır (geliştirici paneli ve `aria-hidden` hariç). Bekçi 23/23 yeşil.
+    - `hud.css`'te 12 px altı 43 bildirim 12 px'e çıktı; büyüyen küçük başlıklarda 0,18em+ harf aralığı 0,14em'e indi. Tabana eşitlenen beş medya kuralı silindi.
+    - Sefer haritası: mühürler kenarda, etiketler içeri bakar (Bozkır ve Malazgirt doğuda, Miryokefalon batıda). Menü paneli `min(300px, 40vw)`; yatay telefonda harita ~195 px, 12 px'lik etiket ~170 px.
+    - Yatay telefonda brifingin yalnız adımları kayar; başlık, SAVAŞA GİR ve alt satır yerinde durur. 568×320'de eksen ve komutan satırı düşer (haritada yazıyor).
+    - Hazine sekmeleri iki satır (eksen üstte, ad altta); dikeyde alt alta. 375 px'te komutan adı 4 px'e kırpılıyordu.
+    - Dokunmatik VUR düğmesi savaş bitince kalkar; sonuç örtüsünün altında KOMUTANLAR'ın üstüne biniyordu.
+    - Yöntem: Linux genişliği yerelde Verdana'yla (DejaVu Sans ölçüsü) taklit edildi; 6 ekran × 3 görüş temiz.
+  - **U2 yapıldı:** kontrast bekçisi (`contrast.spec.ts`, bloklayan) R2 açılış (3 komutan, afiş açık), R3 (3 komutan) ve R5'te, iki kademede görünen her yazıyı ölçer. Ölçüt glif kutusundaki zemin piksellerinin en kötü onda birine karşı ≥4,5:1. Yazı gölgesi sayılmaz.
+    - Şimdiki R3/R5 kareleri zaten temizdi: taktik kamera yere bakıyor, gök görünmüyor. İhlaller açılıştaydı: kamera alçak, arkada parlak pus. Savaş afişi başlığı ~1,7:1, alt satırı ~2,4:1, gün çizgisi etiketi 2,15:1.
+    - Afiş, duyuru gibi %72 koyu şeridin üstünde; üst ve alt kenarı yumuşak solar. Gün etiketi `.phase` gibi hap zemin aldı. Hepsi ≥9:1.
+    - Ters deneme: düzeltmesiz CSS'te bekçi R2'nin 6 karesinde de kırmızı.
+    - Yöntem tuzağı: zemin, glifler `-webkit-text-fill-color: transparent` ile gizlenip çekilir (`color`'a dokunmaz, `currentColor` kenarlıklar yerinde kalır). `transition: all` taşıyan düğmede yazı solarken çekilmesin diye geçişler kapatılır.
+  - **Sonuç başlığı yapıldı:** yatay telefonda otomatik odak ekranı düğmelere kaydırıyor, ZAFER/YENİLGİ görünmüyordu.
+    - Kaydırmasız odak (`focus({ preventScroll: true })`) tek başına yetmedi: başlık görünür oldu ama düğmeler kıvrımın altına indi, bekçi 5 ekranda "ekrandan taşıyor" dedi.
+    - Düzen menü brifingi gibi kuruldu. Solda (dikeyde üstte) başlık, yıldızlar ve özet yerinde durur; skor, tarih notu ve karne kendi kutusunda kayar. Sağda (altta) tavsiye, kilit kutusu ve düğmeler hep görünür. İki sütun artık 720 px altındaki yatay telefonlarda da.
+    - Tavsiye karneden çıktı, düğmelerin hemen üstüne geldi: kayan kutunun dibinde kalırdı.
+    - Bekçi başlığın ve ana düğmenin tam göründüğünü, odağın ana düğmede olduğunu da denetler. 6/6 yeşil, kaydırma yok.
+    - Bilinen yedek: 568×320'de kilit kutusu ve cevapsız veri sorusu bir aradaysa sağ sütun ekrandan uzun. Ekran aşağı kayar (`align-items: safe center`), EVET/HAYIR için kaydırmak gerekir; başlık ve üç eylem düğmesi görünür kalır. Veri sorusu e2e derlemesinde yok, dev sunucusunda taklitle ölçüldü.
+    - R7'nin 8 çekimi değişti.
+  - **Kalan:** gerçek cihaz.
+  - Bulgular:
+    - Linux'ta gövde yazısı (`system-ui` → DejaVu/Liberation) Windows'tan geniş; kol düğmeleri "SAĞ YAMAÇ"a göre boyutlandı.
+    - 568×320 Hazine'de uzun not başlıkları ("Dönüş emri bozgun oldu") dar sütunda üç noktayla kesilir; seçilince sağdaki kartta tam yazar.
 - **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, A5 + D7. Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
@@ -891,7 +921,8 @@ Terim tutarsızlığı: düğme KUŞAT/MENZİL/VUR (`HilalEnergyHUD.tsx:274`), m
 Her çekim düşük ve yüksek kademede alınır. Görüşler 667×375 yatay ve 375×667 dikey. R8 ve R9 oyun kamerası değil; model ve renk kararları bu iki sabit açıyla yargılanır.
 
 **Kurallar:**
-- **Düzen bekçisi (bloklayan):** 667×375, 568×320 ve 375×667'de hiçbir dokunma hedefi ekrandan taşmaz ve başka bir hedefle kesişmez. Hedef ≥44 px, komşu aralığı ≥8 px.
+- **Düzen bekçisi (bloklayan):** 667×375, 568×320 ve 375×667'de hiçbir dokunma hedefi ekrandan taşmaz ve başka bir hedefle kesişmez. Hedef ≥44 px, komşu aralığı ≥8 px. Görünen yazı ≥12 px.
+- **Kontrast bekçisi (bloklayan):** R2, R3 ve R5'te iki kademede görünen her yazı zeminine karşı ≥4,5:1 (zemin piksellerinin en kötü onda biri).
 - **Görsel fark:** Playwright `toHaveScreenshot`, toleranslı. Başta CI çıktısı olarak sunulur, birleştirmeyi durdurmaz. Arayüz çekimleri (R1, R7) iki hafta kararlı kalırsa bloklayana geçer.
 - **PR şablonu:** görsele dokunan PR'da etkilenen R çekimlerinin önce/sonra tablosu olur. Renk değişiminde kontrast ya da ΔE sayısı yazılır.
 - **Determinizm:** aynı commit'te aynı çekim iki koşuda en fazla %0,1 piksel farkıyla tekrarlanır.

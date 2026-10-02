@@ -1,13 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 import { LAYOUT_DEBT } from './layout-debt.ts'
-import { openShot, playToMoment } from './shot.ts'
+import { openShot, playToMoment, settle } from './shot.ts'
 
 // Düzen bekçisi (MIMARI.md §10.8): üç telefon görüşünde hiçbir dokunma hedefi
 // ekrandan taşmaz, başka bir hedefle kesişmez; hedef ≥44 px, komşu aralığı ≥8 px.
-// Ekranlar çekim kipiyle kurulur: her koşuda aynı an, aynı HUD.
+// Görünen yazı ≥12 px (U1). Ekranlar çekim kipiyle kurulur: her koşuda aynı an,
+// aynı HUD.
 
 const MIN_TARGET = 44
 const MIN_GAP = 8
+const MIN_FONT = 12
 
 const VIEWS = [
   { name: '667×375', width: 667, height: 375 },
@@ -17,6 +19,11 @@ const VIEWS = [
 
 const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   menü: (page) => openShot(page, { commander: 'alp-arslan', moment: 0, quality: 'low' }),
+  hazine: async (page) => {
+    await openShot(page, { commander: 'alp-arslan', moment: 0, quality: 'low' })
+    await page.getByRole('button', { name: /BİLGİ HAZİNESİ/ }).click()
+    await page.getByRole('tablist').waitFor()
+  },
   'savaş Malazgirt': async (page) => {
     await openShot(page, { commander: 'alp-arslan', moment: 6, quality: 'low' })
     await playToMoment(page)
@@ -28,7 +35,8 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   mola: async (page) => {
     await openShot(page, { commander: 'alp-arslan', moment: 6, quality: 'low' })
     await playToMoment(page)
-    await page.getByRole('button', { name: 'Mola' }).click()
+    // Esc: dikeyde Mola düğmesinin üstünde döndürme örtüsü var.
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'DEVAM' }).waitFor()
   },
   // Tohum 1071'de boşta kalan oyuncu Malazgirt'i kazanır (t=160), Miryokefalon'u
@@ -45,16 +53,39 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   },
 }
 
-/** Giriş animasyonları bitsin: kayan bir panel ölçümü titretir. Sonsuz olanlar (nabız) beklenmez. */
-async function settle(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-        .map((a) => a.finished.catch(() => {})),
-    ),
-  )
+/**
+ * Sonuç ekranı başlık ve ana düğme birlikte görünür açılır; odak ana düğmede
+ * (klavyede Enter ona basar). Ekran düğmeye kayınca yatay telefonda ZAFER
+ * kıvrımın üstünde kalıyordu.
+ */
+async function expectOutcomeOpening(page: Page): Promise<void> {
+  await expect(page.locator('.result-title')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('.outcome .primary-btn')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('.outcome .primary-btn')).toBeFocused()
+}
+
+/**
+ * Yazı tabanının altındaki metinler, öğenin sınıfıyla. Süs (aria-hidden) ve
+ * geliştirici panelleri sayılmaz; kaydırılıp görülecek metin sayılır.
+ */
+function auditFonts(page: Page): Promise<string[]> {
+  return page.evaluate((minFont) => {
+    const found = new Set<string>()
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement
+      if (!el || !n.textContent?.trim() || el.closest('[aria-hidden="true"], .dev-stats, .tuning')) continue
+      const r = el.getBoundingClientRect()
+      const style = getComputedStyle(el)
+      if (r.width === 0 || r.height === 0 || style.visibility === 'hidden') continue
+      if (parseFloat(style.fontSize) < minFont - 0.01) {
+        // Sınıfsız öğe (b, span) en yakın sınıflı atasıyla adlanır.
+        const owner = el.getAttribute('class') ? '' : `${el.parentElement?.closest('[class]')?.getAttribute('class')} `
+        found.add(`${owner}${el.getAttribute('class') ?? el.tagName.toLowerCase()}: ${minFont} px'ten küçük yazı`)
+      }
+    }
+    return [...found]
+  }, MIN_FONT)
 }
 
 /** Ekrandaki dokunma hedeflerinin kural ihlalleri; sıralı, piksel değeri içermez (platformlar arası kararlı). */
@@ -83,11 +114,23 @@ function auditTargets(page: Page): Promise<string[]> {
         return !!hit && (el.contains(hit) || !!hit.closest(SELECTOR))
       })
 
+      // Ekrandan kısa, dikey kaydırılan bir kutudaki hedefe (Hazine'nin bölüm
+      // listesi) kaydırarak ulaşılır; yalnız yanlara taşması ihlal. Ekran boyu
+      // kaydırma sayılmaz: menüde SAVAŞA GİR'i kıvrımın altına saklar.
+      const scrolls = (el: HTMLElement) => {
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+          const box = /auto|scroll/.test(getComputedStyle(p).overflowY) && p.clientHeight < H - 1
+          if (box && p.scrollHeight > p.clientHeight) return true
+        }
+        return false
+      }
+
       const problems: string[] = []
       const rects = targets.map((el) => el.getBoundingClientRect())
       targets.forEach((el, i) => {
         const r = rects[i]
-        if (r.left < -0.5 || r.top < -0.5 || r.right > W + 0.5 || r.bottom > H + 0.5) {
+        const outY = r.top < -0.5 || r.bottom > H + 0.5
+        if (r.left < -0.5 || r.right > W + 0.5 || (outY && !scrolls(el))) {
           problems.push(`${name(el)}: ekrandan taşıyor`)
         }
         if (Math.min(r.width, r.height) < minTarget) problems.push(`${name(el)}: ${minTarget} px'ten küçük`)
@@ -121,7 +164,8 @@ for (const view of VIEWS) {
       test(screen, async ({ page }) => {
         await open(page)
         await settle(page)
-        const found = await auditTargets(page)
+        if (screen.startsWith('sonuç')) await expectOutcomeOpening(page)
+        const found = [...(await auditTargets(page)), ...(await auditFonts(page))].sort()
         await test.info().attach('ihlaller', { body: JSON.stringify({ [key]: found }), contentType: 'application/json' })
         // Tam eşitlik: yeni bir ihlal de, giderilip listede kalan bir ihlal de kırmızı.
         expect(found, `düzen borcu: ${key}`).toEqual(LAYOUT_DEBT[key] ?? [])

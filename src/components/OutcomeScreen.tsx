@@ -10,10 +10,19 @@ import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/tr
 import { DataConsent } from './DataConsent'
 
 /**
+ * autoFocus yerine: odak ana düğmede (klavyede Enter) ama ekran ona kaymaz.
+ * Kısa ekranda düğmeler kıvrımın altındaydı; kayınca ZAFER görünmüyordu.
+ */
+function focusInPlace(el: HTMLButtonElement | null) {
+  el?.focus({ preventScroll: true })
+}
+
+/**
  * Sonuç ekranı: oyuncunun "bir daha" kararını verdiği yer (Kapı B). Solda
- * sonuç, sağda savaş karnesi (bkz. debrief/debrief.ts). Tavsiye bilerek eylem
- * düğmelerinin hemen üstünde: "bir dahakine şunu yapacağım" niyeti YENİDEN'e
- * basmadan hemen önce kurulsun.
+ * (dikeyde üstte) sonuç ve savaş karnesi (bkz. debrief/debrief.ts), sağda
+ * (altta) eylem. Başlık ve düğmeler her ekranda birlikte görünür; arası
+ * kendi kutusunda kayar. Tavsiye bilerek eylem düğmelerinin hemen üstünde:
+ * "bir dahakine şunu yapacağım" niyeti YENİDEN'e basmadan hemen önce kurulsun.
  */
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
@@ -49,31 +58,39 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
         </div>
         {captured && <div className="epilogue">{EPILOGUE[commander]}</div>}
 
-        <div className="result-stats">
-          <div>
-            Skor <b>{score}</b>
+        <div className="outcome-scroll">
+          <div className="result-stats">
+            <div>
+              Skor <b>{score}</b>
+            </div>
+            <div>
+              Düşürülen <b>{kills}</b>
+            </div>
+            <div>
+              Rekor <b>{bestScore}</b>
+            </div>
           </div>
-          <div>
-            Düşürülen <b>{kills}</b>
-          </div>
-          <div>
-            Rekor <b>{bestScore}</b>
-          </div>
+          {isNewBest && <div className="badge">YENİ REKOR</div>}
+          {lore && <LoreNote card={lore} />}
+          {report && <Karne report={report} battle={battle} />}
         </div>
-        {isNewBest && <div className="badge">YENİ REKOR</div>}
-        {lore && <LoreNote card={lore} />}
       </div>
 
       <div className="outcome-side">
         {/* Kilit açıldıysa tek çağrı yeni komutan: tavsiye onu gölgelemesin. */}
-        {report && <Karne report={report} battle={battle} advice={!unlocked} />}
+        {report && !unlocked && (
+          <div className="karne-advice">
+            <span>SONRAKİ HAMLE</span>
+            {report.advice.text}
+          </div>
+        )}
 
         {unlocked ? (
           <div className="unlock">
             <span className="unlock-label">YENİ KOMUTAN</span>
             <b>{commanderInfo(unlocked).name}</b>
             <span>{commanderInfo(unlocked).battle}</span>
-            <button className="primary-btn" onClick={() => playCommander(unlocked)} autoFocus>
+            <button className="primary-btn" onClick={() => playCommander(unlocked)} ref={focusInPlace}>
               SAVAŞA GİR
             </button>
           </div>
@@ -83,7 +100,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           <button
             className={unlocked ? 'secondary-btn' : 'primary-btn'}
             onClick={restart}
-            autoFocus={!unlocked}
+            ref={unlocked ? undefined : focusInPlace}
           >
             YENİDEN
           </button>
@@ -137,12 +154,12 @@ function Stars({ count }: { count: number }) {
 }
 
 /**
- * Savaş karnesi: savaşın zaman çizelgesi, en iyi an, bir sonraki hedef ve tek
- * bir tavsiye. Sıra bilinçli: önce ne oldu (çizelge), sonra en iyi an (zirve),
- * sonra ne kadar yaklaştın (hedef), en son ne yapmalı (tavsiye → düğmeler).
+ * Savaş karnesi: savaşın zaman çizelgesi, en iyi an ve bir sonraki hedef. Sıra
+ * bilinçli: önce ne oldu (çizelge), sonra en iyi an (zirve), sonra ne kadar
+ * yaklaştın (hedef). Ne yapmalı (tavsiye) karnede değil, düğmelerin üstünde.
  */
-function Karne({ report, battle, advice: showAdvice }: { report: Debrief; battle: boolean; advice: boolean }) {
-  const { goal, peak, advice, timeline } = report
+function Karne({ report, battle }: { report: Debrief; battle: boolean }) {
+  const { goal, peak, timeline } = report
   const progress = goal ? Math.min(1, goal.value / Math.max(1, goal.target)) : 0
 
   return (
@@ -163,12 +180,6 @@ function Karne({ report, battle, advice: showAdvice }: { report: Debrief; battle
           <div className="bar">
             <span style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
-        </div>
-      )}
-      {showAdvice && (
-        <div className="karne-advice">
-          <span>SONRAKİ HAMLE</span>
-          {advice.text}
         </div>
       )}
     </section>
