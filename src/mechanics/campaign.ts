@@ -32,13 +32,18 @@ export interface CampaignNode {
 
 /**
  * COMMANDERS sırasıyla aynı: yol bu sırayla çizilir. Düğümler arası 61 birim:
- * kutu 148 px'ken satırlar 53 px arayla durur, 44 px'lik dokunma alanları
+ * kutu 148 px'ken satırlar 52 px arayla durur, 44 px'lik dokunma alanları
  * arasında 8 px kalır (MIMARI.md §10.8).
+ *
+ * Mühürler kenarlarda, etiketler içeri bakar: yatay telefonda harita ~195 px,
+ * bir etiket 12 px yazıyla ~170 px. Ortadaki bir mühürün etiketi sığmaz.
+ * Bozkır ve Malazgirt doğuda, Miryokefalon batıda; yol önce iner, sonra batıya
+ * döner.
  */
 export const CAMPAIGN_NODES: readonly CampaignNode[] = [
-  { id: 'metehan', x: 246, y: 24, label: 'left' },
-  { id: 'alp-arslan', x: 136, y: 85, label: 'right' },
-  { id: 'kilicarslan', x: 50, y: 146, label: 'right' },
+  { id: 'metehan', x: 276, y: 24, label: 'left' },
+  { id: 'alp-arslan', x: 266, y: 85, label: 'left' },
+  { id: 'kilicarslan', x: 30, y: 146, label: 'right' },
 ]
 
 /** Bir savaşın ilerlemesi. Bileşen sim/progress'ten doldurur. */

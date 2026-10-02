@@ -74,7 +74,7 @@ export function HilalEnergyHUD() {
       <StatusCard />
       <Corner />
       <EnergyPanel touch={touch} />
-      {touch && <TouchStrikeButton />}
+      {touch && outcome === 'playing' && <TouchStrikeButton />}
       {battle && outcome === 'playing' && <DayLine pass={pass} />}
       {battle && outcome === 'playing' && <WingButtons touch={touch} pass={pass} />}
       {outcome === 'playing' && <Announcement />}

@@ -4,10 +4,12 @@ import { openShot, playToMoment } from './shot.ts'
 
 // Düzen bekçisi (MIMARI.md §10.8): üç telefon görüşünde hiçbir dokunma hedefi
 // ekrandan taşmaz, başka bir hedefle kesişmez; hedef ≥44 px, komşu aralığı ≥8 px.
-// Ekranlar çekim kipiyle kurulur: her koşuda aynı an, aynı HUD.
+// Görünen yazı ≥12 px (U1). Ekranlar çekim kipiyle kurulur: her koşuda aynı an,
+// aynı HUD.
 
 const MIN_TARGET = 44
 const MIN_GAP = 8
+const MIN_FONT = 12
 
 const VIEWS = [
   { name: '667×375', width: 667, height: 375 },
@@ -61,6 +63,30 @@ async function settle(page: Page): Promise<void> {
         .map((a) => a.finished.catch(() => {})),
     ),
   )
+}
+
+/**
+ * Yazı tabanının altındaki metinler, öğenin sınıfıyla. Süs (aria-hidden) ve
+ * geliştirici panelleri sayılmaz; kaydırılıp görülecek metin sayılır.
+ */
+function auditFonts(page: Page): Promise<string[]> {
+  return page.evaluate((minFont) => {
+    const found = new Set<string>()
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement
+      if (!el || !n.textContent?.trim() || el.closest('[aria-hidden="true"], .dev-stats, .tuning')) continue
+      const r = el.getBoundingClientRect()
+      const style = getComputedStyle(el)
+      if (r.width === 0 || r.height === 0 || style.visibility === 'hidden') continue
+      if (parseFloat(style.fontSize) < minFont - 0.01) {
+        // Sınıfsız öğe (b, span) en yakın sınıflı atasıyla adlanır.
+        const owner = el.getAttribute('class') ? '' : `${el.parentElement?.closest('[class]')?.getAttribute('class')} `
+        found.add(`${owner}${el.getAttribute('class') ?? el.tagName.toLowerCase()}: ${minFont} px'ten küçük yazı`)
+      }
+    }
+    return [...found]
+  }, MIN_FONT)
 }
 
 /** Ekrandaki dokunma hedeflerinin kural ihlalleri; sıralı, piksel değeri içermez (platformlar arası kararlı). */
@@ -139,7 +165,7 @@ for (const view of VIEWS) {
       test(screen, async ({ page }) => {
         await open(page)
         await settle(page)
-        const found = await auditTargets(page)
+        const found = [...(await auditTargets(page)), ...(await auditFonts(page))].sort()
         await test.info().attach('ihlaller', { body: JSON.stringify({ [key]: found }), contentType: 'application/json' })
         // Tam eşitlik: yeni bir ihlal de, giderilip listede kalan bir ihlal de kırmızı.
         expect(found, `düzen borcu: ${key}`).toEqual(LAYOUT_DEBT[key] ?? [])
