@@ -1609,6 +1609,19 @@
   font-size: clamp(30px, 5vw, 40px);
 }
 
+/* Çökme / görüntü kaybı: opak; altındaki mola paneli ve boş tuval görünmesin. */
+.screen.is-crash {
+  background-color: #14060a;
+}
+
+.crash-text {
+  max-width: 40ch;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
 .crest {
   position: absolute;
   left: 50%;

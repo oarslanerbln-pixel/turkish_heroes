@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -57,4 +58,6 @@ export default defineConfig({
     // three.js tek başına ~700 kB; bölünemez, uyarı bu parça için anlamsız.
     chunkSizeWarningLimit: 800,
   },
+  // Birim ve denge testleri; e2e/ Playwright'ın (playwright.config.ts).
+  test: { include: ['src/**/*.test.{ts,tsx}'] },
 })

@@ -1,6 +1,13 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
+/** Odaktaki denetim; savaş dışında Enter ve Space onun işini görür. */
+function focusedControl(target: EventTarget | null): HTMLElement | null {
+  return target instanceof HTMLElement
+    ? target.closest<HTMLElement>('button, a[href], input, select, textarea')
+    : null
+}
+
 /**
  * Space → hilal vuruşu, Q / E → sol / sağ kola emir, R → yolu kes (geçit), Esc / P → mola. Menü ekranlarında klavye ana düğmenin
  * işini görür (SAVAŞA GİR: Space/Enter, YENİDEN ve DEVAM: Enter; menüde ↑ ↓
@@ -11,7 +18,13 @@ import { useGameStore } from '../store/gameStore'
 export function useStrikeInput() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return
+      if (e.repeat) {
+        // Basılı tutulan Space, odak bu arada bir düğmeye geçtiyse (sonuç
+        // ekranının ana düğmesi, savaşta tıklanan kol düğmesi) bırakılınca onu
+        // tetiklemesin.
+        if (e.code === 'Space') e.preventDefault()
+        return
+      }
       const menu = useGameStore.getState()
       // Bilgi Hazinesi kendi tuşlarını yönetir (oklar, Enter odaktaki düğmede);
       // burada yalnızca Esc: kapat. Enter savaşı başlatmasın.
@@ -44,10 +57,21 @@ export function useStrikeInput() {
       const isSpace = e.code === 'Space'
       const isEnter = e.code === 'Enter' || e.code === 'NumpadEnter'
       if (!isSpace && !isEnter) return
+
+      const game = useGameStore.getState()
+      const inBattle = game.started && game.outcome === 'playing' && !game.paused
+      const control = inBattle ? null : focusedControl(e.target)
+      if (control) {
+        // Menü, mola ve sonuçta odaktaki düğme kendi işini görür (BİLGİ
+        // HAZİNESİ, KOMUTANLAR, rıza). Tek istisna: mola ve sonuçta kendiliğinden
+        // odaklanan ana düğmede Space yutulur; vuruşa basan oyuncu ekranı
+        // görmeden devam etmesin ya da yeni tura geçmesin. Enter orada da çalışır.
+        if (isSpace && game.started && control.classList.contains('primary-btn')) e.preventDefault()
+        return
+      }
       // Space sayfayı kaydırmasın, odaktaki düğmeyi ikinci kez tetiklemesin.
       e.preventDefault()
 
-      const game = useGameStore.getState()
       if (!game.started) game.start()
       // Sonuç ekranında yalnızca Enter: vuruş için Space'e basılı giden oyuncu,
       // oyun bittiği karede sonuç ekranını görmeden yeni tura atlamasın.

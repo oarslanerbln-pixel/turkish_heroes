@@ -10,6 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-e2e
+
+# Playwright: rapor ve çıktılar CI eseri; çekim tabanı yalnız CI platformu (linux) için tutulur
+test-results
+playwright-report
+e2e/**/*-win32.png
+e2e/**/*-darwin.png
 *.local
 
 # Editor directories and files

@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:playtest": "tsc -b && vite build --mode playtest",
+    "build:e2e": "vite build --mode playtest --outDir dist-e2e",
+    "e2e": "npm run build:e2e && playwright test",
     "lint": "oxlint",
+    "budget": "node scripts/bundle-budget.mjs",
     "preview": "vite preview",
     "test": "vitest run"
   },
@@ -23,6 +27,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

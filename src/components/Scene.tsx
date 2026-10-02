@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
@@ -28,21 +28,27 @@ import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
 import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
+import { CrashScreen } from './CrashScreen'
+import { ShotDirector } from './ShotDirector'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
+import { PLAYTEST } from '../playtest'
+import { SHOT } from '../shot'
 
-/** Canlı ayar paneli yalnızca ?tune ile (oyun testi). */
-const TUNING_ENABLED = new URLSearchParams(window.location.search).has('tune')
+/** Canlı ayar paneli yalnızca oyun testi derlemesinde ?tune ile. */
+const TUNING_ENABLED = PLAYTEST && new URLSearchParams(window.location.search).has('tune')
 
 /**
- * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Başlangıç
- * ekranında komutan değişince arkadaki sahne (ordu, ordugah) yeni savaşı
- * göstersin diye bir kare iste.
+ * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Komutan
+ * değişince ya da savaştan menüye dönülünce arkadaki sahne yeni savaşın
+ * açılış karesini göstersin diye bir kare iste; yoksa bitmiş savaşın son
+ * karesi donuk kalır ve SAVAŞA GİR o kareden sert keser.
  */
-function InvalidateOnCommander() {
+function InvalidateOnFlow() {
   const invalidate = useThree((s) => s.invalidate)
   const commander = useGameStore((s) => s.commander)
-  useEffect(() => invalidate(), [commander, invalidate])
+  const started = useGameStore((s) => s.started)
+  useEffect(() => invalidate(), [commander, started, invalidate])
   return null
 }
 
@@ -58,6 +64,7 @@ export function Scene() {
   const playing = useGameStore((s) => s.started && s.outcome === 'playing' && !s.paused)
   const preset = QUALITY[tier]
   const commander = useGameStore((s) => s.commander)
+  const [gpuLost, setGpuLost] = useState(false)
 
   // Efekt listesi kademe değişmedikçe aynı nesne kalsın: EffectComposer,
   // çocukları her değiştiğinde efekt pasolarını baştan kuruyor.
@@ -79,7 +86,7 @@ export function Scene() {
       <Canvas
         shadows
         dpr={[1, preset.maxDpr]}
-        frameloop={playing ? 'always' : 'demand'}
+        frameloop={SHOT !== null ? 'never' : playing ? 'always' : 'demand'}
         camera={{ position: [0, 18, 26], fov: 55 }}
         gl={{
           // Kenar yumuşatmayı EffectComposer'ın MSAA'sı yapıyor. Canvas'ın kendi
@@ -95,8 +102,20 @@ export function Scene() {
           // Gerçek ACES istenirse efekt zincirine <ToneMapping> eklenmeli; bu
           // görünümü değiştirir, bilinçli bir sanat kararı olarak yapılmalı.
         }}
-        onCreated={({ gl, scene }) => {
+        onCreated={({ gl, scene, invalidate }) => {
           if (import.meta.env.DEV) Object.assign(globalThis, { __gl: gl, __scene: scene })
+          // Telefon GPU belleğini geri alınca bağlam kaybolur. three kaybı
+          // kendisi karşılar (preventDefault) ve geri gelince kaynakları yeniden
+          // yükler; bize düşen savaşı durdurmak, söylemek ve bir kare istemek.
+          const canvas = gl.domElement
+          canvas.addEventListener('webglcontextlost', () => {
+            useGameStore.getState().pause(true)
+            setGpuLost(true)
+          })
+          canvas.addEventListener('webglcontextrestored', () => {
+            setGpuLost(false)
+            invalidate()
+          })
         }}
       >
         {/*
@@ -112,13 +131,15 @@ export function Scene() {
           {/*
             FPS'i izleyip kademeyi bir basamak indirir/kaldırır (~2,5 sn'lik
             pencereler). Menüde kare çizilmediği için ölçüm de yapılmaz.
+            Çekim kipinde kapalı: ara adımlar çizilmez, ölçülen FPS anlamsızdır.
           */}
-          {adaptive && (
+          {adaptive && SHOT === null && (
             <PerformanceMonitor onIncline={() => step(1)} onDecline={() => step(-1)} />
           )}
           {/* Işık, sis ve gökyüzü: savaş saatine göre (Metehan'da hep öğle). */}
           <DayCycle />
-          <InvalidateOnCommander />
+          <InvalidateOnFlow />
+          {SHOT !== null && <ShotDirector moment={SHOT} />}
           <Terrain />
           <Stones />
           <Grass />
@@ -167,6 +188,7 @@ export function Scene() {
         </div>
       )}
       <TouchJoystick />
+      {gpuLost && <CrashScreen kind="gpu" />}
     </div>
   )
 }

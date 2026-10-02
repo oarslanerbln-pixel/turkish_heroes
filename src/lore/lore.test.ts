@@ -15,7 +15,7 @@ import { applyEvent, startSummary, type BattleSummary, type TelemetryEvent } fro
 import { LORE, LORE_LIMITS, loreOf, pickLore, type LoreId } from './lore'
 
 function summary(commander: CommanderId, events: TelemetryEvent[] = []): BattleSummary {
-  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist: 1 }, 'test', 0)
+  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist: 1, seed: null }, 'test', 0)
   events.forEach((e, i) => applyEvent(s, { ...e, t: i + 1 }))
   return s
 }

@@ -13,6 +13,7 @@
 
 import type { BattleSummary } from './summary'
 import { abandonedOnLoad, addSink } from './track'
+import { PLAYTEST_BUILD } from '../playtest'
 
 const URL = import.meta.env.VITE_TELEMETRY_URL as string | undefined
 const KEY = import.meta.env.VITE_TELEMETRY_KEY as string | undefined
@@ -20,8 +21,13 @@ const CONSENT_KEY = 'hilal_consent'
 
 export type Consent = 'yes' | 'no' | null
 
-/** Uzak kayıt bu derlemede tanımlı mı; değilse rıza da sorulmaz. */
-export const remoteConfigured = !!URL && !!KEY
+/**
+ * Uzak kayıt bu derlemede tanımlı mı; değilse rıza da sorulmaz. Oyun testi
+ * derlemesi hiç göndermez: kilidi ve dengeyi değiştiren savaşlar gerçek
+ * oyuncuların verisine karışmasın. Geliştirmede anahtarları kendisi tanımlayan
+ * gönderebilir; boru hattını denemenin tek yolu bu.
+ */
+export const remoteConfigured = !!URL && !!KEY && !PLAYTEST_BUILD
 
 let consent: Consent = null
 try {

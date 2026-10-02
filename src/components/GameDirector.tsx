@@ -113,6 +113,7 @@ export function GameDirector() {
           commander: world.commander,
           attempt: nextAttempt(world.commander),
           assist: scenario.assist(world),
+          seed: world.seed,
         })
       }
       world.time += dt

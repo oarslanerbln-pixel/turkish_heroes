@@ -9,9 +9,10 @@ import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
-import { isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
-import { setBattleMusic, startAmbience } from '../audio/ambience'
+import { holdAudio, isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
+import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
+import { PLAYTEST } from '../playtest'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -128,9 +129,10 @@ const INITIAL_HUD: HudSnapshot = {
   blockade: 0,
 }
 
-// ?commander=alp-arslan: oyun testinde doğrudan o komutan seçili açılır
-// ve kilidi atlar.
-const urlCommander = typeof window !== 'undefined' ? parseCommander(window.location.search) : null
+// ?commander=alp-arslan: oyun testi derlemesinde doğrudan o komutan seçili
+// açılır ve kilidi atlar.
+const urlCommander =
+  PLAYTEST && typeof window !== 'undefined' ? parseCommander(window.location.search) : null
 if (urlCommander) resetWorld(urlCommander)
 
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
@@ -225,12 +227,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ canBlock: false, blockade: 1 })
   },
 
-  // Yalnızca savaş sürerken. Molada sahne donuk ('demand'), yönetmen
-  // çalışmadığı için müziği o kapatamaz; burada kısılır, DEVAM'da geri gelir.
+  // Yalnızca savaş sürerken. Ses, aşağıdaki abonelikle molada askıya alınır.
   pause: (auto) => {
     if (!world.started || world.outcome !== 'playing' || world.paused) return
     world.paused = true
-    setBattleMusic(false, 0)
     track({ type: 'pause', auto })
     set({ paused: true })
   },
@@ -268,3 +268,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false, archive: null })
   },
 }))
+
+// Mola sesi tek yerden: molaya giren ve çıkan her yol (DEVAM, YENİDEN,
+// KOMUTANLAR, komutan değişimi) `paused`'ı değiştirir. Abonelik set() içinde
+// eşzamanlı çalışır, yani düğmenin kullanıcı hareketi hâlâ sürer; iOS bağlamın
+// açılmasına ancak böyle izin verir.
+useGameStore.subscribe((s, prev) => {
+  if (s.paused !== prev.paused) holdAudio(s.paused)
+})

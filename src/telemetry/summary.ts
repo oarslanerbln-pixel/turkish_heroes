@@ -24,7 +24,7 @@ export type TelemetryEvent =
    * attempt: bu cihazda o komutanla başlatılan kaçıncı savaş (1 tabanlı).
    * assist: temas hasarının çarpanı (1 = tam; Metehan'da zorluk merdiveni).
    */
-  | { type: 'battle_start'; commander: CommanderId; attempt: number; assist: number }
+  | { type: 'battle_start'; commander: CommanderId; attempt: number; assist: number; seed: number | null }
   /** Metehan: dalga temizlendi. Sıradaki dalga mola sonrası başlar. */
   | { type: 'wave_clear'; wave: number; health: number }
   /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
@@ -75,6 +75,8 @@ export interface BattleSummary {
   attempt: number
   /** Temas hasarının çarpanı: zafer oranı buna göre okunmalı. */
   assist: number
+  /** Ordu dizilişinin tohumu: ?seed= ile aynı savaş yeniden kurulur. Dalgalı savaşta null. */
+  seed: number | null
   outcome: EndOutcome | 'playing'
   cause: DefeatCause | null
   /** Oyun süresi (sn); sekme arka plandayken işlemez. */
@@ -116,6 +118,7 @@ export function startSummary(
     commander: e.commander,
     attempt: e.attempt,
     assist: e.assist,
+    seed: e.seed,
     outcome: 'playing',
     cause: null,
     duration: 0,

@@ -120,7 +120,7 @@ export function runBattle(
   let duskWingStrength: number[] = []
   const view: BotView = { battle, enemies, player, energy, facing, inCrescent: 0, health }
   record?.(
-    { type: 'battle_start', commander: layout.pass ? 'kilicarslan' : 'alp-arslan', attempt: 1, assist: 1 },
+    { type: 'battle_start', commander: layout.pass ? 'kilicarslan' : 'alp-arslan', attempt: 1, assist: 1, seed },
     0,
   )
 

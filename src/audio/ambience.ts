@@ -110,7 +110,19 @@ export function startAmbience(): void {
   graph = { ctx, bus, windGain, windFilter, whistleGain, whistleFilter, music, droneFilter }
   // Başlamadan önce istenmiş durum varsa uygula.
   if (musicOn) music.gain.setTargetAtTime(1, ctx.currentTime, 1.5)
-  setInterval(scheduleBeats, SCHEDULER_MS)
+  // Kös zamanlayıcısı yalnızca bağlam çalışırken döner: molada, sessizde ve
+  // arka planda boşuna uyanmasın.
+  let timer: ReturnType<typeof setInterval> | null = null
+  const syncTimer = () => {
+    const running = ctx.state === 'running'
+    if (running && timer === null) timer = setInterval(scheduleBeats, SCHEDULER_MS)
+    else if (!running && timer !== null) {
+      clearInterval(timer)
+      timer = null
+    }
+  }
+  ctx.addEventListener('statechange', syncTimer)
+  syncTimer()
 }
 
 /** @param gust 0–1, oyuncunun bulunduğu yerdeki esinti (bkz. world/wind.ts). */
