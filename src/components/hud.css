@@ -176,9 +176,15 @@
   gap: 8px;
 }
 
+/* Dokunmatikte yan yana: sağ sütun kollara ve KUŞAT'a kalsın. Mola köşede. */
+.is-touch .hud-corner {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+}
+
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: var(--metal);
@@ -391,7 +397,6 @@
 }
 
 .wing-btn.is-resting b {
-  font-size: 12px;
   color: var(--muted);
 }
 
@@ -402,8 +407,8 @@
 /* Geçit: YOLU KES — sağ kolun üstünde; hazırken kor rengiyle çağırır. */
 .block-btn {
   position: absolute;
-  right: calc(20px + var(--safe-right));
-  bottom: calc(104px + var(--safe-bottom));
+  right: 0;
+  bottom: calc(100% + 8px);
 }
 
 .wing-btn.block-btn.is-ready {
@@ -424,15 +429,29 @@
   color: var(--muted);
 }
 
-/* Dokunmatik: sol alt joystick'in; kollar vuruş düğmesinin üstünde yan yana. */
+/*
+ * Dokunmatik: sol alt joystick'in; kollar vuruş düğmesinin üstünde yan yana,
+ * geçitte KAYA YIĞINI onların üstünde tam genişlik. Kol adı tek satır: iki
+ * satıra kırılınca sütun uzuyor, kısa ekranda köşe düğmelerine dayanıyordu.
+ * Genişlik, sistem yazısının en genişinde (Linux) "SAĞ YAMAÇ"a göre.
+ */
 .is-touch .wings {
   inset: auto calc(20px + var(--safe-right)) calc(132px + var(--safe-bottom)) auto;
+  width: 192px;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .is-touch .wing-btn {
-  width: 78px;
-  padding: 7px 8px;
+  width: 92px;
+  padding: 6px 7px;
+  gap: 3px;
+}
+
+.is-touch .wing-name {
+  font-size: 12px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .is-touch .wing-btn b {
@@ -440,12 +459,9 @@
 }
 
 .is-touch .wing-btn.block-btn {
-  bottom: calc(204px + var(--safe-bottom));
-  width: 164px;
-}
-
-.is-touch .wing-btn.is-resting b {
-  font-size: 10px;
+  position: static;
+  order: -1;
+  width: 100%;
 }
 
 /* ---- Dalga bannerı ---- */
@@ -671,13 +687,16 @@
 }
 
 /*
- * Sefer haritası (SeferMap): yol SVG'de, düğümler onun üstünde. Kutunun
- * oranı çizim alanıyla aynı (300×170): düğümlerin yüzde konumu yolla örtüşür.
+ * Sefer haritası (SeferMap): yol SVG'de, düğümler onun üstünde. Kutu çizim
+ * alanının oranında (300×170), ama en az 148 px: daha kısası komutan
+ * satırlarını 44 px'lik dokunma alanıyla ayıramaz (bkz. CAMPAIGN_NODES).
+ * Yol kutuya esner, düğümlerin yüzde konumu onunla örtüşür.
  */
 .sefer {
   position: relative;
   flex: none;
   aspect-ratio: 300 / 170;
+  min-height: 148px;
   background:
     radial-gradient(90% 80% at 72% 28%, rgb(var(--metal-rgb) / 0.06), transparent 70%),
     rgb(var(--shade-rgb) / 0.42);
@@ -697,6 +716,8 @@
   fill: none;
   stroke-width: 1.6;
   stroke-linecap: round;
+  /* Esneyen kutuda çizgi ve kesikler kalınlaşmasın. */
+  vector-effect: non-scaling-stroke;
 }
 
 /* Açık yol: kervan izi gibi kesik gümüş çizgi. */
@@ -720,6 +741,15 @@
 
 @keyframes sefer-march {
   to { stroke-dashoffset: -9; }
+}
+
+.sefer-compass {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  width: 10px;
+  height: 25px;
+  overflow: visible;
 }
 
 .sefer-compass path {
@@ -749,6 +779,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  min-height: 44px;
   padding: 6px 8px 6px 0;
   transform: translate(calc(var(--seal) / -2), -50%);
   color: var(--ivory-soft);
@@ -895,6 +926,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   padding: 9px 12px 10px;
   font-size: 10px;
   letter-spacing: 0.2em;
@@ -959,6 +991,7 @@
 
 .hud .consent button {
   flex: 1;
+  min-height: 44px;
   padding: 5px 0;
   font-family: var(--font-display);
   font-size: 10px;
@@ -976,6 +1009,7 @@
 
 .hud .consent-toggle {
   align-self: center;
+  min-height: 44px;
   padding: 2px 6px;
   font-size: 9.5px;
   letter-spacing: 0.04em;
@@ -1152,19 +1186,19 @@
 }
 
 .hud .archive-close {
+  flex: none;
   margin-left: auto;
-  width: 36px;
-  height: 36px;
 }
 
 .archive-tabs {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .hud .archive-tab {
   flex: 1 1 0;
   min-width: 0;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1221,12 +1255,13 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   overflow-y: auto;
 }
 
 .hud .archive-item {
   width: 100%;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1377,20 +1412,59 @@
   .archive-card p { font-size: 14.5px; }
 }
 
+/*
+ * Kısa yatay telefon (568×320). Menü: sefer haritası, Hazine düğmesi ve 44
+ * px'lik dokunma alanları başlığı da sığdırmıyor; süs ve alt yazı düşer, ad
+ * kalır. Savaş: geçitte sağ sütun (KAYA YIĞINI, kollar, KUŞAT) köşe
+ * düğmelerine 8 px'ten yaklaşıyordu; sütun alta iner.
+ */
+@media (max-height: 340px) {
+  .menu-brand .ornament, .menu-tagline { display: none; }
+  .strike-touch { bottom: calc(20px + var(--safe-bottom)); }
+  .is-touch .wings { bottom: calc(120px + var(--safe-bottom)); }
+  /*
+   * Mola: arma, süs ve adım açıklamaları düşer, başlıklar tek satır. Açıklama
+   * menü brifinginde duruyor; burada düğmeler ekran dışına itiliyordu.
+   */
+  .screen.is-pause { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(12px + var(--safe-bottom)); }
+  .pause-panel { margin-top: 0; padding-top: 28px; }
+  .pause-panel .crest, .pause-panel .ornament, .pause-panel .step span { display: none; }
+  .pause-panel .steps { flex-wrap: nowrap; gap: 8px; align-self: stretch; }
+  .pause-panel .step { flex-basis: 0; }
+}
+
 /* Dikey telefon: paneller alt alta, sahne üstte görünür kalır. */
 @media (max-aspect-ratio: 1/1) {
   .menu {
     flex-direction: column;
-    justify-content: flex-end;
+    /*
+     * Paneller alta yaslı, ama justify-content: flex-end değil: sığmayınca
+     * taşan üst kısım kaydırmayla da açılmaz. Otomatik kenar boşluğu taşmada
+     * sıfırlanır, içerik yukarıdan kayar.
+     */
+    justify-content: flex-start;
     overflow-y: auto;
     background: linear-gradient(180deg, rgb(var(--shade-rgb) / 0) 0%, rgb(var(--shade-rgb) / 0.7) 45%, rgb(var(--shade-rgb) / 0.9) 100%);
   }
   .menu-panel { width: 100%; flex: none; overflow: visible; }
+  .menu-roster { margin-top: auto; }
   /* Tablette harita paneli doldurup sahneyi örtmesin. */
   .sefer { width: min(100%, 420px); align-self: center; }
   .archive-tabs { flex-wrap: wrap; }
   .archive-body { grid-template-columns: 1fr; grid-template-rows: auto auto; overflow-y: auto; }
   .archive-list { overflow: visible; }
+}
+
+/*
+ * Kısa dikey telefon (375×667): iki panel alt alta sığmıyor, SAVAŞA GİR ekran
+ * altına düşüyordu. Başlık süsü düşer, harita en küçük boyuna iner (yol
+ * kutuya esner), aralıklar daralır.
+ */
+@media (max-aspect-ratio: 1/1) and (max-height: 700px) {
+  .menu { gap: 8px; }
+  .menu-panel { gap: 7px; }
+  .menu-brand .ornament, .menu-tagline { display: none; }
+  .sefer { aspect-ratio: auto; height: 148px; }
 }
 
 /* ---- Sonuç: yıldızlar ---- */
@@ -1419,6 +1493,8 @@
 
 .result-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   align-items: center;
 }
@@ -1434,6 +1510,7 @@
   --cut: polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%);
   position: relative;
   isolation: isolate;
+  min-height: 44px;
   font-family: var(--font-display);
   background: var(--rim);
   border: 0;
@@ -1612,6 +1689,37 @@
 /* Çökme / görüntü kaybı: opak; altındaki mola paneli ve boş tuval görünmesin. */
 .screen.is-crash {
   background-color: #14060a;
+}
+
+/* Dikey telefon: opak; altındaki HUD ve mola paneli görünmesin. */
+.screen.is-rotate {
+  gap: 12px;
+  background-color: #14060a;
+}
+
+.rotate-icon {
+  color: var(--rim-solid);
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 30% { transform: rotate(-90deg); }
+  60%, 100% { transform: rotate(0deg); }
+}
+
+.rotate-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.rotate-text {
+  margin: 0;
+  color: var(--ivory-soft);
+  font-size: 14px;
+  letter-spacing: 0.02em;
 }
 
 .crash-text {
@@ -2167,5 +2275,5 @@
 @media (prefers-reduced-motion: reduce) {
   .contact, .energy.is-ready .bar, .strike-touch.is-live, .lore-note,
   .menu, .menu-brief, .archive, .archive-card, .archive-redacted i,
-  .sefer-route .is-march, .sefer-sancak { animation: none; }
+  .sefer-route .is-march, .sefer-sancak, .rotate-icon { animation: none; }
 }

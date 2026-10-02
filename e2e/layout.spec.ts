@@ -17,6 +17,11 @@ const VIEWS = [
 
 const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   menü: (page) => openShot(page, { commander: 'alp-arslan', moment: 0, quality: 'low' }),
+  hazine: async (page) => {
+    await openShot(page, { commander: 'alp-arslan', moment: 0, quality: 'low' })
+    await page.getByRole('button', { name: /BİLGİ HAZİNESİ/ }).click()
+    await page.getByRole('tablist').waitFor()
+  },
   'savaş Malazgirt': async (page) => {
     await openShot(page, { commander: 'alp-arslan', moment: 6, quality: 'low' })
     await playToMoment(page)
@@ -28,7 +33,8 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
   mola: async (page) => {
     await openShot(page, { commander: 'alp-arslan', moment: 6, quality: 'low' })
     await playToMoment(page)
-    await page.getByRole('button', { name: 'Mola' }).click()
+    // Esc: dikeyde Mola düğmesinin üstünde döndürme örtüsü var.
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'DEVAM' }).waitFor()
   },
   // Tohum 1071'de boşta kalan oyuncu Malazgirt'i kazanır (t=160), Miryokefalon'u
@@ -83,11 +89,23 @@ function auditTargets(page: Page): Promise<string[]> {
         return !!hit && (el.contains(hit) || !!hit.closest(SELECTOR))
       })
 
+      // Ekrandan kısa, dikey kaydırılan bir kutudaki hedefe (Hazine'nin bölüm
+      // listesi) kaydırarak ulaşılır; yalnız yanlara taşması ihlal. Ekran boyu
+      // kaydırma sayılmaz: menüde SAVAŞA GİR'i kıvrımın altına saklar.
+      const scrolls = (el: HTMLElement) => {
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+          const box = /auto|scroll/.test(getComputedStyle(p).overflowY) && p.clientHeight < H - 1
+          if (box && p.scrollHeight > p.clientHeight) return true
+        }
+        return false
+      }
+
       const problems: string[] = []
       const rects = targets.map((el) => el.getBoundingClientRect())
       targets.forEach((el, i) => {
         const r = rects[i]
-        if (r.left < -0.5 || r.top < -0.5 || r.right > W + 0.5 || r.bottom > H + 0.5) {
+        const outY = r.top < -0.5 || r.bottom > H + 0.5
+        if (r.left < -0.5 || r.right > W + 0.5 || (outY && !scrolls(el))) {
           problems.push(`${name(el)}: ekrandan taşıyor`)
         }
         if (Math.min(r.width, r.height) < minTarget) problems.push(`${name(el)}: ${minTarget} px'ten küçük`)

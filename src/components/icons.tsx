@@ -57,6 +57,17 @@ export function CloseIcon(props: IconProps) {
   )
 }
 
+/** Yatay telefon ve dönüş oku: dikey tutulan telefona "yatay çevir". */
+export function RotatePhoneIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.5" y="10" width="15" height="10" rx="2" />
+      <path d="M15.5 3.5a5.5 5.5 0 0 1 5 5" />
+      <path d="M20.5 8.5l1.3-2.6M20.5 8.5l-2.7-1" />
+    </Svg>
+  )
+}
+
 /**
  * Hilal ve yıldız, 24×24 çizim alanında; başka bir SVG'nin içine de konur
  * (bkz. Ornament). Hilal iki çemberin kesişiminden çizilmiş tek yol: maske
