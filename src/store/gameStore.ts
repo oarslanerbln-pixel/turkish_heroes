@@ -9,8 +9,8 @@ import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
-import { isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
-import { setBattleMusic, startAmbience } from '../audio/ambience'
+import { holdAudio, isMuted, play, setMuted, unlockAudio } from '../audio/sfx'
+import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 import { PLAYTEST } from '../playtest'
 
@@ -227,12 +227,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ canBlock: false, blockade: 1 })
   },
 
-  // Yalnızca savaş sürerken. Molada sahne donuk ('demand'), yönetmen
-  // çalışmadığı için müziği o kapatamaz; burada kısılır, DEVAM'da geri gelir.
+  // Yalnızca savaş sürerken. Ses, aşağıdaki abonelikle molada askıya alınır.
   pause: (auto) => {
     if (!world.started || world.outcome !== 'playing' || world.paused) return
     world.paused = true
-    setBattleMusic(false, 0)
     track({ type: 'pause', auto })
     set({ paused: true })
   },
@@ -270,3 +268,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false, archive: null })
   },
 }))
+
+// Mola sesi tek yerden: molaya giren ve çıkan her yol (DEVAM, YENİDEN,
+// KOMUTANLAR, komutan değişimi) `paused`'ı değiştirir. Abonelik set() içinde
+// eşzamanlı çalışır, yani düğmenin kullanıcı hareketi hâlâ sürer; iOS bağlamın
+// açılmasına ancak böyle izin verir.
+useGameStore.subscribe((s, prev) => {
+  if (s.paused !== prev.paused) holdAudio(s.paused)
+})

@@ -318,6 +318,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - resume, restart ve playCommander'da `unlockAudio()` çağır.
   - `new AudioContext()` çağrısını try/catch içine al.
 - Zaman: sağlamlık paketi
+- **Durum (2 Ekim 2026): kapandı** (P8 ve D6 ile birlikte). Ayrıntı §8 Adım 1.5'te. Gerçek iOS cihazda gözlenmedi.
 
 **P6 · Telemetri boşlukları; gizlilik metni kodla uyuşmuyor**
 - Kanıt: `GameDirector.tsx:94`, `track.ts:58-61,71`, `public/gizlilik.html`
@@ -394,7 +395,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - **G7 · GPU kaynakları tutarsız temizleniyor** (`ArrowVolley.tsx:37-39`, `ChargeWarnings.tsx:35-46`, `world/Grass.tsx:36-37`). `useMemo` ile yaratılan kaynaklar, komutan ya da kalite kademesi değişince sızıyor. Öneri: ortak bir `useDisposable` kancası.
 
 **Platform**
-- **P8 · Sessizde ses bağlamı çalışmaya devam ediyor** (`ambience.ts:102-113`). Sessize alınca bağlam askıya alınmıyor; ambiyans osilatörleri ve zamanlayıcı sürekli çalışıp pil harcıyor.
+- **P8 · Sessizde ses bağlamı çalışmaya devam ediyor** (`ambience.ts:102-113`). Sessize alınca bağlam askıya alınmıyor; ambiyans osilatörleri ve zamanlayıcı sürekli çalışıp pil harcıyor. **Kapandı** (2 Ekim 2026, §8 Adım 1.5).
 - **P9 · Koruma eksikleri.** Güvenlik başlıkları ve CSP yok (`vercel.json` yok). Anonim kayıt eklemenin hız sınırı yok; tablo istenmeyen kayıtlarla doldurulabilir.
 - **P10 · Sürüm aralıkları geniş.** react `^19.2.7` ama fiber `<19.3` istiyor; postprocessing three `<0.186` istiyor. Öneri: react için `~19.2`, three'yi sabitle.
 - **P11 · Supabase listeleri istemciyle eşleştirilmiyor.** Supabase'deki komutan ve sonuç listeleriyle istemci kimlikleri arasında bir test yok. Öneri: SQL'i `?raw` ile okuyan bir test (CREDITS testi gibi).
@@ -643,8 +644,14 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - `restoreContext` ile ekran kalkar, sahne yeniden çizilir, oyuncu DEVAM'a basar.
    - Bozuk veriyle tetiklenen render hatası "BİR HATA OLDU" ekranını gösterir.
    - 844×390'da ekran sığar.
-   - Kalan: kare döngüsündeki (`useFrame`) hatalar sınıra gelmez. Çökme ekranında müzik P5'e kadar susmaz.
-5. P5 + P8 + D6 ses yaşam döngüsü (tek kök). Kabul: mola ve sessizde bağlam `suspended`; devam, yeniden başla ve komutan değişiminde ilk dokunuşla `running`; ortam aralığı temizlenir.
+   - Kalan: kare döngüsündeki (`useFrame`) hatalar sınıra gelmez. Çökme ekranında müzik artık susar (Adım 1.5).
+5. ~~P5 + P8 + D6 ses yaşam döngüsü (tek kök).~~ **Yapıldı.** `sfx.ts` `syncAudio()` tek karar noktası: bağlam yalnız sessizde değilken, molada değilken ve sekme görünürken çalışır. Mola `gameStore` aboneliğinden (`paused` değişince, düğmenin kullanıcı hareketi içinde), çökme `CrashScreen`'den bildirilir. Her `pointerdown` ve `keydown` yeniden dener (iOS `interrupted`). `new AudioContext()` try/catch içinde. Kös zamanlayıcısı bağlamın `statechange` olayına bağlı. Gerçek tıklama ve tuşlarla ölçüldü (çıkışı sıfır kazançlı bağlam, ses kapalı):
+   - BAŞLA → `running`, kös zamanlayıcısı 1.
+   - Esc ile mola → `suspended`, zamanlayıcı 0. DEVAM → `running`, 1.
+   - Sessiz → `suspended`, 0; sessizdeyken dokunuş bağlamı açmaz. Sesi aç → `running`.
+   - Sekme gizlenir → otomatik mola, `suspended`. Geri gelince mola sürdüğü için askıda kalır.
+   - Molada YENİDEN BAŞLA → `running`. KOMUTANLAR → menüde `running` (rüzgâr). Başka komutanla SAVAŞA GİR → `running`; bağlam ve zamanlayıcı tek kalır.
+   - Konsolda hata yok. Kalan: iOS kesintisi gerçek cihazda gözlenmedi.
 6. A3 menüdeki bayat kare.
 7. S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde. Kabul: aynı tohumla iki koşuda t=6'da düşman konumları eşit.
 8. P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).
@@ -798,7 +805,7 @@ Terim tutarsızlığı: düğme KUŞAT/MENZİL/VUR (`HilalEnergyHUD.tsx:274`), m
 | D3 | Orta | Titreşimi kapatma ayarı yok, iOS'ta yok, zafer ve hasarda çağrılmıyor. | `sfx.ts:89-93` |
 | D4 | Orta | Gün batımı, vuruş, emir ve kaya sesleri saf alçak sinüs; telefon hoparlörü ~150 Hz altını çalmıyor. | `sfx.ts:109,153,157,169`, `ambience.ts:9` |
 | D5 | Düşük | Limiter ve ayrı ses sürgüleri yok. | `sfx.ts:29` |
-| D6 | Orta | Molada rüzgâr sürüyor; dönüşte `resume()` jest dışında (P5 ile aynı kök). | `sfx.ts:74-77` |
+| D6 | Orta | ~~Molada rüzgâr sürüyor; dönüşte `resume()` jest dışında (P5 ile aynı kök).~~ Kapandı (§8 Adım 1.5). | `sfx.ts:74-77` |
 | D7 | Düşük | Hareketi azalt sarsıntıyı ve titreşimi kapsamıyor (A5). | `CameraShake.tsx:21-26` |
 
 ### 10.5 Teknik ve mobil performans

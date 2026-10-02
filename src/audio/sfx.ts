@@ -36,6 +36,8 @@ let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let noiseBuffer: AudioBuffer | null = null
 let muted = loadMuted()
+/** Molada bağlam askıda tutulur (bkz. holdAudio). */
+let held = false
 
 function loadMuted(): boolean {
   try {
@@ -57,27 +59,54 @@ export function setMuted(value: boolean): void {
     // Gizli sekmede localStorage atabilir; tercih bu oturumla sınırlı kalır.
   }
   if (master && ctx) master.gain.setTargetAtTime(value ? 0 : MASTER_VOLUME, ctx.currentTime, 0.02)
+  syncAudio()
 }
 
 /** Kullanıcı hareketi içinde çağrılmalı (tık, dokunma, tuş). */
 export function unlockAudio(): void {
   if (typeof window === 'undefined' || !('AudioContext' in window)) return
   if (!ctx) {
-    ctx = new AudioContext()
+    try {
+      ctx = new AudioContext()
+    } catch {
+      // Tarayıcı bağlamı reddedebilir (donanım yok, gizlilik ayarı): oyun sessiz sürer.
+      return
+    }
     master = ctx.createGain()
     master.gain.value = muted ? 0 : MASTER_VOLUME
     master.connect(ctx.destination)
     noiseBuffer = makeNoise(ctx, 0.5)
     loadSamples(ctx)
-    // Ortam sesleri (ambience.ts) sürekli çalıyor: uygulama arka plana
-    // geçince susmalı, dönünce devam etmeli.
-    document.addEventListener('visibilitychange', () => {
-      if (!ctx) return
-      if (document.hidden) void ctx.suspend()
-      else void ctx.resume()
-    })
+    // Ortam sesleri (ambience.ts) sürekli çalıyor: arka planda susmalı.
+    document.addEventListener('visibilitychange', syncAudio)
+    // iOS bağlamı kullanıcı hareketi dışında açmayı reddedebilir (arka plandan
+    // dönüş, telefon görüşmesi); her dokunuş ve tuş yeniden dener.
+    window.addEventListener('pointerdown', syncAudio, true)
+    window.addEventListener('keydown', syncAudio, true)
   }
-  if (ctx.state === 'suspended') void ctx.resume()
+  syncAudio()
+}
+
+/**
+ * Molada bağlam askıya alınır: rüzgâr, müzik ve kös zamanlayıcısı durur, pil
+ * harcanmaz. Bırakılınca her şey kaldığı yerden sürer. Bırakma bir kullanıcı
+ * hareketinin içinden gelmeli (DEVAM, YENİDEN, KOMUTANLAR).
+ */
+export function holdAudio(on: boolean): void {
+  held = on
+  syncAudio()
+}
+
+/**
+ * Bağlamı olması gereken duruma getirir. Çalmalı: kilit açılmış, sessizde
+ * değil, molada değil, sekme görünür. Değilse askıya alınır.
+ */
+function syncAudio(): void {
+  if (!ctx || ctx.state === 'closed') return
+  const shouldRun = !muted && !held && !document.hidden
+  // iOS'ta bağlam tiplerde olmayan 'interrupted' durumunda da kalabilir.
+  if (shouldRun && ctx.state !== 'running') ctx.resume().catch(() => {})
+  else if (!shouldRun && ctx.state === 'running') ctx.suspend().catch(() => {})
 }
 
 /** Açılmış ses bağlamı ve ana kanal; kilit açılmadıysa null. Ortam sesleri için. */

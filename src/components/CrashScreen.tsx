@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { holdAudio } from '../audio/sfx'
 import { Ornament } from './Ornament'
 import { CrescentIcon } from './icons'
 import './hud.css'
@@ -22,6 +23,12 @@ const TEXT: Record<CrashKind, { title: string; body: string }> = {
  * kapatıp görüntüsüz savaşı sürdürmesin); odaktaki düğme yine çalışır.
  */
 export function CrashScreen({ kind }: { kind: CrashKind }) {
+  // Çökmede ses susar; tek çıkış yeniden yüklemek. Görüntü kaybında savaş
+  // zaten molada (mola sesi askıya alır), menüdeyse rüzgâr sürebilir.
+  useEffect(() => {
+    if (kind === 'crash') holdAudio(true)
+  }, [kind])
+
   useEffect(() => {
     const swallow = (e: KeyboardEvent) => e.stopPropagation()
     window.addEventListener('keydown', swallow, true)
