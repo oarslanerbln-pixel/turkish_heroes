@@ -355,6 +355,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Doğrulama: kodda doğrulandı, ekranda değil.
 - Öneri: her akış geçişinde `invalidate()` çağır; A2 bunu kendiliğinden çözer.
 - Zaman: sağlamlık paketi
+- **Durum (2 Ekim 2026): kapandı.** Ayrıntı §8 Adım 1.6'da.
 
 **A4 · Kamera ve görseller için sıfırlama sinyali yok**
 - Kanıt: `FollowCamera.tsx:65,100-105`
@@ -652,7 +653,9 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - Sekme gizlenir → otomatik mola, `suspended`. Geri gelince mola sürdüğü için askıda kalır.
    - Molada YENİDEN BAŞLA → `running`. KOMUTANLAR → menüde `running` (rüzgâr). Başka komutanla SAVAŞA GİR → `running`; bağlam ve zamanlayıcı tek kalır.
    - Konsolda hata yok. Kalan: iOS kesintisi gerçek cihazda gözlenmedi.
-6. A3 menüdeki bayat kare.
+6. ~~A3 menüdeki bayat kare.~~ **Yapıldı:** `Scene.tsx` `InvalidateOnFlow`, komutan ve `started` değişince bir kare ister. Ölçüm (savaş 900 sabit adım ilerletildi, kamera (0.09, 20, 31)):
+   - Önce: molada KOMUTANLAR sonrası çizilen kare sayısı değişmiyordu; menüde son savaş karesi kalıyordu.
+   - Sonra: KOMUTANLAR'da bir kare çizilir, kamera açılış konumuna (6, 5.5, 30) döner. Bu, ilk yüklemedeki menü kamerasıyla aynı; ekran görüntüsünde menünün arkasında yeni savaşın açılış karesi var. SAVAŞA GİR bu kareden kesmesiz başlar.
 7. S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde. Kabul: aynı tohumla iki koşuda t=6'da düşman konumları eşit.
 8. P7 Playwright: duman testi, referans çekimler, düzen bekçisi, PR şablonu (yeni bağımlılık; senin onayınla). Kabul: bugünkü kodda düzen bekçisi kırmızı yanar (Adım 2'nin "önce" kanıtı).
 

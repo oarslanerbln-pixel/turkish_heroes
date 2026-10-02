@@ -37,14 +37,16 @@ import { PLAYTEST } from '../playtest'
 const TUNING_ENABLED = PLAYTEST && new URLSearchParams(window.location.search).has('tune')
 
 /**
- * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Başlangıç
- * ekranında komutan değişince arkadaki sahne (ordu, ordugah) yeni savaşı
- * göstersin diye bir kare iste.
+ * Menüde sahne 'demand' modunda: yalnızca istenince çizilir. Komutan
+ * değişince ya da savaştan menüye dönülünce arkadaki sahne yeni savaşın
+ * açılış karesini göstersin diye bir kare iste; yoksa bitmiş savaşın son
+ * karesi donuk kalır ve SAVAŞA GİR o kareden sert keser.
  */
-function InvalidateOnCommander() {
+function InvalidateOnFlow() {
   const invalidate = useThree((s) => s.invalidate)
   const commander = useGameStore((s) => s.commander)
-  useEffect(() => invalidate(), [commander, invalidate])
+  const started = useGameStore((s) => s.started)
+  useEffect(() => invalidate(), [commander, started, invalidate])
   return null
 }
 
@@ -133,7 +135,7 @@ export function Scene() {
           )}
           {/* Işık, sis ve gökyüzü: savaş saatine göre (Metehan'da hep öğle). */}
           <DayCycle />
-          <InvalidateOnCommander />
+          <InvalidateOnFlow />
           <Terrain />
           <Stones />
           <Grass />
