@@ -54,6 +54,17 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
 }
 
 /**
+ * Sonuç ekranı başlık ve ana düğme birlikte görünür açılır; odak ana düğmede
+ * (klavyede Enter ona basar). Ekran düğmeye kayınca yatay telefonda ZAFER
+ * kıvrımın üstünde kalıyordu.
+ */
+async function expectOutcomeOpening(page: Page): Promise<void> {
+  await expect(page.locator('.result-title')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('.outcome .primary-btn')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('.outcome .primary-btn')).toBeFocused()
+}
+
+/**
  * Yazı tabanının altındaki metinler, öğenin sınıfıyla. Süs (aria-hidden) ve
  * geliştirici panelleri sayılmaz; kaydırılıp görülecek metin sayılır.
  */
@@ -153,6 +164,7 @@ for (const view of VIEWS) {
       test(screen, async ({ page }) => {
         await open(page)
         await settle(page)
+        if (screen.startsWith('sonuç')) await expectOutcomeOpening(page)
         const found = [...(await auditTargets(page)), ...(await auditFonts(page))].sort()
         await test.info().attach('ihlaller', { body: JSON.stringify({ [key]: found }), contentType: 'application/json' })
         // Tam eşitlik: yeni bir ihlal de, giderilip listede kalan bir ihlal de kırmızı.

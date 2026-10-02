@@ -1880,7 +1880,7 @@
   border-radius: 999px;
 }
 
-/* ---- Sonuç: iki sütun (sonuç | karne) ---- */
+/* ---- Sonuç: iki sütun (sonuç ve karne | eylem); dikeyde alt alta ---- */
 .screen.outcome {
   /* Uzun içerik ortalanırken üstten kesilmesin (desteklemeyen tarayıcı ilkini kullanır). */
   justify-content: center;
@@ -1888,20 +1888,50 @@
 }
 
 .outcome-main,
-.outcome-side {
+.outcome-side,
+.outcome-scroll {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
 }
 
+.outcome-main,
 .outcome-side {
   width: min(420px, 100%);
 }
 
-@media (min-width: 720px) {
+/*
+ * Başlık ve düğmeler yerinde durur; sığmayınca yalnız aradaki kutu (skor,
+ * tarih notu, karne) kısalıp kendi içinde kayar. Ekranın tamamı kayınca
+ * odak düğmeye kaydırıyor, ZAFER görünmüyordu.
+ */
+.outcome-main {
+  min-height: 0;
+  max-height: 100%;
+}
+.outcome-main > *,
+.outcome-side { flex-shrink: 0; }
+.outcome-main > .outcome-scroll {
+  align-self: stretch;
+  flex-shrink: 1;
+  min-height: 0;
+  gap: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--metal-rgb) / 0.35) transparent;
+}
+
+/*
+ * Yan yana: sütun ekrandan uzunsa (568×320'de kilit kutusu ve cevapsız veri
+ * sorusu birlikte) üstten kesilmesin, ekran aşağı kaysın.
+ */
+@media (min-width: 720px), (min-aspect-ratio: 1/1) {
   .screen.outcome {
     flex-direction: row;
+    align-items: center;
+    align-items: safe center;
     gap: 48px;
   }
   .outcome-main { flex: 0 1 380px; }
@@ -2021,7 +2051,9 @@
 }
 
 .karne-advice {
+  align-self: stretch;
   padding-left: 10px;
+  text-align: left;
   color: var(--ivory-soft);
   font-size: 13px;
   line-height: 1.45;
@@ -2241,6 +2273,7 @@
   .hud-score { font-size: 22px; }
   .announce { top: calc(52px + var(--safe-top)); font-size: 13px; }
   .stars svg { width: 24px; height: 24px; }
+  .screen.outcome { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(12px + var(--safe-bottom)); }
   .outcome-main, .outcome-side { gap: 8px; }
   .result-stats b { font-size: 20px; }
   .karne { gap: 7px; padding: 9px 12px; }
