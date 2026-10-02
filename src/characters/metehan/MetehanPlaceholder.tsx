@@ -30,7 +30,7 @@ export function MetehanPlaceholder() {
   const horse = useMemo(buildHorseGeometry, [])
   const rider = useMemo(() => buildRiderGeometry('hero'), [])
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     // Sekme arka plandayken delta şişer ve karakter ışınlanır; hitstop'ta sıfır.
     const dt = simDelta(delta)
 
@@ -99,7 +99,7 @@ export function MetehanPlaceholder() {
     }
     // Dörtnal yalnızca gövdede; zemin halkası yerinde kalsın.
     const gait = Math.min(1, Math.hypot(world.playerVel.x, world.playerVel.z) / 3)
-    const phase = clock.elapsedTime * GALLOP_RATE
+    const phase = world.animTime * GALLOP_RATE
     body.position.y = Math.abs(Math.sin(phase)) * GALLOP_BOB * gait
     body.rotation.x = Math.sin(phase) * GALLOP_PITCH * gait
     // Nal sesi görünen adımla aynı ritimde: her dörtnal döngüsünde bir adım.

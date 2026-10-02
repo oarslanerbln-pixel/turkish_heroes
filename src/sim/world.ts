@@ -98,6 +98,17 @@ export interface World {
    * SLOWMO_SCALE hızında ilerler: ilk hamle ve akşam dönüşü gibi anlar okunsun.
    */
   slowmo: number
+  /**
+   * Simülasyonun o anki hız çarpanı (0–1]. Ağır çekime sert değil rampayla
+   * girer ve çıkar (stepTime); simDelta bununla ölçekler.
+   */
+  timeScale: number
+  /**
+   * Animasyon saati (sn): sim zamanıyla ilerler, menüde ve sonuçta da. Dörtnal
+   * ve çimen bununla salınır; ağır çekimde gövdelerle birlikte yavaşlar,
+   * vuruş donmasında durur. (world.time yalnızca savaş sürerken işler.)
+   */
+  animTime: number
   /** Son vuruşta düşenlerin konumları — kıvılcım efekti tüketip boşaltır. */
   fxKills: Vec2[]
   /**
@@ -172,6 +183,8 @@ function initialWorld(commander: CommanderId): World {
     generation: 0,
     hitstop: 0,
     slowmo: 0,
+    timeScale: 1,
+    animTime: 0,
     fxKills: [],
     waveBreak: 0,
     announcement: '',
@@ -251,9 +264,32 @@ export function simDelta(delta: number): number {
   // Molada sahne 'demand' modunda; yine de boyut değişince çizilen bir kare
   // simülasyonu ilerletmesin.
   if (world.hitstop > 0 || world.paused) return 0
-  const dt = Math.min(delta, 0.1)
-  return world.slowmo > 0 ? dt * SLOWMO_SCALE : dt
+  return Math.min(delta, 0.1) * world.timeScale
 }
 
 /** Ağır çekimde simülasyonun hızı. */
 export const SLOWMO_SCALE = 0.3
+
+/**
+ * Hız rampası (1/sn): ağır çekime hızlı girilir (%95'i ~0,19 sn), yavaş
+ * çıkılır (~0,6 sn). Sert geçişte gövdeler bir karede üçte bire düşüyordu.
+ */
+const RAMP_IN = 16
+const RAMP_OUT = 5
+
+/**
+ * Zamanı gerçek zamanla ilerletir: vuruş donması, ağır çekim süresi ve hız
+ * rampası. Yönetmen karenin sonunda bir kez çağırır; molada çağrılmaz.
+ * Donma ve ağır çekim gerçek zamanla erir: yavaşlayan dünyada uzamasınlar.
+ */
+export function stepTime(realDelta: number): void {
+  if (world.hitstop > 0) {
+    world.hitstop = Math.max(0, world.hitstop - realDelta)
+    return
+  }
+  if (world.slowmo > 0) world.slowmo = Math.max(0, world.slowmo - realDelta)
+  const target = world.slowmo > 0 ? SLOWMO_SCALE : 1
+  const rate = target < world.timeScale ? RAMP_IN : RAMP_OUT
+  world.timeScale += (target - world.timeScale) * (1 - Math.exp(-rate * realDelta))
+  if (Math.abs(target - world.timeScale) < 1e-3) world.timeScale = target
+}

@@ -13,7 +13,7 @@ import {
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import { useGameStore } from '../store/gameStore'
-import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
+import { isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
 import {
   earnedLore,
   isUnlocked,
@@ -103,6 +103,8 @@ export function GameDirector() {
 
   useFrame((_, delta) => {
     const dt = simDelta(delta)
+    const realDelta = Math.min(delta, 0.1)
+    world.animTime += dt
     const scenario = scenarioOf(world)
     const siege = scenario.siege(world)
 
@@ -221,19 +223,17 @@ export function GameDirector() {
     // enerji dolar dolmaz kendiliğinden patlamasın.
     world.strikeRequested = false
 
-    // Hitstop gerçek zamanla erir (dt donmuşken sıfır olduğu için ona bakılmaz).
-    // Yönetmen en son çalışan simülasyon adımı: donma bir sonraki karede
-    // oyuncu ve düşmanlar için de geçerli olur.
-    const realDelta = Math.min(delta, 0.1)
-    if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - realDelta)
-    // Ağır çekim ve duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
-    else if (world.slowmo > 0) world.slowmo = Math.max(0, world.slowmo - realDelta)
+    // Yönetmen en son çalışan simülasyon adımı: donma ve hız bir sonraki
+    // karede oyuncu ve düşmanlar için de geçerli olur.
+    if (!world.paused) stepTime(realDelta)
+    // Duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
     if (isPlaying()) {
       stepAnnouncements(realDelta)
       advanceClock(realDelta)
     }
 
-    hudTimer.current += dt
+    // Gerçek zamanla: ağır çekimde HUD ~4 Hz'e düşüyor, donmada hiç güncellenmiyordu.
+    hudTimer.current += realDelta
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
       hudTimer.current = 0
       const b = world.battle

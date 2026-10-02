@@ -116,12 +116,12 @@ function DustPool() {
   const newBattle = useMemo(newBattleWatch, [])
   const dummy = useMemo(() => new Object3D(), [])
 
-  useFrame(({ clock, camera }, delta) => {
+  useFrame(({ camera }, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const dt = simDelta(delta)
     if (newBattle()) for (const p of puffs) p.age = p.life
-    const gust = windGust(clock.elapsedTime, world.player.x, world.player.z)
+    const gust = windGust(world.animTime, world.player.x, world.player.z)
     const drift = WIND_DRIFT_CALM + WIND_DRIFT_GUST * gust
     const windX = WIND_DIR.x * drift
     const windZ = WIND_DIR.z * drift

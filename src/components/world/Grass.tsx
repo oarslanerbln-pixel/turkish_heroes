@@ -10,6 +10,7 @@ import {
   Object3D,
 } from 'three'
 import { useQuality } from '../../perf/quality'
+import { world } from '../../sim/world'
 import type { QualityTier } from '../../perf/quality'
 import { mulberry32, terrainHeight } from './terrainShape'
 import { GUST_GLSL, WIND_DIR } from './wind'
@@ -62,8 +63,8 @@ function GrassField({ count }: { count: number }) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [count])
 
-  useFrame(({ clock }) => {
-    material.userData.uTime.value = clock.elapsedTime
+  useFrame(() => {
+    material.userData.uTime.value = world.animTime
   })
 
   return <instancedMesh ref={ref} args={[geometry, material, count]} frustumCulled={false} />
