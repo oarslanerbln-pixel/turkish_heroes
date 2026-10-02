@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Vector3 } from 'three'
 import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
-import { simDelta, world } from '../sim/world'
+import { newBattleWatch, simDelta, world } from '../sim/world'
 
 // Yönetmenden (2) sonra: o karede düşenlerin konumunu okur.
 const VISUAL_PRIORITY = 3
@@ -49,12 +49,15 @@ export function StrikeSparks() {
     [],
   )
   const cursor = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
   const dummy = useMemo(() => new Object3D(), [])
   const ahead = useMemo(() => new Vector3(), [])
 
   useFrame((_, delta) => {
     const mesh = ref.current
     if (!mesh) return
+
+    if (newBattle()) for (const s of sparks) s.age = LIFE
 
     if (world.fxKills.length > 0) {
       for (const k of world.fxKills) {

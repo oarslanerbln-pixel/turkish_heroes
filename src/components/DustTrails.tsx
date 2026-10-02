@@ -5,7 +5,7 @@ import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import type { Vec2 } from '../mechanics/types'
-import { isPlaying, simDelta, world } from '../sim/world'
+import { isPlaying, newBattleWatch, simDelta, world } from '../sim/world'
 import { WIND_DIR, WIND_DRIFT_CALM, WIND_DRIFT_GUST, windGust } from './world/wind'
 
 // Bozkır tozu: dörtnala kalkan süvarilerin ardında toz bulutu, sert esintide
@@ -110,12 +110,14 @@ function DustPool() {
   )
   const wispBudget = useRef(0)
   const next = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
   const dummy = useMemo(() => new Object3D(), [])
 
   useFrame(({ clock, camera }, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const dt = simDelta(delta)
+    if (newBattle()) for (const p of puffs) p.age = p.life
     const gust = windGust(clock.elapsedTime, world.player.x, world.player.z)
     const drift = WIND_DRIFT_CALM + WIND_DRIFT_GUST * gust
     const windX = WIND_DIR.x * drift

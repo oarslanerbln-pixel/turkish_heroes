@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
-import { isPlaying, world, type CameraCue } from '../sim/world'
+import { isPlaying, newBattleWatch, world, type CameraCue } from '../sim/world'
 import { shotDone, shotWeight } from './cameraShots'
 import { nearFadeStrength } from './world/nearFade'
 
@@ -66,9 +66,16 @@ export function FollowCamera() {
   const cinePos = useMemo(() => new Vector3(), [])
   const cineLook = useMemo(() => new Vector3(), [])
   const look = useMemo(() => new Vector3(), [])
+  const newBattle = useMemo(newBattleWatch, [])
 
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.1)
+
+    // Yeni savaşta eski savaşın çekimi sürmesin; kamera yeni yerine süzülmeden otursun.
+    if (newBattle()) {
+      shot.cue = null
+      başlatıldı.value = false
+    }
 
     // facing = atan2(dx, dz) düzeninde; birim vektörü (sin, cos).
     desired.set(

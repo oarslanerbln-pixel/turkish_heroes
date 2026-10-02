@@ -6,7 +6,7 @@ import type { QualityTier } from '../perf/quality'
 import { play } from '../audio/sfx'
 import type { BattleState } from '../mechanics/corps'
 import { wingHarass, type WingState } from '../mechanics/wings'
-import { simDelta, world } from '../sim/world'
+import { newBattleWatch, simDelta, world } from '../sim/world'
 import { terrainHeight } from './world/terrainShape'
 
 // Ok yağmuru: taciz edilen birliğe okçularından yay çizen oklar.
@@ -54,12 +54,18 @@ export function ArrowVolley() {
   const budget = useRef(0)
   const soundTimer = useRef(0)
   const next = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
 
   useFrame((_, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const dt = simDelta(delta)
     const b = world.battle
+
+    if (newBattle()) {
+      for (const a of arrows) a.age = FLIGHT
+      budget.current = 0
+    }
 
     // Yeni oklar: taciz edilen her birliğe şiddetiyle orantılı.
     if (b && world.outcome === 'playing' && world.started && dt > 0) {

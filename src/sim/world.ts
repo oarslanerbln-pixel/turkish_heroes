@@ -83,6 +83,12 @@ export interface World {
    */
   paused: boolean
   /**
+   * Savaşın nesli: her resetWorld'de bir artar. Kamera ve görseller kendi
+   * durumlarını (süren çekim, havadaki ok, kıvılcım) bununla sıfırlar; yoksa
+   * YENİDEN'den sonra eski savaşınkiler yeni savaş alanında sürerdi.
+   */
+  generation: number
+  /**
    * Vuruş anındaki donma (hitstop) için kalan süre, saniye. > 0 iken simülasyon
    * ilerlemez: kuşatmanın kapandığı an bir nefes boyu asılı kalır.
    */
@@ -163,6 +169,7 @@ function initialWorld(commander: CommanderId): World {
     totalKills: 0,
     started: false,
     paused: false,
+    generation: 0,
     hitstop: 0,
     slowmo: 0,
     fxKills: [],
@@ -188,7 +195,21 @@ export function resetWorld(commander: CommanderId = world.commander): void {
   // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
   const started = world.started
-  Object.assign(world, initialWorld(commander), { started })
+  Object.assign(world, initialWorld(commander), { started, generation: world.generation + 1 })
+}
+
+/**
+ * Yeni savaş bekçisi: döndürdüğü işlev, son çağrıdan beri resetWorld
+ * çalıştıysa bir kez true verir. Her görsel kendininkini tutar
+ * (`useMemo(newBattleWatch, [])`) ve karesinin başında sorar.
+ */
+export function newBattleWatch(): () => boolean {
+  let seen = world.generation
+  return () => {
+    if (seen === world.generation) return false
+    seen = world.generation
+    return true
+  }
 }
 
 /** Duyuru ekranda kalma süresi (sn). */
