@@ -686,7 +686,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - U3, kısmen: dokunmatikte Mola ve ses köşede yan yana. KAYA YIĞINI kolların kutusuna girdi; arası sabit konumdan değil düğme boyundan doğar.
     - Kısa ekranlar: 568×320'de menü başlığının süsü, molada arma ve adım açıklamaları düşer. 375×667'de harita en küçük boyuna iner. Dikey menü `flex-end` yerine otomatik kenar boşluğuyla alta yaslanır, çünkü `flex-end`'de taşan üst kısım kaydırmayla açılmıyordu.
     - Bekçi Hazine'yi de görür. Ekrandan kısa, kaydırılan bir kutudaki hedef (bölüm listesi) taşma sayılmaz; ekran boyu kaydırma sayılır, yoksa menüde SAVAŞA GİR kıvrımın altına saklanabilirdi.
-    - 22 referans çekimin hepsi değişti; linux tabanı CI'nin `cekimler` çıktısından yenilenir.
+    - 22 referans çekimin hepsi değişti. Linux tabanı 41cc4ed'nin `cekimler` çıktısından yenilendi (014e9f4); sonraki koşu 22/22 eşleşti.
   - **U1 yapıldı:** bekçi görünen her yazı düğümünü de tarar, 12 px altı ihlal sayılır (geliştirici paneli ve `aria-hidden` hariç). Bekçi 23/23 yeşil.
     - `hud.css`'te 12 px altı 43 bildirim 12 px'e çıktı; büyüyen küçük başlıklarda 0,18em+ harf aralığı 0,14em'e indi. Tabana eşitlenen beş medya kuralı silindi.
     - Sefer haritası: mühürler kenarda, etiketler içeri bakar (Bozkır ve Malazgirt doğuda, Miryokefalon batıda). Menü paneli `min(300px, 40vw)`; yatay telefonda harita ~195 px, 12 px'lik etiket ~170 px.
@@ -699,9 +699,11 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - Afiş, duyuru gibi %72 koyu şeridin üstünde; üst ve alt kenarı yumuşak solar. Gün etiketi `.phase` gibi hap zemin aldı. Hepsi ≥9:1.
     - Ters deneme: düzeltmesiz CSS'te bekçi R2'nin 6 karesinde de kırmızı.
     - Yöntem tuzağı: zemin, glifler `-webkit-text-fill-color: transparent` ile gizlenip çekilir (`color`'a dokunmaz, `currentColor` kenarlıklar yerinde kalır). `transition: all` taşıyan düğmede yazı solarken çekilmesin diye geçişler kapatılır.
-  - **Kalan:** sonuç başlığı, linux çekim tabanı, gerçek cihaz.
+  - **Kalan:** sonuç başlığı, gerçek cihaz.
   - Bulgular:
     - Yatay telefonda sonuç ekranı otomatik odakla düğmelere kayıyor, ZAFER/YENİLGİ başlığı görünmüyor.
+      - Kaydırmasız odak (`focus({ preventScroll: true })`) tek başına yetmez. Başlık görünür ama düğmeler kıvrımın altına iner; bekçi 5 ekranda "ekrandan taşıyor" der (667×375 ve 568×320'de ikisi de, 375×667'de zafer).
+      - Çözüm menü brifingi gibi olmalı: başlık ve düğmeler yerinde durur, aradaki kısım (skor, not, karne) kendi kutusunda kayar.
     - Linux'ta gövde yazısı (`system-ui` → DejaVu/Liberation) Windows'tan geniş; kol düğmeleri "SAĞ YAMAÇ"a göre boyutlandı.
     - 568×320 Hazine'de uzun not başlıkları ("Dönüş emri bozgun oldu") dar sütunda üç noktayla kesilir; seçilince sağdaki kartta tam yazar.
 - **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, A5 + D7. Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
