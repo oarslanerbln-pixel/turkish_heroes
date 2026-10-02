@@ -12,6 +12,7 @@ import {
   stepEnergy,
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
+import type { Enemy } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
 import { isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
 import {
@@ -168,14 +169,20 @@ export function GameDirector() {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
         const aliveBefore = siege.aliveCount
-        world.fxKills.length = 0
+        const fallen: Enemy[] = []
         const kills = executeStrike(
           world.enemies,
           world.player,
           world.facing,
-          world.fxKills,
+          fallen,
           scenario.fallFilter(world),
         )
+        world.events.push({
+          type: 'strike',
+          origin: { x: world.player.x, z: world.player.z },
+          facing: world.facing,
+          victims: fallen.map((e) => ({ id: e.id, x: e.pos.x, z: e.pos.z })),
+        })
         scenario.afterStrike(world)
         track({ type: 'strike', kills, alive: aliveBefore })
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.

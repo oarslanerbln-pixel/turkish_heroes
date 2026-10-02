@@ -324,8 +324,8 @@ export function executeStrike(
   enemies: Enemy[],
   origin: Vec2,
   facing: number,
-  /** Verilirse düşenlerin konumları buna eklenir (görsel efektler için). */
-  killedAt?: Vec2[],
+  /** Verilirse düşenler buna eklenir (görsel efektler için). */
+  fallen?: Enemy[],
   /** Senaryonun sınırı: yaydaki askerden hangisi düşebilir (bkz. FallFilter). */
   canFall?: FallFilter,
 ): number {
@@ -337,7 +337,7 @@ export function executeStrike(
     if (!e.guarded && isInCrescent(e.pos, origin, facing) && (!canFall || canFall(e))) {
       e.alive = false
       kills++
-      killedAt?.push({ x: e.pos.x, z: e.pos.z })
+      fallen?.push(e)
     } else {
       e.discipline = 1
     }

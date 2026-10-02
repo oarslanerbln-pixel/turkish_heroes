@@ -15,6 +15,7 @@ import { spawnWave } from '../mechanics/waves'
 import { parseSeed } from '../mechanics/random'
 import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
+import type { WorldEvent } from './events'
 
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
 export type CameraCue = 'intro' | 'dusk'
@@ -109,8 +110,8 @@ export interface World {
    * vuruş donmasında durur. (world.time yalnızca savaş sürerken işler.)
    */
   animTime: number
-  /** Son vuruşta düşenlerin konumları — kıvılcım efekti tüketip boşaltır. */
-  fxKills: Vec2[]
+  /** Bu karenin sunum olayları (bkz. events.ts); karenin sonunda boşalır. */
+  events: WorldEvent[]
   /**
    * Dalga temizlendikten sonra yenisi doğana kadar kalan süre. Mola olmadan
    * yeni dalga aynı karede doğuyor, son düşenlerin devrilişi yarıda kalıyordu.
@@ -125,7 +126,7 @@ export interface World {
   stars: number
   /**
    * Sinematik çekim isteği: savaş açılışı ya da gün batımı. Kamera tüketip
-   * boşaltır (fxKills gibi); simülasyonu etkilemez.
+   * boşaltır; simülasyonu etkilemez.
    */
   cameraCue: CameraCue | null
   /** Savaş bitince yazılan karne (bkz. debrief/debrief.ts); savaş sürerken null. */
@@ -185,7 +186,7 @@ function initialWorld(commander: CommanderId): World {
     slowmo: 0,
     timeScale: 1,
     animTime: 0,
-    fxKills: [],
+    events: [],
     waveBreak: 0,
     announcement: '',
     announceTimer: 0,

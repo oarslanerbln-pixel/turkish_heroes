@@ -5,7 +5,7 @@ import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import { newBattleWatch, simDelta, world } from '../sim/world'
 
-// Yönetmenden (2) sonra: o karede düşenlerin konumunu okur.
+// Yönetmenden (2) sonra: o karenin vuruş olayından düşenlerin konumunu okur.
 const VISUAL_PRIORITY = 3
 
 /** Düşen başına kıvılcım; ucuz kademe daha az çizer. */
@@ -59,8 +59,9 @@ export function StrikeSparks() {
 
     if (newBattle()) for (const s of sparks) s.age = LIFE
 
-    if (world.fxKills.length > 0) {
-      for (const k of world.fxKills) {
+    for (const ev of world.events) {
+      if (ev.type !== 'strike') continue
+      for (const k of ev.victims) {
         for (let j = 0; j < perKill; j++) {
           const s = sparks[cursor.current]
           cursor.current = (cursor.current + 1) % POOL
@@ -75,7 +76,6 @@ export function StrikeSparks() {
           s.vy = 3 + Math.random() * 5
         }
       }
-      world.fxKills.length = 0
     }
 
     // Hitstop'ta sıfır: kıvılcımlar doğdukları yerde asılı kalır, donma bitince saçılır.

@@ -23,6 +23,7 @@ import { CrescentPreview } from './CrescentPreview'
 import { FollowCamera } from './FollowCamera'
 import { EnemySwarm } from './EnemySwarm'
 import { GameDirector } from './GameDirector'
+import { EventFlush } from './EventFlush'
 import { StrikeEffect } from './StrikeEffect'
 import { HilalEnergyHUD } from './HilalEnergyHUD'
 import { useStrikeInput } from '../hooks/useStrikeInput'
@@ -165,6 +166,7 @@ export function Scene() {
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
           <FollowCamera />
           <CameraShake />
+          <EventFlush />
           {/*
             Sırayı önceliklerle sabitlediğimiz için çizimi kendimiz tetikliyoruz
             (bkz. eski Renderer.tsx'in notu) — EffectComposer bunu renderPriority
