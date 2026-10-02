@@ -194,6 +194,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - Şu durumlarda uygulama boş ekrana düşer: telefonda GPU belleği dolunca, sekme uzun süre arka planda kalınca, bir model yüklenemeyince. Oyuncu ne olduğunu anlamaz.
 - Öneri: kökte bir ErrorBoundary, `webglcontextlost`/`restored` dinleyicisi ve "Yeniden yükle" ekranı. İlerleme zaten localStorage'da olduğu için kayıp olmaz.
 - Zaman: **sağlamlık paketi**
+- **Durum (2 Ekim 2026): kapandı.** Ayrıntı §8 Adım 1.4'te.
 
 **P2 · PWA büyük varlıklara hazır değil**
 - Kanıt: `vite.config.ts:15`
@@ -637,7 +638,12 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - Basılı tutulan Space'in tekrarları da yutulur.
    - Savaşta odak bir HUD düğmesindeyken Space vuruştur, düğmeyi tetiklemez.
    - Rıza düğmeleri düz düğme, aynı yoldan geçer. Geliştirmede rıza gösterilmediği için ayrıca ölçülmedi.
-4. P1 hata sınırı ve WebGL bağlam kaybı. Kabul: `WEBGL_lose_context` ile bağlam kaybında kurtarma ekranı çıkar, sayfa beyaz kalmaz.
+4. ~~P1 hata sınırı ve WebGL bağlam kaybı.~~ **Yapıldı:** `App.tsx` `CrashGuard`, `CrashScreen.tsx`, `Scene.tsx` bağlam dinleyicisi. Ölçüm:
+   - `WEBGL_lose_context` ile kayıpta savaş molaya geçer ve opak "GÖRÜNTÜ KESİLDİ" ekranı çıkar. Esc molayı kapatmaz.
+   - `restoreContext` ile ekran kalkar, sahne yeniden çizilir, oyuncu DEVAM'a basar.
+   - Bozuk veriyle tetiklenen render hatası "BİR HATA OLDU" ekranını gösterir.
+   - 844×390'da ekran sığar.
+   - Kalan: kare döngüsündeki (`useFrame`) hatalar sınıra gelmez. Çökme ekranında müzik P5'e kadar susmaz.
 5. P5 + P8 + D6 ses yaşam döngüsü (tek kök). Kabul: mola ve sessizde bağlam `suspended`; devam, yeniden başla ve komutan değişiminde ilk dokunuşla `running`; ortam aralığı temizlenir.
 6. A3 menüdeki bayat kare.
 7. S6'nın ilk yarısı: `?seed=` (playtest) ve tohum savaş özetinde. Kabul: aynı tohumla iki koşuda t=6'da düşman konumları eşit.
