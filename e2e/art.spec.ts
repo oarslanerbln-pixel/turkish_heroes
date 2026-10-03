@@ -9,6 +9,11 @@ import { openShot, playToMoment, type Commander } from './shot.ts'
 // çizilir (birim macenta, gerisi siyah): birimin kendi rengine bakmaz,
 // zemine yakın renkli pikseller ölçümden düşmez. Bkz. src/components/ArtProbe.tsx.
 //
+// Ortanca |ΔL|, işaretli ΔL değil: kahraman bilerek iki tonlu (ak at, koyu tuğ
+// ve kaftan) — açık ve koyu yarıları birbirini götürür, işaretli ortanca sıfıra
+// düşer ama göz onu zeminden ayırır. İşaretli ortanca da raporlanır: ordu
+// zeminden koyu (eksi), kahraman açık kalmalı (STIL.md §Değer).
+//
 // Üçgen sayısı gölge pasosu dahil karedeki tüm çizimler.
 
 const MIN_DELTA_L = 0.15
@@ -34,6 +39,8 @@ interface GroupResult {
   pixels: number
   /** Ortanca L(birim) − L(zemin); eksi: birim zeminden koyu. */
   median: number
+  /** Ortanca |L(birim) − L(zemin)|: ölçüt bu. */
+  contrast: number
 }
 
 interface ArtResult {
@@ -75,7 +82,7 @@ function measure(page: Page): Promise<ArtResult> {
     const frames: Record<string, string> = { normal: normal.png, hide: probe('hide').png }
     const shown = await decode(frames.normal)
     const ground = await decode(frames.hide)
-    const groups: Record<string, { pixels: number; median: number }> = {}
+    const groups: Record<string, { pixels: number; median: number; contrast: number }> = {}
     for (const group of ['enemy', 'ally', 'player']) {
       frames[group] = probe(group).png
       const mask = await decode(frames[group])
@@ -84,8 +91,8 @@ function measure(page: Page): Promise<ArtResult> {
         // Macenta: kırmızı ya da mavi yeşilden belirgin yüksek (kenar yumuşatmalı kenar dahil).
         if (Math.max(mask[i], mask[i + 2]) - mask[i + 1] > 40) deltas.push(lightness(shown, i) - lightness(ground, i))
       }
-      deltas.sort((p, q) => p - q)
-      groups[group] = { pixels: deltas.length, median: deltas[deltas.length >> 1] ?? 0 }
+      const median = (values: number[]) => values.sort((p, q) => p - q)[values.length >> 1] ?? 0
+      groups[group] = { pixels: deltas.length, median: median(deltas), contrast: median(deltas.map(Math.abs)) }
     }
     probe('normal')
     return { triangles: normal.triangles, calls: normal.calls, groups, frames }
@@ -103,8 +110,8 @@ for (const quality of ['low', 'high'] as const) {
       await test.info().attach('gorsel-temel', { body: JSON.stringify(result), contentType: 'application/json' })
 
       const weak = Object.entries(result.groups)
-        .filter(([, g]) => g.pixels >= MIN_PIXELS && Math.abs(g.median) < MIN_DELTA_L)
-        .map(([name, g]) => `${name}: ΔL ${g.median.toFixed(3)} (${g.pixels} px)`)
+        .filter(([, g]) => g.pixels >= MIN_PIXELS && g.contrast < MIN_DELTA_L)
+        .map(([name, g]) => `${name}: |ΔL| ${g.contrast.toFixed(3)}, ΔL ${g.median.toFixed(3)} (${g.pixels} px)`)
       // Oyuncu her kadrajda: maskesi boşsa ölçüm değil sonda bozuktur.
       const probeBroken = result.groups.player.pixels < MIN_PIXELS
       if (weak.length || probeBroken) {
@@ -113,7 +120,7 @@ for (const quality of ['low', 'high'] as const) {
         }
       }
       expect(probeBroken, 'oyuncu maskesi boş').toBe(false)
-      expect(weak, `birim–zemin ΔL ≥ ${MIN_DELTA_L}`).toEqual([])
+      expect(weak, `birim–zemin |ΔL| ≥ ${MIN_DELTA_L}`).toEqual([])
       if (screen.commander === 'metehan' && quality === 'high') {
         expect(result.triangles, 'Metehan yüksek kademe üçgen').toBeLessThanOrEqual(TRIANGLE_BUDGET)
       }
