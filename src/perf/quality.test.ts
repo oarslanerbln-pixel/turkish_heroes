@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   MAX_TIER_CHANGES,
+  parseForcedMultisampling,
   parseForcedTier,
   QUALITY,
   shiftTier,
@@ -14,6 +15,13 @@ describe('kademe seçimi', () => {
     expect(parseForcedTier('?perf&quality=high')).toBe('high')
     expect(parseForcedTier('?quality=ultra')).toBeNull()
     expect(parseForcedTier('')).toBeNull()
+  })
+
+  it('MSAA parametresi yalnızca 0, 2 ve 4 örneği kabul eder', () => {
+    expect(parseForcedMultisampling('?quality=low&msaa=2')).toBe(2)
+    expect(parseForcedMultisampling('?msaa=0')).toBe(0)
+    expect(parseForcedMultisampling('?msaa=8')).toBeNull()
+    expect(parseForcedMultisampling('?quality=low')).toBeNull()
   })
 
   it('dokunmatik ortadan, masaüstü yüksekten başlar; URL her şeyi ezer', () => {

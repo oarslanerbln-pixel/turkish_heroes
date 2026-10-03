@@ -9,6 +9,7 @@
 // kaldırır. Gerçek cihaz testi için URL parametreleri:
 //   ?quality=low|medium|high  → kademeyi sabitler (uyarlama kapalı)
 //   ?perf                      → FPS paneli + kademe göstergesi (üretimde de)
+//   ?msaa=0|2|4                → efekt zincirinin MSAA örnek sayısını sabitler
 
 import { create } from 'zustand'
 import { isTouchDevice } from '../hooks/useTouchControls'
@@ -46,6 +47,16 @@ export function parseForcedTier(search: string): QualityTier | null {
 }
 
 /**
+ * URL'de ?msaa=0|2|4 varsa o örnek sayısı; yoksa null. Düşük kademede kenar
+ * yumuşatmanın bedeli gerçek telefonda ölçülsün diye (STIL.md §Kenar yumuşatma):
+ * ?quality=low&perf ile ?quality=low&perf&msaa=2 yan yana.
+ */
+export function parseForcedMultisampling(search: string): number | null {
+  const value = new URLSearchParams(search).get('msaa')
+  return value === '0' || value === '2' || value === '4' ? Number(value) : null
+}
+
+/**
  * Dokunmatik cihaz (telefon/tablet) ortadan başlar: ilk izlenim takılmasın.
  * Cihaz rahatsa monitör birkaç saniyede yükseltir. Masaüstü yüksekten başlar.
  */
@@ -80,7 +91,8 @@ export const START_TIER = startTier(FORCED, isTouchDevice())
  * dispose etmiyor — her kademe değişiminde GPU belleği sızardı. Asıl kazanç
  * zaten DPR'de.
  */
-export const SESSION_MULTISAMPLING = QUALITY[START_TIER].multisampling
+export const SESSION_MULTISAMPLING =
+  (browser ? parseForcedMultisampling(window.location.search) : null) ?? QUALITY[START_TIER].multisampling
 
 export const useQuality = create<QualityState>((set, get) => ({
   tier: START_TIER,
