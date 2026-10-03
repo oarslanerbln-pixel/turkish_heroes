@@ -38,6 +38,7 @@ let noiseBuffer: AudioBuffer | null = null
 let muted = loadMuted()
 /** Molada bağlam askıda tutulur (bkz. holdAudio). */
 let held = false
+let haptics = true
 
 function loadMuted(): boolean {
   try {
@@ -115,8 +116,13 @@ export function audioGraph(): { ctx: AudioContext; master: GainNode } | null {
 }
 
 /** Kısa titreşim — yalnızca destekleyen mobil cihazlarda, ses kapalıysa da. */
+/** Titreşim açık mı: "hareketi azalt" tercihinde kapalı (store yazar). */
+export function setHaptics(enabled: boolean): void {
+  haptics = enabled
+}
+
 export function haptic(pattern: number | number[]): void {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+  if (haptics && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     navigator.vibrate(pattern)
   }
 }

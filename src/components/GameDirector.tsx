@@ -12,8 +12,9 @@ import {
   stepEnergy,
 } from '../mechanics/hilalSystem'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
+import type { Enemy } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
-import { isPlaying, simDelta, stepAnnouncements, world } from '../sim/world'
+import { enterMode, isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
 import {
   earnedLore,
   isUnlocked,
@@ -103,6 +104,8 @@ export function GameDirector() {
 
   useFrame((_, delta) => {
     const dt = simDelta(delta)
+    const realDelta = Math.min(delta, 0.1)
+    world.animTime += dt
     const scenario = scenarioOf(world)
     const siege = scenario.siege(world)
 
@@ -166,14 +169,20 @@ export function GameDirector() {
         // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
         // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
         const aliveBefore = siege.aliveCount
-        world.fxKills.length = 0
+        const fallen: Enemy[] = []
         const kills = executeStrike(
           world.enemies,
           world.player,
           world.facing,
-          world.fxKills,
+          fallen,
           scenario.fallFilter(world),
         )
+        world.events.push({
+          type: 'strike',
+          origin: { x: world.player.x, z: world.player.z },
+          facing: world.facing,
+          victims: fallen.map((e) => ({ id: e.id, x: e.pos.x, z: e.pos.z })),
+        })
         scenario.afterStrike(world)
         track({ type: 'strike', kills, alive: aliveBefore })
         // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
@@ -211,7 +220,12 @@ export function GameDirector() {
 
       const prevOutcome = world.outcome
       world.outcome = scenario.outcome(world)
-      if (world.outcome !== 'playing' && prevOutcome === 'playing') finishBattle(scenario)
+      if (world.outcome !== 'playing' && prevOutcome === 'playing') {
+        enterMode('outcome')
+        finishBattle(scenario)
+        // Sonuç bu karede eşitlensin: kare döngüsü sonuçta durur, karne beklemesin.
+        hudTimer.current = HUD_SYNC_INTERVAL
+      }
     }
 
     // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
@@ -221,19 +235,17 @@ export function GameDirector() {
     // enerji dolar dolmaz kendiliğinden patlamasın.
     world.strikeRequested = false
 
-    // Hitstop gerçek zamanla erir (dt donmuşken sıfır olduğu için ona bakılmaz).
-    // Yönetmen en son çalışan simülasyon adımı: donma bir sonraki karede
-    // oyuncu ve düşmanlar için de geçerli olur.
-    const realDelta = Math.min(delta, 0.1)
-    if (world.hitstop > 0) world.hitstop = Math.max(0, world.hitstop - realDelta)
-    // Ağır çekim ve duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
-    else if (world.slowmo > 0) world.slowmo = Math.max(0, world.slowmo - realDelta)
+    // Yönetmen en son çalışan simülasyon adımı: donma ve hız bir sonraki
+    // karede oyuncu ve düşmanlar için de geçerli olur.
+    if (world.mode !== 'paused') stepTime(realDelta)
+    // Duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
     if (isPlaying()) {
       stepAnnouncements(realDelta)
       advanceClock(realDelta)
     }
 
-    hudTimer.current += dt
+    // Gerçek zamanla: ağır çekimde HUD ~4 Hz'e düşüyor, donmada hiç güncellenmiyordu.
+    hudTimer.current += realDelta
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
       hudTimer.current = 0
       const b = world.battle

@@ -167,6 +167,7 @@ export function runBattle(
     }
     for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
     battle.events.length = 0
+    battle.charges.length = 0
     const siege = battleSiege(battle, enemies)
     health -= calcContactDamage(
       countAttackers(enemies, player),
@@ -185,6 +186,7 @@ export function runBattle(
       record?.({ type: 'strike', kills, alive }, battle.time)
       for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
       battle.events.length = 0
+      battle.charges.length = 0
       strikes.push(kills)
       if (!isDay(battle)) bestDuskStrike = Math.max(bestDuskStrike, kills)
       energy = 0

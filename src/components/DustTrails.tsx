@@ -5,7 +5,7 @@ import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import type { Vec2 } from '../mechanics/types'
-import { isPlaying, simDelta, world } from '../sim/world'
+import { isPlaying, newBattleWatch, simDelta, world } from '../sim/world'
 import { WIND_DIR, WIND_DRIFT_CALM, WIND_DRIFT_GUST, windGust } from './world/wind'
 
 // Bozkır tozu: dörtnala kalkan süvarilerin ardında toz bulutu, sert esintide
@@ -15,7 +15,10 @@ import { WIND_DIR, WIND_DRIFT_CALM, WIND_DRIFT_GUST, windGust } from './world/wi
 // görüntüsüyle görüldü). Bulutlar kameraya bakar, perdeler yere yatar. Işığı
 // alan malzeme: gün batımında toz da kızarır. Düşük kademede yok, çimen gibi.
 
-const VISUAL_PRIORITY = 3
+// Kameraya bakan görsel: kameradan (5) ve sarsıntıdan (6) sonra, çizimden (10)
+// önce. Öncelik 3'te bir önceki karenin yönünü kopyalıyordu; dönen bir
+// çekimde titrerdi.
+const CAMERA_FACING_PRIORITY = 7
 
 /** Tam dörtnalda süvari başına saniyede toz bulutu. */
 const TRAIL_RATE: Record<QualityTier, number> = { high: 10, medium: 6, low: 0 }
@@ -110,13 +113,15 @@ function DustPool() {
   )
   const wispBudget = useRef(0)
   const next = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
   const dummy = useMemo(() => new Object3D(), [])
 
-  useFrame(({ clock, camera }, delta) => {
+  useFrame(({ camera }, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const dt = simDelta(delta)
-    const gust = windGust(clock.elapsedTime, world.player.x, world.player.z)
+    if (newBattle()) for (const p of puffs) p.age = p.life
+    const gust = windGust(world.animTime, world.player.x, world.player.z)
     const drift = WIND_DRIFT_CALM + WIND_DRIFT_GUST * gust
     const windX = WIND_DIR.x * drift
     const windZ = WIND_DIR.z * drift
@@ -208,7 +213,7 @@ function DustPool() {
     }
     mesh.count = live
     mesh.instanceMatrix.needsUpdate = true
-  }, VISUAL_PRIORITY)
+  }, CAMERA_FACING_PRIORITY)
 
   return <instancedMesh ref={ref} args={[geometry, material, POOL]} frustumCulled={false} />
 }

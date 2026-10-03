@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
-import { isPlaying, world, type CameraCue } from '../sim/world'
+import { isPlaying, newBattleWatch, world, type CameraCue } from '../sim/world'
+import { useGameStore } from '../store/gameStore'
 import { shotDone, shotWeight } from './cameraShots'
 import { nearFadeStrength } from './world/nearFade'
 
@@ -66,9 +67,16 @@ export function FollowCamera() {
   const cinePos = useMemo(() => new Vector3(), [])
   const cineLook = useMemo(() => new Vector3(), [])
   const look = useMemo(() => new Vector3(), [])
+  const newBattle = useMemo(newBattleWatch, [])
 
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.1)
+
+    // Yeni savaşta eski savaşın çekimi sürmesin; kamera yeni yerine süzülmeden otursun.
+    if (newBattle()) {
+      shot.cue = null
+      başlatıldı.value = false
+    }
 
     // facing = atan2(dx, dz) düzeninde; birim vektörü (sin, cos).
     desired.set(
@@ -87,9 +95,12 @@ export function FollowCamera() {
     }
 
     // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
+    // Hareketi azaltta çekim oynamaz: kamera süzülmek yerine taktik kadraja keser.
     if (world.cameraCue && isPlaying()) {
-      shot.cue = world.cameraCue
-      shot.t = 0
+      if (!useGameStore.getState().reducedMotion) {
+        shot.cue = world.cameraCue
+        shot.t = 0
+      }
       world.cameraCue = null
     }
 
@@ -97,7 +108,7 @@ export function FollowCamera() {
     look.copy(smooth)
 
     let weight = 0
-    if (!world.started) {
+    if (world.mode === 'menu') {
       // Menüde kamera açılış çekiminin ilk karesinde bekler: menünün arka
       // planı seçilen savaşın kendisi. SAVAŞA GİR'e basınca çekim bu kareden
       // (ağırlık 1) başlar; menüden savaşa kesme olmadan geçilir.

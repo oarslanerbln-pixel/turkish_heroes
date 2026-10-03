@@ -101,6 +101,7 @@ const waves: Scenario = {
     announce(routed === 1 ? 'Bozgun! Son düşman kaçıyor' : `Bozgun! Kalan ${routed} düşman kaçıyor`)
     play('rout')
     track({ type: 'rout', count: routed })
+    w.events.push({ type: 'rout', count: routed })
   },
 
   advance(w, dt) {
@@ -119,6 +120,7 @@ const waves: Scenario = {
         // Yeni dalga oyuncunun yakasından, arkadan gelir (bkz. spawnWave).
         w.enemies = spawnWave(w.waveIndex, w.player)
         play('wave')
+        w.events.push({ type: 'waveSpawn', wave: w.waveIndex })
       }
     }
   },
@@ -262,6 +264,7 @@ const battle: Scenario = {
           play('dusk')
           // Dönüş savaşın kilit anı: her seferinde kısa bir ağır çekimle başlar.
           w.slowmo = SUNSET_SLOWMO
+          w.events.push({ type: 'sunset' })
           w.cameraCue = 'dusk'
           announce(takeHint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
           if (
@@ -298,6 +301,8 @@ const battle: Scenario = {
       }
     }
     b.events.length = 0
+    for (const c of b.charges) w.events.push({ type: 'charge', corps: c.corps, pos: c.pos })
+    b.charges.length = 0
   },
 
   outcome(w) {

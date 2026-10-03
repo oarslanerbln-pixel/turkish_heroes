@@ -1,13 +1,14 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D } from 'three'
+import { BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Vector3 } from 'three'
 import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import { play } from '../audio/sfx'
 import type { BattleState } from '../mechanics/corps'
 import { wingHarass, type WingState } from '../mechanics/wings'
-import { simDelta, world } from '../sim/world'
+import { isPlaying, newBattleWatch, simDelta, world } from '../sim/world'
 import { terrainHeight } from './world/terrainShape'
+import { ARROW_FLIGHT, ARROW_POOL, arrowPose, arrows } from './arrowPool'
 
 // Ok yağmuru: taciz edilen birliğe okçularından yay çizen oklar.
 // Taciz mekaniğin çekirdeği ama kendi başına görünmez bir sayı (düzen düşüşü);
@@ -21,24 +22,10 @@ const VISUAL_PRIORITY = 3
 
 /** Tam şiddette saniyede atılan ok; kademe başına. */
 const RATE: Record<QualityTier, number> = { high: 14, medium: 9, low: 5 }
-const POOL = 64
-/** Okun havada kalma süresi (sn) ve yayın tepe yüksekliği. */
-const FLIGHT = 0.75
-const ARC = 3.2
 /** Ok vızıltısı en fazla bu sıklıkta çalar (sn). */
 const VOLLEY_SOUND_INTERVAL = 0.7
 /** Kol okları tek noktadan değil atlıların arasından kalksın: kol merkezi çevresinde saçılma. */
 const WING_SPREAD = 5
-
-interface Arrow {
-  age: number
-  sx: number
-  /** Atışın yapıldığı zemin yüksekliği: geçitte kollar yamaçta. */
-  sy: number
-  sz: number
-  tx: number
-  tz: number
-}
 
 export function ArrowVolley() {
   const ref = useRef<InstancedMesh>(null)
@@ -46,14 +33,12 @@ export function ArrowVolley() {
   const geometry = useMemo(() => new BoxGeometry(0.07, 0.07, 1.1), [])
   // Açık kamış rengi: koyu ok kahverengi toprakta kayboluyordu.
   const material = useMemo(() => new MeshBasicMaterial({ color: '#f3e6c4', toneMapped: false }), [])
-  const arrows = useMemo<Arrow[]>(
-    () => Array.from({ length: POOL }, () => ({ age: FLIGHT, sx: 0, sy: 0, sz: 0, tx: 0, tz: 0 })),
-    [],
-  )
   const dummy = useMemo(() => new Object3D(), [])
+  const vel = useMemo(() => new Vector3(), [])
   const budget = useRef(0)
   const soundTimer = useRef(0)
   const next = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
 
   useFrame((_, delta) => {
     const mesh = ref.current
@@ -61,8 +46,13 @@ export function ArrowVolley() {
     const dt = simDelta(delta)
     const b = world.battle
 
+    if (newBattle()) {
+      for (const a of arrows) a.age = ARROW_FLIGHT
+      budget.current = 0
+    }
+
     // Yeni oklar: taciz edilen her birliğe şiddetiyle orantılı.
-    if (b && world.outcome === 'playing' && world.started && dt > 0) {
+    if (b && isPlaying() && dt > 0) {
       let strongest = 0
       b.corps.forEach((c, ci) => {
         if (c.harass <= 0) return
@@ -75,9 +65,11 @@ export function ArrowVolley() {
           const target = pickSoldier(ci)
           if (!target) break
           const wing = Math.random() * c.harass < fromWings ? pickWing(b, ci) : null
-          const a = arrows[next.current]
-          next.current = (next.current + 1) % POOL
+          const slot = next.current
+          const a = arrows[slot]
+          next.current = (slot + 1) % ARROW_POOL
           a.age = 0
+          a.t0 = world.animTime
           if (wing) {
             a.sx = wing.pos.x + (Math.random() - 0.5) * WING_SPREAD
             a.sz = wing.pos.z + (Math.random() - 0.5) * WING_SPREAD
@@ -90,6 +82,13 @@ export function ArrowVolley() {
           // Hedefin çevresine saçılsın: tek noktaya düşen oklar çizgi gibi görünür.
           a.tx = target.x + (Math.random() - 0.5) * 2.2
           a.tz = target.z + (Math.random() - 0.5) * 2.2
+          world.events.push({
+            type: 'arrowReleased',
+            slot,
+            origin: { x: a.sx, z: a.sz },
+            target: { x: a.tx, z: a.tz },
+            t0: a.t0,
+          })
         }
       })
       soundTimer.current -= dt
@@ -101,17 +100,10 @@ export function ArrowVolley() {
 
     let n = 0
     for (const a of arrows) {
-      if (a.age >= FLIGHT) continue
+      if (a.age >= ARROW_FLIGHT) continue
       a.age += dt
-      const t = Math.min(1, a.age / FLIGHT)
-      const x = a.sx + (a.tx - a.sx) * t
-      const z = a.sz + (a.tz - a.sz) * t
-      // Atış zemininden hedef zeminine (0) iner.
-      const y = a.sy * (1 - t) + 1.6 + 4 * ARC * t * (1 - t) - 1.2 * t
-      // Yay teğeti: ok uçuş yönüne baksın, tepede yatay, sonda aşağı.
-      const vy = -a.sy + 4 * ARC * (1 - 2 * t) - 1.2
-      dummy.position.set(x, y, z)
-      dummy.lookAt(x + (a.tx - a.sx) / FLIGHT, y + vy / FLIGHT, z + (a.tz - a.sz) / FLIGHT)
+      arrowPose(a, dummy.position, vel)
+      dummy.lookAt(vel.add(dummy.position))
       dummy.updateMatrix()
       mesh.setMatrixAt(n++, dummy.matrix)
     }
@@ -120,7 +112,7 @@ export function ArrowVolley() {
   }, VISUAL_PRIORITY)
 
   return (
-    <instancedMesh ref={ref} args={[geometry, material, POOL]} frustumCulled={false} />
+    <instancedMesh ref={ref} args={[geometry, material, ARROW_POOL]} frustumCulled={false} />
   )
 }
 

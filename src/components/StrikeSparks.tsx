@@ -3,9 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Vector3 } from 'three'
 import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
-import { simDelta, world } from '../sim/world'
+import { newBattleWatch, simDelta, world } from '../sim/world'
 
-// Yönetmenden (2) sonra: o karede düşenlerin konumunu okur.
+// Yönetmenden (2) sonra: o karenin vuruş olayından düşenlerin konumunu okur.
 const VISUAL_PRIORITY = 3
 
 /** Düşen başına kıvılcım; ucuz kademe daha az çizer. */
@@ -49,6 +49,7 @@ export function StrikeSparks() {
     [],
   )
   const cursor = useRef(0)
+  const newBattle = useMemo(newBattleWatch, [])
   const dummy = useMemo(() => new Object3D(), [])
   const ahead = useMemo(() => new Vector3(), [])
 
@@ -56,8 +57,11 @@ export function StrikeSparks() {
     const mesh = ref.current
     if (!mesh) return
 
-    if (world.fxKills.length > 0) {
-      for (const k of world.fxKills) {
+    if (newBattle()) for (const s of sparks) s.age = LIFE
+
+    for (const ev of world.events) {
+      if (ev.type !== 'strike') continue
+      for (const k of ev.victims) {
         for (let j = 0; j < perKill; j++) {
           const s = sparks[cursor.current]
           cursor.current = (cursor.current + 1) % POOL
@@ -72,7 +76,6 @@ export function StrikeSparks() {
           s.vy = 3 + Math.random() * 5
         }
       }
-      world.fxKills.length = 0
     }
 
     // Hitstop'ta sıfır: kıvılcımlar doğdukları yerde asılı kalır, donma bitince saçılır.

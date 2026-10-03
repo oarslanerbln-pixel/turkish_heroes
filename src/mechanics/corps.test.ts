@@ -98,6 +98,13 @@ describe('Alp Arslan — kurallar', () => {
     expect(telegraph.every((e) => e.corps === CENTER && !e.emperor)).toBe(true)
     expect(battle.corps[CENTER].cohesion).toBeLessThan(1)
     expect(battle.events).toContain('charge')
+    // Sunum için: hangi birlik, nereden (hamle edenlerin ortası).
+    expect(battle.charges).toHaveLength(1)
+    expect(battle.charges[0].corps).toBe(CENTER)
+    const n = telegraph.length
+    const midX = telegraph.reduce((sum, e) => sum + e.pos.x / n, 0)
+    const midZ = telegraph.reduce((sum, e) => sum + e.pos.z / n, 0)
+    expect(Math.hypot(battle.charges[0].pos.x - midX, battle.charges[0].pos.z - midZ)).toBeLessThan(1)
 
     run(battle, enemies, player, BATTLE_CONFIG.chargeTelegraph)
     expect(enemies.filter((_, i) => battle.mode[i] === MODE_CHARGE)).toHaveLength(

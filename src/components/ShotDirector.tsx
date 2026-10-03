@@ -23,7 +23,7 @@ const SETTLE_STEPS = 6
 export function ShotDirector({ moment }: { moment: ShotMoment }) {
   const advance = useThree((s) => s.advance)
   const gl = useThree((s) => s.gl)
-  const started = useGameStore((s) => s.started)
+  const started = useGameStore((s) => s.mode !== 'menu')
 
   useEffect(() => {
     const root = document.documentElement

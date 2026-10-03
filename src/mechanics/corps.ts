@@ -366,6 +366,11 @@ export interface BattleState {
   /** Ön hattın z'si — HUD'da ordugaha kalan mesafe için. */
   frontZ: number
   events: BattleEvent[]
+  /**
+   * Hamle başlatan birlik ve hamle edenlerin ortası; her 'charge' olayına bir
+   * kayıt. events ile birlikte okunup boşaltılır.
+   */
+  charges: { corps: number; pos: Vec2 }[]
   /** Bir kez gösterilen olaylar (ilk taciz, ilk hamle) tekrar yayılmasın. */
   seen: Set<BattleEvent>
   /** Geçit: kaya yığını (z'si ve kalan sağlamlığı 0–1); yoksa null. */
@@ -444,6 +449,7 @@ export function createBattle(
     reachedCamp: false,
     frontZ: armyZ,
     events: [],
+    charges: [],
     seen: new Set(),
     blockade: null,
     blockadeUsed: false,
@@ -772,10 +778,15 @@ function launchCharge(b: BattleState, ci: number, enemies: readonly Enemy[], pla
     candidates.push({ i, d: Math.hypot(e.pos.x - player.x, e.pos.z - player.z) })
   }
   candidates.sort((a, c) => a.d - c.d)
-  for (const { i } of candidates.slice(0, BATTLE_CONFIG.chargeSize)) {
+  const chosen = candidates.slice(0, BATTLE_CONFIG.chargeSize)
+  const pos = { x: 0, z: 0 }
+  for (const { i } of chosen) {
     b.mode[i] = MODE_TELEGRAPH
     b.modeTimer[i] = BATTLE_CONFIG.chargeTelegraph
+    pos.x += enemies[i].pos.x / chosen.length
+    pos.z += enemies[i].pos.z / chosen.length
   }
+  b.charges.push({ corps: ci, pos })
 }
 
 function stepAnchor(c: CorpsState, dt: number): void {

@@ -2336,8 +2336,29 @@
   100% { opacity: 0; transform: translate(-50%, -8px); }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@keyframes banner-fade {
+  0%, 100% { opacity: 0; }
+  15%, 70% { opacity: 1; }
+}
+
+@keyframes announce-fade {
+  0%, 100% { opacity: 0; }
+  12%, 80% { opacity: 1; }
+}
+
+/*
+ * Hareketi azalt: store'daki bayrak kökte data-reduced-motion olur (bkz.
+ * gameStore). Kayan, büyüyen, yanıp sönen her şey durur; yalnız solma kalır.
+ * Afiş ve duyuru animasyonla kaybolduğu için kapatılmaz, yerinde solar.
+ */
+:root[data-reduced-motion] :is(
   .contact, .energy.is-ready .bar, .strike-touch.is-live, .lore-note,
   .menu, .menu-brief, .archive, .archive-card, .archive-redacted i,
-  .sefer-route .is-march, .sefer-sancak, .rotate-icon { animation: none; }
-}
+  .sefer-route .is-march, .sefer-sancak, .rotate-icon,
+  .stars .is-earned, .unlock, .pause-panel
+) { animation: none; }
+:root[data-reduced-motion] .wave-banner { animation-name: banner-fade; }
+:root[data-reduced-motion] .announce { animation-name: announce-fade; }
+
+/* Molada afiş ve duyuru beklesin: duyurunun süresi de molada durur. */
+.hud.is-paused :is(.wave-banner, .announce) { animation-play-state: paused; }

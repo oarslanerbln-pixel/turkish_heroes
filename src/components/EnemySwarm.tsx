@@ -61,7 +61,7 @@ export function EnemySwarm() {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [])
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
     if (!horseMesh || !riderMesh) return
@@ -88,7 +88,7 @@ export function EnemySwarm() {
     const n = world.enemies.length
     horseMesh.count = n
     riderMesh.count = n
-    const time = clock.elapsedTime
+    const time = world.animTime
 
     for (let i = 0; i < n; i++) {
       const e = world.enemies[i]

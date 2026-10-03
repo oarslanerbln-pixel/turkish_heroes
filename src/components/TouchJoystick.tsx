@@ -12,7 +12,7 @@ const DEAD_ZONE = 6 // px — ufak titremeyi/yanlışlıkla dokunmayı yok say
  */
 export function TouchJoystick() {
   const [show] = useState(isTouchDevice)
-  const active = useGameStore((s) => s.started && s.outcome === 'playing' && !s.paused)
+  const active = useGameStore((s) => s.mode === 'playing')
   const originRef = useRef<{ x: number; y: number } | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })

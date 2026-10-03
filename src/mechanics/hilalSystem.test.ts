@@ -161,11 +161,11 @@ describe('executeStrike', () => {
     expect(enemies[1].discipline).toBe(1)
   })
 
-  it('istenirse düşenlerin konumunu verir', () => {
+  it('istenirse düşenleri verir', () => {
     const enemies = [enemy(0, 1, 8, 0), enemy(1, 0, -8, 0)]
-    const killedAt: { x: number; z: number }[] = []
-    executeStrike(enemies, ORIGIN, FACING_PLUS_Z, killedAt)
-    expect(killedAt).toEqual([{ x: 1, z: 8 }])
+    const fallen: Enemy[] = []
+    executeStrike(enemies, ORIGIN, FACING_PLUS_Z, fallen)
+    expect(fallen).toEqual([enemies[0]])
   })
 
   it('ölü düşmanı tekrar saymaz', () => {
