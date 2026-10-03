@@ -6,7 +6,7 @@ import type { BattleState } from '../mechanics/corps'
 import { WING_CONFIG, type WingState } from '../mechanics/wings'
 import { simDelta, world } from '../sim/world'
 import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
-import { applyNearFade } from './world/nearFade'
+import { applyNearFade, nearFadeDepthMaterial } from './world/nearFade'
 
 // Selçuklu kolları sahada: her kol bir avuç atlı okçu.
 //
@@ -54,7 +54,11 @@ const SKIRMISH_STAGGER = 0.15
 /** Tükenmek üzere olan kolun vur-kaçı, taze kolunkinin bu kadarına iner: ağırlaşır ama durmaz. */
 const SKIRMISH_TIRED = 0.5
 
-/** Ordugah kameraya yakın: pusudaki kol da onunla aynı mesafede incelir (bkz. Camp). */
+/**
+ * Pusudaki kol ordugahın yanında, kameraya yakın durabilir: atlı bütün olarak
+ * incelir. Bant ordugahınkinden (bkz. Camp) yakın — kol bir oyun birimi,
+ * yalnız gerçekten kameraya dayandığında kaybolsun.
+ */
 const FADE_NEAR = 20
 const FADE_FAR = 23
 
@@ -153,14 +157,16 @@ export function AlliedWings() {
     applyNearFade(r, FADE_NEAR, FADE_FAR)
     return [h, r]
   }, [])
+  const depthMaterial = useMemo(() => nearFadeDepthMaterial(FADE_NEAR, FADE_FAR), [])
   useEffect(
     () => () => {
       horse.dispose()
       rider.dispose()
       horseMaterial.dispose()
       riderMaterial.dispose()
+      depthMaterial.dispose()
     },
-    [horse, rider, horseMaterial, riderMaterial],
+    [horse, rider, horseMaterial, riderMaterial, depthMaterial],
   )
 
   // Yalnızca çizim durumu: süvarinin konumu, yönü ve hızı.
@@ -244,6 +250,7 @@ export function AlliedWings() {
       <instancedMesh
         ref={horseRef}
         args={[horse, horseMaterial, COUNT]}
+        customDepthMaterial={depthMaterial}
         castShadow
         frustumCulled={false}
         userData={UNIT}
@@ -251,6 +258,7 @@ export function AlliedWings() {
       <instancedMesh
         ref={riderRef}
         args={[rider, riderMaterial, COUNT]}
+        customDepthMaterial={depthMaterial}
         castShadow
         frustumCulled={false}
         userData={UNIT}

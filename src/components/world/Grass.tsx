@@ -16,7 +16,7 @@ import { mulberry32, terrainHeight } from './terrainShape'
 import { GUST_GLSL, WIND_DIR } from './wind'
 
 /** Kademe başına çimen öbeği. Düşükte hiç yok: en ucuz kademe oynanışa odaklanır. */
-const TUFTS: Record<QualityTier, number> = { high: 8000, medium: 3500, low: 0 }
+const TUFTS: Record<QualityTier, number> = { high: 4000, medium: 3500, low: 0 }
 
 /** Arena içindeki pay: seyrek tutuluyor ki hilal önizlemesi okunur kalsın. */
 const INSIDE_SHARE = 0.35

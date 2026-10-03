@@ -9,11 +9,12 @@ import { terrainColor, terrainHeight } from './terrainShape'
 const SIZE = 300
 
 /**
- * Izgara çözünürlüğü kademeye bağlı. Yüksekte 2 birimlik hücreler (~45 bin
- * üçgen) tepelerde low-poly yüzeyleri belirginleştirir; düşükte ~4 birim
+ * Izgara çözünürlüğü kademeye bağlı. Yüksekte 2,5 birimlik hücreler (~29 bin
+ * üçgen) tepelerde low-poly yüzeyleri belirginleştirir; 2 birim 45 bin üçgen
+ * tutuyordu, çoğu kameranın hiç bakmadığı uzak tepelerde (STIL.md §Bütçe). Düşükte ~4 birim
  * (~10 bin üçgen). Arena düz olduğu için oynanan alan her kademede aynı görünür.
  */
-const SEGMENTS: Record<QualityTier, number> = { high: 150, medium: 110, low: 70 }
+const SEGMENTS: Record<QualityTier, number> = { high: 120, medium: 110, low: 70 }
 
 /**
  * Bozkır zemini: tek mesh, köşe renkleri, düz gölgeleme.

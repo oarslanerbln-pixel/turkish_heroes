@@ -4,7 +4,7 @@ import { Vector3 } from 'three'
 import { isPlaying, newBattleWatch, world, type CameraCue } from '../sim/world'
 import { useGameStore } from '../store/gameStore'
 import { shotDone, shotWeight } from './cameraShots'
-import { nearFadeStrength } from './world/nearFade'
+import { nearFadeEye, nearFadeStrength } from './world/nearFade'
 import { SHOT_POSE, SHOT_POSES } from '../shot'
 
 // Görsellerden (3) sonra, sarsıntıdan (6) ve çizimden (10) önce.
@@ -145,6 +145,7 @@ export function FollowCamera() {
       nearFadeStrength.value = 0
     }
 
+    nearFadeEye.value.copy(camera.position)
     camera.lookAt(look)
   }, CAMERA_PRIORITY)
 
