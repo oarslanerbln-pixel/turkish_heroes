@@ -21,4 +21,24 @@ export function parseShot(search: string): ShotMoment | null {
 
 export const SHOT = PLAYTEST && typeof window !== 'undefined' ? parseShot(window.location.search) : null
 
+/**
+ * Sanat açıları (§10.8 R8, R9): oyun kamerası değil, model ve renk kararlarının
+ * yargılandığı sabit pozlar. Oyuncuya göre; kamera konumu ve bakış noktası.
+ */
+export const SHOT_POSES = {
+  // Yer seviyesi: oyuncunun sağ arkasından, göz hizasından düşman cephesine.
+  ground: { offset: [3, 1.6, 6], look: [-2, 1.6, -14] },
+  // Geniş plan: savaş alanının tamamı, değer düzeni uzaktan okunsun.
+  wide: { offset: [-26, 34, 40], look: [0, 0, -16] },
+} as const satisfies Record<string, { offset: readonly number[]; look: readonly number[] }>
+
+export type ShotPose = keyof typeof SHOT_POSES
+
+export function parsePose(search: string): ShotPose | null {
+  const value = new URLSearchParams(search).get('pose')
+  return value === 'ground' || value === 'wide' ? value : null
+}
+
+export const SHOT_POSE = SHOT !== null ? parsePose(window.location.search) : null
+
 if (SHOT !== null) Math.random = mulberry32(parseSeed(window.location.search) ?? 1071)

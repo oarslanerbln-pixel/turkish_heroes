@@ -5,6 +5,7 @@ import { isPlaying, newBattleWatch, world, type CameraCue } from '../sim/world'
 import { useGameStore } from '../store/gameStore'
 import { shotDone, shotWeight } from './cameraShots'
 import { nearFadeStrength } from './world/nearFade'
+import { SHOT_POSE, SHOT_POSES } from '../shot'
 
 // Görsellerden (3) sonra, sarsıntıdan (6) ve çizimden (10) önce.
 const CAMERA_PRIORITY = 5
@@ -135,6 +136,14 @@ export function FollowCamera() {
     }
     // Sinematik kadrajda ordugah ön planı çerçeveler; taktikte HUD'un arkasında incelir.
     nearFadeStrength.value = 1 - weight
+
+    if (SHOT_POSE && world.mode !== 'menu') {
+      // Sanat açısı (çekim kipi): sabit poz, ön plan incelmez.
+      const { offset, look: at } = SHOT_POSES[SHOT_POSE]
+      camera.position.set(world.player.x + offset[0], offset[1], world.player.z + offset[2])
+      look.set(world.player.x + at[0], at[1], world.player.z + at[2])
+      nearFadeStrength.value = 0
+    }
 
     camera.lookAt(look)
   }, CAMERA_PRIORITY)

@@ -22,6 +22,8 @@ import { applyNearFade } from './world/nearFade'
 const VISUAL_PRIORITY = 3
 const RIDERS = WING_CONFIG.riders
 const COUNT = RIDERS * 2
+/** Görsel temel ölçümü için (bkz. ArtProbe). */
+const UNIT = { unit: 'ally' }
 
 /** Süvarinin yerine akma hızı (1/sn) ve yön dönüş hızı. */
 const FOLLOW_RATE = 3
@@ -244,12 +246,14 @@ export function AlliedWings() {
         args={[horse, horseMaterial, COUNT]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
       <instancedMesh
         ref={riderRef}
         args={[rider, riderMaterial, COUNT]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
     </>
   )

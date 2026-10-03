@@ -112,7 +112,8 @@ export function MetehanPlaceholder() {
 
   return (
     <group ref={groupRef}>
-      <group ref={bodyRef}>
+      {/* Görsel temel ölçümü yalnız binici ve atı sayar, zemin halkasını değil (bkz. ArtProbe). */}
+      <group ref={bodyRef} userData={{ unit: 'player' }}>
         <mesh geometry={horse} castShadow>
           <meshStandardMaterial vertexColors roughness={0.8} />
         </mesh>

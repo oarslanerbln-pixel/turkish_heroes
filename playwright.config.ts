@@ -4,7 +4,7 @@
 //
 // İki proje:
 // - checks: duman testi, düzen ve kontrast bekçileri. Bloklayan.
-// - shots: referans çekimler ve görsel fark. Şimdilik yalnız CI çıktısı.
+// - shots: referans çekimler, görsel fark ve görsel temel ölçümü. Şimdilik yalnız CI çıktısı.
 import { defineConfig, devices } from '@playwright/test'
 
 const PORT = 4174
@@ -34,7 +34,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'checks', testMatch: ['smoke.spec.ts', 'layout.spec.ts', 'contrast.spec.ts'] },
-    { name: 'shots', testMatch: 'shots.spec.ts', timeout: 120_000 },
+    { name: 'shots', testMatch: ['shots.spec.ts', 'art.spec.ts'], timeout: 120_000 },
   ],
   webServer: {
     command: `npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`,

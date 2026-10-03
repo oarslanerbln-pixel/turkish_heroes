@@ -24,6 +24,9 @@ const EMPEROR_COLOR = new Color('#e8b923')
 /** İmparator kalabalıkta seçilsin: biraz daha iri. */
 const EMPEROR_SCALE = 1.25
 
+/** Görsel temel ölçümü için (bkz. ArtProbe). */
+const UNIT = { unit: 'enemy' }
+
 /** Dörtnal: adım hızı (rad/sn), zıplama ve öne-arkaya yalpalama genliği. */
 const GALLOP_RATE = 9
 const GALLOP_BOB = 0.1
@@ -151,12 +154,14 @@ export function EnemySwarm() {
         args={[horse, horseMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
       <instancedMesh
         ref={riderRef}
         args={[rider, riderMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
     </>
   )

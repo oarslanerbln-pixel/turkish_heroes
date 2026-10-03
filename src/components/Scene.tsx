@@ -31,6 +31,7 @@ import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
 import { CrashScreen } from './CrashScreen'
 import { ShotDirector } from './ShotDirector'
+import { ArtProbe } from './ArtProbe'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 import { PLAYTEST } from '../playtest'
@@ -141,6 +142,7 @@ export function Scene() {
           <DayCycle />
           <InvalidateOnFlow />
           {SHOT !== null && <ShotDirector moment={SHOT} />}
+          {SHOT !== null && <ArtProbe />}
           <Terrain />
           <Stones />
           <Grass />

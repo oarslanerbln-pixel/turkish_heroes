@@ -8,15 +8,18 @@ export interface Shot {
   /** Savaş saatinin saniyesi ya da 'end' (savaş bitene kadar). Menüde yalnız kipi açar. */
   moment: number | 'end'
   quality: 'low' | 'high'
+  /** Sanat açısı (R8 yer seviyesi, R9 geniş plan); yoksa oyun kamerası. */
+  pose?: 'ground' | 'wide'
 }
 
 /** Sabit tohum: ordunun dizilişi ve görsel rastgelelik her koşuda aynı. */
 export const SEED = 1071
 
 /** Çekim kipinde açar, ses kapalı (§10.8); menü karesi çizilince döner. */
-export async function openShot(page: Page, { commander, moment, quality }: Shot): Promise<void> {
+export async function openShot(page: Page, { commander, moment, quality, pose }: Shot): Promise<void> {
   await page.addInitScript(() => localStorage.setItem('hilal_muted', '1'))
   const params = new URLSearchParams({ commander, seed: String(SEED), shot: String(moment), quality })
+  if (pose) params.set('pose', pose)
   await page.goto(`/?${params}`)
   await page.locator('html[data-shot="menu"]').waitFor({ state: 'attached' })
 }
