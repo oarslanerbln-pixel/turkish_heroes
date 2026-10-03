@@ -144,7 +144,7 @@ function turnToward(from: number, to: number, t: number): number {
 export function AlliedWings() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
-  const horse = useMemo(buildHorseGeometry, [])
+  const horse = useMemo(() => buildHorseGeometry('ally'), [])
   const rider = useMemo(() => buildRiderGeometry('ally'), [])
   const [horseMaterial, riderMaterial] = useMemo(() => {
     const h = new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })
