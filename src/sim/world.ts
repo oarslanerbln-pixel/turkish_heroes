@@ -16,6 +16,7 @@ import { parseSeed } from '../mechanics/random'
 import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
 import type { WorldEvent } from './events'
+import { canEnter, type FlowMode } from './flow'
 
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
 export type CameraCue = 'intro' | 'dusk'
@@ -73,16 +74,12 @@ export interface World {
   refusalTimer: number
   totalKills: number
   /**
-   * Oyuncu başlangıç ekranını geçti mi? Geçene kadar simülasyon donuk kalır —
-   * sayfa açılır açılmaz düşman yürümesin. resetWorld bunu korur: "YENİDEN"
-   * doğrudan oyuna döner, başlangıç ekranını tekrar göstermez.
+   * Akış (bkz. flow.ts); yalnızca enterMode ile değişir. Başlangıç ekranı
+   * geçilene kadar simülasyon donuk kalır — sayfa açılır açılmaz düşman
+   * yürümesin. Molada savaş yalnızca oyuncu DEVAM deyince sürer — telefona
+   * dönüldüğü anda düşman saldırmasın. resetWorld bunu korur.
    */
-  started: boolean
-  /**
-   * Oyuncu durdurdu ya da uygulamadan çıktı. Simülasyon tamamen donar; savaş
-   * yalnızca oyuncu DEVAM deyince sürer — telefona dönüldüğü anda düşman saldırmasın.
-   */
-  paused: boolean
+  mode: FlowMode
   /**
    * Savaşın nesli: her resetWorld'de bir artar. Kamera ve görseller kendi
    * durumlarını (süren çekim, havadaki ok, kıvılcım) bununla sıfırlar; yoksa
@@ -179,8 +176,7 @@ function initialWorld(commander: CommanderId): World {
     refusal: 'none',
     refusalTimer: 0,
     totalKills: 0,
-    started: false,
-    paused: false,
+    mode: 'menu',
     generation: 0,
     hitstop: 0,
     slowmo: 0,
@@ -208,8 +204,14 @@ export const world: World = initialWorld('metehan')
 export function resetWorld(commander: CommanderId = world.commander): void {
   // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
-  const started = world.started
-  Object.assign(world, initialWorld(commander), { started, generation: world.generation + 1 })
+  Object.assign(world, initialWorld(commander), { mode: world.mode, generation: world.generation + 1 })
+}
+
+/** Akışı korumalı geçişle değiştirir (bkz. flow.ts); geçiş tanımsızsa false. */
+export function enterMode(to: FlowMode): boolean {
+  if (!canEnter(world.mode, to)) return false
+  world.mode = to
+  return true
 }
 
 /**
@@ -253,7 +255,7 @@ export function stepAnnouncements(realDelta: number): void {
  * molada ve yenilgi/zafer ekranında donar.
  */
 export function isPlaying(): boolean {
-  return world.started && world.outcome === 'playing' && !world.paused
+  return world.mode === 'playing'
 }
 
 /**
@@ -264,7 +266,7 @@ export function isPlaying(): boolean {
 export function simDelta(delta: number): number {
   // Molada sahne 'demand' modunda; yine de boyut değişince çizilen bir kare
   // simülasyonu ilerletmesin.
-  if (world.hitstop > 0 || world.paused) return 0
+  if (world.hitstop > 0 || world.mode === 'paused') return 0
   return Math.min(delta, 0.1) * world.timeScale
 }
 

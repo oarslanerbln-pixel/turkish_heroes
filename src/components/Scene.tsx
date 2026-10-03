@@ -48,8 +48,8 @@ const TUNING_ENABLED = PLAYTEST && new URLSearchParams(window.location.search).h
 function InvalidateOnFlow() {
   const invalidate = useThree((s) => s.invalidate)
   const commander = useGameStore((s) => s.commander)
-  const started = useGameStore((s) => s.started)
-  useEffect(() => invalidate(), [commander, started, invalidate])
+  const inMenu = useGameStore((s) => s.mode === 'menu')
+  useEffect(() => invalidate(), [commander, inMenu, invalidate])
   return null
 }
 
@@ -62,7 +62,7 @@ export function Scene() {
   // Menülerde (başlangıç, mola, sonuç) sahne yarı saydam bir katmanın arkasında donuk
   // duruyor; saniyede 60 kez yeniden çizmek yalnızca pil ve ısı harcıyordu.
   // 'demand' modunda R3F yalnızca gerektiğinde (ör. boyut değişince) çizer.
-  const playing = useGameStore((s) => s.started && s.outcome === 'playing' && !s.paused)
+  const playing = useGameStore((s) => s.mode === 'playing')
   const preset = QUALITY[tier]
   const commander = useGameStore((s) => s.commander)
   const [gpuLost, setGpuLost] = useState(false)

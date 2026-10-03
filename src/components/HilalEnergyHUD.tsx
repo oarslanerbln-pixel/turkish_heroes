@@ -58,32 +58,34 @@ const WAVE_HINT = [
  * geliştirme modunda sağ üstte görünür.
  */
 export function HilalEnergyHUD() {
-  const started = useGameStore((s) => s.started)
+  const mode = useGameStore((s) => s.mode)
   const outcome = useGameStore((s) => s.outcome)
-  const paused = useGameStore((s) => s.paused)
   const waveIndex = useGameStore((s) => s.waveIndex)
   const battle = useGameStore((s) => s.commander !== 'metehan')
   const pass = useGameStore((s) => s.commander === 'kilicarslan')
   const [touch] = useState(isTouchDevice)
   const portrait = usePortraitPhone()
 
-  if (!started) return <StartScreen touch={touch} />
+  if (mode === 'menu') return <StartScreen touch={touch} />
+  // Savaş sürüyor (molada da): sonuç gelene kadar savaş arayüzü yerinde.
+  const live = mode !== 'outcome'
+  const paused = mode === 'paused'
 
   return (
     <div className={`hud${touch ? ' is-touch' : ''}${paused ? ' is-paused' : ''}`}>
       <StatusCard />
       <Corner />
       <EnergyPanel touch={touch} />
-      {touch && outcome === 'playing' && <TouchStrikeButton />}
-      {battle && outcome === 'playing' && <DayLine pass={pass} />}
-      {battle && outcome === 'playing' && <WingButtons touch={touch} pass={pass} />}
-      {outcome === 'playing' && <Announcement />}
+      {touch && live && <TouchStrikeButton />}
+      {battle && live && <DayLine pass={pass} />}
+      {battle && live && <WingButtons touch={touch} pass={pass} />}
+      {live && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
-      {outcome === 'playing' &&
+      {live &&
         (battle ? <BattleBanner pass={pass} /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
-      {outcome === 'playing' && paused && <PauseScreen touch={touch} />}
-      {outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
-      {touch && portrait && outcome === 'playing' && <RotateOverlay />}
+      {paused && <PauseScreen touch={touch} />}
+      {!live && outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
+      {touch && portrait && live && <RotateOverlay />}
     </div>
   )
 }
@@ -151,7 +153,7 @@ function Corner() {
   const muted = useGameStore((s) => s.muted)
   const toggleMute = useGameStore((s) => s.toggleMute)
   const pause = useGameStore((s) => s.pause)
-  const playing = useGameStore((s) => s.outcome === 'playing')
+  const playing = useGameStore((s) => s.mode !== 'outcome')
 
   return (
     <div className="hud-corner">

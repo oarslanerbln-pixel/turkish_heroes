@@ -104,7 +104,7 @@ export function FollowCamera() {
     look.copy(smooth)
 
     let weight = 0
-    if (!world.started) {
+    if (world.mode === 'menu') {
       // Menüde kamera açılış çekiminin ilk karesinde bekler: menünün arka
       // planı seçilen savaşın kendisi. SAVAŞA GİR'e basınca çekim bu kareden
       // (ağırlık 1) başlar; menüden savaşa kesme olmadan geçilir.

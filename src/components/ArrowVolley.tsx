@@ -6,7 +6,7 @@ import type { QualityTier } from '../perf/quality'
 import { play } from '../audio/sfx'
 import type { BattleState } from '../mechanics/corps'
 import { wingHarass, type WingState } from '../mechanics/wings'
-import { newBattleWatch, simDelta, world } from '../sim/world'
+import { isPlaying, newBattleWatch, simDelta, world } from '../sim/world'
 import { terrainHeight } from './world/terrainShape'
 import { ARROW_FLIGHT, ARROW_POOL, arrowPose, arrows } from './arrowPool'
 
@@ -52,7 +52,7 @@ export function ArrowVolley() {
     }
 
     // Yeni oklar: taciz edilen her birliğe şiddetiyle orantılı.
-    if (b && world.outcome === 'playing' && world.started && dt > 0) {
+    if (b && isPlaying() && dt > 0) {
       let strongest = 0
       b.corps.forEach((c, ci) => {
         if (c.harass <= 0) return

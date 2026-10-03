@@ -14,7 +14,7 @@ import {
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
 import type { Enemy } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
-import { isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
+import { enterMode, isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
 import {
   earnedLore,
   isUnlocked,
@@ -220,7 +220,12 @@ export function GameDirector() {
 
       const prevOutcome = world.outcome
       world.outcome = scenario.outcome(world)
-      if (world.outcome !== 'playing' && prevOutcome === 'playing') finishBattle(scenario)
+      if (world.outcome !== 'playing' && prevOutcome === 'playing') {
+        enterMode('outcome')
+        finishBattle(scenario)
+        // Sonuç bu karede eşitlensin: kare döngüsü sonuçta durur, karne beklemesin.
+        hudTimer.current = HUD_SYNC_INTERVAL
+      }
     }
 
     // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
@@ -232,7 +237,7 @@ export function GameDirector() {
 
     // Yönetmen en son çalışan simülasyon adımı: donma ve hız bir sonraki
     // karede oyuncu ve düşmanlar için de geçerli olur.
-    if (!world.paused) stepTime(realDelta)
+    if (world.mode !== 'paused') stepTime(realDelta)
     // Duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
     if (isPlaying()) {
       stepAnnouncements(realDelta)

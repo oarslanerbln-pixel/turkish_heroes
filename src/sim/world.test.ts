@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { newBattleWatch, resetWorld, simDelta, SLOWMO_SCALE, stepTime, world } from './world'
 
 describe('savaş nesli', () => {
-  it('her yeniden başlatmada artar, başlamış savaş korunur', () => {
-    world.started = true
+  it('her yeniden başlatmada artar, akış korunur', () => {
+    world.mode = 'playing'
     const before = world.generation
     resetWorld()
     expect(world.generation).toBe(before + 1)
-    expect(world.started).toBe(true)
+    expect(world.mode).toBe('playing')
   })
 
   it('bekçi yeni savaşı her görsel için bir kez bildirir', () => {
@@ -52,9 +52,9 @@ describe('zaman ölçeği', () => {
     world.hitstop = 0.1
     expect(simDelta(STEP)).toBe(0)
     world.hitstop = 0
-    world.paused = true
+    world.mode = 'paused'
     expect(simDelta(STEP)).toBe(0)
-    world.paused = false
+    world.mode = 'menu'
   })
 
   it('donma sürerken ağır çekim erimez', () => {

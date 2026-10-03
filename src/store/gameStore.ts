@@ -4,7 +4,8 @@ import type { Outcome } from '../mechanics/combat'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scenario'
-import { announce, isPlaying, resetWorld, world } from '../sim/world'
+import { announce, enterMode, isPlaying, resetWorld, world } from '../sim/world'
+import type { FlowMode } from '../sim/flow'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
@@ -53,10 +54,8 @@ export interface HudSnapshot {
 }
 
 interface GameState extends HudSnapshot {
-  /** Başlangıç ekranı geçildi mi — world.started'ın sunum kopyası. */
-  started: boolean
-  /** Mola — world.paused'ın sunum kopyası. */
-  paused: boolean
+  /** Akış — world.mode'un sunum kopyası; kare döngüsü, girdi ve HUD bundan türer. */
+  mode: FlowMode
   commander: CommanderId
   muted: boolean
   /**
@@ -151,17 +150,18 @@ export function isCommanderAvailable(id: CommanderId): boolean {
 export const useGameStore = create<GameState>((set, get) => ({
   ...INITIAL_HUD,
   bestScore: world.bestScore,
-  started: false,
-  paused: false,
+  mode: world.mode,
   commander: world.commander,
   muted: isMuted(),
   reducedMotion: reducedMotionQuery?.matches ?? false,
   archive: null,
 
-  syncHud: (snapshot) => set(snapshot),
+  // Mod da her eşitlemede kopyalanır: savaşın bittiği kare sonucu ve karneyi
+  // aynı anda getirir, sonuç ekranı boş açılmaz.
+  syncHud: (snapshot) => set({ ...snapshot, mode: world.mode }),
 
   selectCommander: (id) => {
-    if (id === world.commander || world.started) return
+    if (id === world.commander || world.mode !== 'menu') return
     // Sahne arkada seçilen savaşı göstersin: ordu, ordugah, oyuncunun yeri.
     resetWorld(id)
     set({ commander: id, bestScore: loadBestScore(id) })
@@ -175,13 +175,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Kullanıcı hareketinin içinde çağrılır: sesin kilidi burada açılır.
   start: () => {
-    if (world.started || !isCommanderAvailable(world.commander)) return
+    if (world.mode !== 'menu' || !isCommanderAvailable(world.commander)) return
     unlockAudio()
     startAmbience()
-    world.started = true
+    enterMode('playing')
     // Açılış çekimi yalnızca menüden girerken: YENİDEN'de oyuncu hemen oynamak ister.
     world.cameraCue = 'intro'
-    set({ started: true, archive: null })
+    set({ mode: world.mode, archive: null })
   },
 
   enterBattle: (id) => {
@@ -203,7 +203,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Simülasyona bayrak bırakır; GameDirector bir sonraki karede tüketir.
   // Molada basılan tuş birikip DEVAM'da kendiliğinden vurmasın.
   requestStrike: () => {
-    if (!world.paused) world.strikeRequested = true
+    if (world.mode !== 'paused') world.strikeRequested = true
   },
 
   // Emir doğrudan simülasyona işlenir (kol bir sonraki adımda yola çıkar);
@@ -238,52 +238,55 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Yalnızca savaş sürerken. Ses, aşağıdaki abonelikle molada askıya alınır.
   pause: (auto) => {
-    if (!world.started || world.outcome !== 'playing' || world.paused) return
-    world.paused = true
+    if (!enterMode('paused')) return
     track({ type: 'pause', auto })
-    set({ paused: true })
+    set({ mode: world.mode })
   },
 
   resume: () => {
-    if (!world.paused) return
-    world.paused = false
-    set({ paused: false })
+    if (world.mode !== 'paused') return
+    enterMode('playing')
+    set({ mode: world.mode })
   },
 
   restart: () => {
+    if (world.mode === 'menu') return
     // Moladan yeniden başlatılan savaş sonuçsuz kapanır (bitmişse etkisiz).
     endUnfinished('quit')
     resetWorld()
+    enterMode('playing')
     // HUD'u hemen sıfırla: yönetmenin ilk sync'ini beklerken sonuç ekranı
     // bir kare daha görünmesin. bestScore INITIAL_HUD'daki durgun değer değil,
     // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
     // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, paused: false })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, mode: world.mode })
   },
 
   playCommander: (id) => {
-    if (!isCommanderAvailable(id)) return
+    if (world.mode === 'menu' || !isCommanderAvailable(id)) return
     endUnfinished('quit')
-    // world.started korunur: savaş hemen başlar. Yeni savaş alanı, açılış çekimiyle.
+    // Savaş hemen başlar: yeni savaş alanı, açılış çekimiyle.
     resetWorld(id)
+    enterMode('playing')
     world.cameraCue = 'intro'
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, paused: false })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, mode: world.mode })
   },
 
   backToMenu: () => {
     endUnfinished('quit')
-    world.started = false
+    enterMode('menu')
     resetWorld()
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, started: false, paused: false, archive: null })
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, mode: world.mode, archive: null })
   },
 }))
 
 // Mola sesi tek yerden: molaya giren ve çıkan her yol (DEVAM, YENİDEN,
-// KOMUTANLAR, komutan değişimi) `paused`'ı değiştirir. Abonelik set() içinde
+// KOMUTANLAR, komutan değişimi) `mode`'u değiştirir. Abonelik set() içinde
 // eşzamanlı çalışır, yani düğmenin kullanıcı hareketi hâlâ sürer; iOS bağlamın
 // açılmasına ancak böyle izin verir.
 useGameStore.subscribe((s, prev) => {
-  if (s.paused !== prev.paused) holdAudio(s.paused)
+  const paused = s.mode === 'paused'
+  if (paused !== (prev.mode === 'paused')) holdAudio(paused)
   if (s.reducedMotion !== prev.reducedMotion) applyMotion(s.reducedMotion)
 })
 
