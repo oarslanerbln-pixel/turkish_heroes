@@ -727,6 +727,16 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - Linux'ta gövde yazısı (`system-ui` → DejaVu/Liberation) Windows'tan geniş; kol düğmeleri "SAĞ YAMAÇ"a göre boyutlandı.
     - 568×320 Hazine'de uzun not başlıkları ("Dönüş emri bozgun oldu") dar sütunda üç noktayla kesilir; seçilince sağdaki kartta tam yazar.
 - **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, D7. (A5 faz 27'nin önkoşulu olarak kapandı.) Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
+  - **Yapıldı (4 Ekim 2026, `claude/faz-26-geri-bildirim`):**
+    - D2: temas hasarı `sim/hurt.ts`'te birikir; 3 puanda bir, en sık 0,45 sn'de bir "yara": `hurt` sesi, 18–32 ms titreşim, `hurt` olayı, kenar flaşı (yalnız solar) ve vuruşunkinden hafif sarsıntı. `hurt.test.ts`: hasarda ses ve titreşim ≥1, hasarsız 0, sürekli temasta sıklık sınırlı.
+    - V2: hazır rengi `#ff4400` → `#5ef2e0` (parlak turkuaz, `palette.ts`; HUD'da `--ready`). Hamle kırmızısına ΔE_OK normal 0,43, deut 0,26, prot 0,43, trit 0,48; şarj altınına ≥0,20 (`palette.test.ts`). Kor turuncusu kolların hücumuna kaldı.
+    - U7: düşük can (≤40) çubuğu kırmızı ve taralı; çubuk `role="meter"`.
+    - D4: kös ve gövde vuruşları (`strike`, `dusk`, `order`, `rockslide`) `drum()` ile 2. ve 3. harmonik + deri şaplağı alır. Ölçüm (dev, gerçek ses grafiği, 150 Hz 48 dB/okt yüksek geçiren, RMS): `dusk` −37,3 → −27,2 dBFS; süzgeçsiz RMS −24,6 → −24,1 (iyi hoparlörde ses yüksekliği değişmedi). Tepe ölçüsü atak tıkıyla şiştiği için RMS kullanıldı.
+    - D1: menüde ses düğmesi (yatayda iki panelin arasında, dikeyde başlığın solunda); harita seçimi ve Hazine'de `ui` tıkı. İlk tık bağlamı açar, açılış sürerken sessiz kalabilir.
+    - D3: titreşim ayarı (`hilal_haptics`, kalıcı), yalnız titreyebilen dokunmatik cihazda düğme; zaferde boru ritminde titreşim. iOS'ta API yok.
+    - D7: hareketi azalt yara sarsıntısını da kapsar (`shake.ts`, `motion.test.ts`).
+    - Bekçiler 38/38 yeşil (yerel). Menü (R1) ve savaş çekimleri değişir; Linux tabanı CI'nin `cekimler` çıktısından.
+    - Kalan: gerçek telefonda his (titreşim süreleri, flaş şiddeti) ve D5 (limiter, ayrı ses sürgüleri) düşük önemde açık.
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
