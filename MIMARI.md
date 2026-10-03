@@ -53,27 +53,37 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
 0   MetehanPlaceholder   oyuncu hareketi        ← simülasyon (çizim bileşeninde)
 1   EnemySwarm           düşman yapay zekâsı    ← simülasyon (çizim bileşeninde)
 2   GameDirector         kurallar ve olaylar → ses, duyuru, ağır çekim, kamera işareti
-                         sonunda b.events silinir
-3   görseller            AlliedWings, CorpsBanners, DustTrails …
+                         b.events (kural kaydı) burada silinir; world.events'e sunum olayları itilir
+                         sonunda stepTime: donma, ağır çekim süresi, hız rampası
+3   görseller            AlliedWings, ArrowVolley, StrikeSparks …
 5   FollowCamera         taktik kamera + açılış ve alacakaranlık çekimi
 6   CameraShake          sarsıntı
+7   kameraya bakanlar    CorpsBanners, DustTrails (kameranın bu karedeki yönü)
+9   EventFlush           world.events boşalır
 10  EffectComposer       çizim (bloom, noise)
 ```
 
-- **Zaman:** `simDelta(delta)` tek kapıdır. Adımı 0,1 sn ile sınırlar, mola ve vuruş donmasında 0, ağır çekimde ×0,3 verir.
+- **Zaman:**
+  - `simDelta(delta)` tek kapıdır: adımı 0,1 sn ile sınırlar, mola ve vuruş donmasında 0 verir, yoksa `world.timeScale` ile ölçekler.
+  - `timeScale` ağır çekime rampayla girer (~0,19 sn) ve çıkar (~0,6 sn); `stepTime` gerçek zamanla yürütür.
+  - `world.animTime` sim zamanıyla işleyen animasyon saati: dörtnal, düşman yürüyüşü, çimen, toz rüzgârı. Molada ve donmada durur.
+  - HUD eşitlemesi ve duyurular gerçek zamanla.
 - **Olaylar:**
-  - Kurallar `b.events`'e çıplak dizeler iter (`'charge'`, `'sunset'`, `'wingShockLeft'` …).
+  - Kurallar `b.events`'e çıplak dizeler iter (`'charge'`, `'sunset'`, `'wingShockLeft'` …): telemetri, karne ve botlar için kural kaydı.
   - `scenarios.ts` bunlardan ses, titreşim, duyuru, `world.slowmo` ve `world.cameraCue` üretir.
-  - Olaylar öncelik 2'nin sonunda silinir; kamera (5) onları göremez, yalnızca tek bir `cameraCue` alanını okur.
-- **Durum akışı:** `world` 0,08 sn'de bir `syncHud` ile zustand'a, oradan DOM'a gider. HUD düğmeleri store eylemlerini çağırır; eylem önce `world`'ü, sonra `set()` ile store'u değiştirir.
+  - Sunum için ayrıca tipli ve konumlu `world.events` (`events.ts`): `strike` (düşenler kimlikleriyle), `arrowReleased`, `charge` (birlik, konum), `rout`, `sunset`, `waveSpawn`. Öncelik 9'da boşalır; kamera dahil her okuyucu karenin olaylarını görür. Kıvılcımlar buna abone.
+- **Durum akışı:**
+  - `world.mode` (menu · playing · paused · outcome) tek kaynak; geçişler `flow.ts`'teki tabloyla korumalı (`enterMode`). Kare döngüsü, girdi ve HUD ekranları moddan türer.
+  - `world` 0,08 sn'de bir `syncHud` ile zustand'a, oradan DOM'a gider; mod her eşitlemede kopyalanır. Savaşın bittiği kare eşitlemeyi zorlar.
+  - HUD düğmeleri store eylemlerini çağırır; eylem önce `world`'ü, sonra `set()` ile store'u değiştirir.
 - **Kamera:**
   - Tek gerçek yazıcı FollowCamera; CameraShake onun üstüne ekler.
   - fov'u kimse yazmıyor.
   - `cameraShots.ts` saf ve testli eğriler içeriyor.
 - **Oklar:**
-  - Yalnızca görsel. ArrowVolley içinde 64 yuvalı bir halka havuz var, tek bir InstancedMesh ile çiziliyor.
-  - Uçuş, sim zamanıyla işleyen 0,75 sn'lik bir formül.
-  - Yol bırakış anında bilindiği için bir kamera tek bir oku takip edebilir; bunun için havuzun dışarı açılması yeter.
+  - Yalnızca görsel. 64 yuvalı halka havuz `arrowPool.ts`'te; ArrowVolley doldurur ve tek bir InstancedMesh ile çizer.
+  - Uçuş, sim zamanıyla işleyen 0,75 sn'lik bir formül (`arrowPose`).
+  - Her bırakış `arrowReleased{slot, t0}` olayı iter; bir kamera oku yuvasından izler, yuvanın el değiştirmediğini `t0` ile doğrular.
 
 ---
 
@@ -150,6 +160,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - Olaylar: `volleyFired{origin, facing, victimIds}`, `arrowReleased{slot, origin, target, t0}`, `charge{corps, pos}`, `rout`, `sunset`, `waveSpawn`.
   - Kare sonunda temizlenir; kamera, ses ve telemetri ona abone olur.
 - Zaman: **faz 27 önkoşulu**
+- **Durum (3 Ekim 2026): kapandı** (`55ffee4`). Vuruş olayı adını korudu: `volleyFired` yerine `strike{origin, facing, victims}`.
 
 **S3 · Zaman: ağır çekim aç/kapa, dörtnal duvar saatiyle, HUD sim saatiyle**
 - Kanıt: `world.ts:225`, `EnemySwarm.tsx:91`, `AlliedWings.tsx:154`, `MetehanPlaceholder.tsx:102`, `GameDirector.tsx:235`
@@ -162,6 +173,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - Sim zamanıyla ilerleyen bir `world.animTime` (dörtnal fazı ve animasyon karıştırıcıları için).
   - HUD senkronu `realDelta` ile.
 - Zaman: **faz 27 önkoşulu**. AlliedWings kısmı bugünkü düzeltmede.
+- **Durum (3 Ekim 2026): kapandı** (`2aa52d4`). Sinematik katmanı G1 ile gelir.
 
 **G1 · Kamera çekim sistemi bir sinematik yönetmen taşıyamıyor**
 - Kanıt: `FollowCamera.tsx:91-92,121`, `world.ts:18`, `CameraShake.tsx:25-27`, `CorpsBanners.tsx:96`
@@ -230,6 +242,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - Durumlar arası geçişler korumalı olsun.
   - frameloop, girdi ve HUD görünürlüğü bu moddan türetilsin.
 - Zaman: **faz 27 önkoşulu**
+- **Durum (3 Ekim 2026): kapandı** (`c0ba464`): menu · playing · paused · outcome. `intro` ve `cinematic` kendi çekimleriyle eklenecek.
 
 ### Orta
 
@@ -293,6 +306,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Etki: öncelik 3'te kameranın (öncelik 5) bir önceki karedeki yönünü kopyalıyorlar. Kamera açısı bugün sabit olduğu için fark edilmiyor; dönen bir çekimde titrer.
 - Öneri: öncelik 7'ye taşı ya da köşe gölgelendiricisinde hesapla.
 - Zaman: faz 27
+- **Durum (3 Ekim 2026): kapandı** (`28a53d8`), öncelik 7.
 
 **P3 · Üretime yayın elle yapılıyor**
 - Etki:
@@ -365,6 +379,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Etki: çekimler yalnızca savaş başlamadan önce temizleniyor. Alacakaranlık çekimi sürerken YENİDEN'e basılırsa çekim yeni savaşta devam eder.
 - Öneri: `resetWorld`'de artan bir `world.generation` sayacı; değeri değişince kamera ve sinematikler sıfırlansın.
 - Zaman: faz 27
+- **Durum (3 Ekim 2026): kapandı** (`4e1d4d0`). Kamera, oklar, kıvılcımlar ve toz `newBattleWatch` ile sıfırlanır.
 
 **A5 · "Hareketi azalt" tercihi yarım uygulanıyor**
 - Kanıt: `hud.css:458,2154-2157`, `CameraShake.tsx:25`
@@ -373,6 +388,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - TypeScript tarafı tercihi hiç okumuyor.
   - Afişler molada ve ağır çekimde oynamaya devam ediyor.
 - Öneri: store'da bir `reducedMotion` bayrağı; sarsıntı, sinematik ve CSS onu okusun.
+- **Durum (3 Ekim 2026): kapandı** (`3410ba1`, `cc2d825`), faz 27'ye çekildi. Bayrak işletim sisteminden okunur. Sarsıntı, titreşim, açılış ve gün batımı çekimi ve `hud.css` animasyonları ona uyar; afiş ve duyuru molada donar. Ağır çekimde gerçek zamanla sürmeleri bilinçli: duyurular gerçek zamanlıdır. Oyun içi ayar (D3) 2b'de.
 - Zaman: faz 26 (§8 Adım 2b, ses ve titreşimle birlikte); sinematik kuralı olarak
 
 **A6 · Hata ayıklama anahtarları üretimde açık**
@@ -710,7 +726,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
   - Bulgular:
     - Linux'ta gövde yazısı (`system-ui` → DejaVu/Liberation) Windows'tan geniş; kol düğmeleri "SAĞ YAMAÇ"a göre boyutlandı.
     - 568×320 Hazine'de uzun not başlıkları ("Dönüş emri bozgun oldu") dar sütunda üç noktayla kesilir; seçilince sağdaki kartta tam yazar.
-- **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, A5 + D7. Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
+- **2b Geri bildirim:** D2 hasar (ses + titreşim + kenar flaşı), V2 "hazır" rengi kırmızıdan ayrılır, U7 ikinci sinyal, D4 alçak seslere harmonik, D1 menüde ses düğmesi, D3 titreşim ayarı, D7. (A5 faz 27'nin önkoşulu olarak kapandı.) Kabul: hasar olayında ses ve titreşim ≥1 (test); hazır↔hücum ΔE_OK ≥0,15 (deut/prot dahil); 'dusk' 150 Hz yüksek geçiren sonrası tepe ≥ −30 dBFS; hareketi azaltta sarsıntı ve titreşim 0.
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
@@ -720,13 +736,13 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**
-- Önce önkoşullar:
-  - S2 olay kuyruğu
-  - A2 akış modu
-  - S3 zaman ölçeği
-  - A4 nesil sayacı
-  - G6 sancak sırası
-  - (A5 faz 26'da kapanır.)
+- Önce önkoşullar. **Hepsi yapıldı** (3 Ekim 2026; 3 Ekim kararıyla faz 26'nın 2b–2f'sinden önce):
+  - ~~A4 nesil sayacı~~ `4e1d4d0`
+  - ~~G6 sancak sırası~~ `28a53d8`
+  - ~~A5 hareketi azalt~~ `3410ba1`, `cc2d825` (faz 26'dan çekildi)
+  - ~~S3 zaman ölçeği~~ `2aa52d4`
+  - ~~S2 olay kuyruğu~~ `55ffee4`
+  - ~~A2 akış modu~~ `c0ba464`
 - Paralel: **görsel temel ve stil rehberi** (`STIL.md`): V6 ton eşleme (ölü ACES ayarı kalkar), V1 değer rolleri, V3 tarafa göre at rengi, V4 siluet imzaları, V5 çim yoğunluğu ve otağ, M2 düşük kademe kenar yumuşatma kararı (gerçek cihaz ölçümüyle). Kabul: R3/R5'te birim–zemin parlaklık farkı ΔL ≥0,15 (öğle ve gün batımı); Metehan yüksek kademe ≤55k üçgen; R8/R9 önce/sonra; senin görsel onayın.
 - Sonra sırasıyla:
   1. G1 kamera yönetmeni ve kompozisyon (K1–K3). Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
