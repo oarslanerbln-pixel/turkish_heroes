@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { isPlaying, newBattleWatch, world, type CameraCue } from '../sim/world'
+import { useGameStore } from '../store/gameStore'
 import { shotDone, shotWeight } from './cameraShots'
 import { nearFadeStrength } from './world/nearFade'
 
@@ -94,9 +95,12 @@ export function FollowCamera() {
     }
 
     // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
+    // Hareketi azaltta çekim oynamaz: kamera süzülmek yerine taktik kadraja keser.
     if (world.cameraCue && isPlaying()) {
-      shot.cue = world.cameraCue
-      shot.t = 0
+      if (!useGameStore.getState().reducedMotion) {
+        shot.cue = world.cameraCue
+        shot.t = 0
+      }
       world.cameraCue = null
     }
 
