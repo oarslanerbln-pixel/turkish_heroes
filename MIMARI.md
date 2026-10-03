@@ -688,7 +688,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
      - 568×320 molada KOMUTANLAR ve YENİDEN BAŞLA, 375×667 yenilgide KOMUTANLAR ve YENİDEN ekrandan taşıyor.
      - Miryokefalon'da KAYA YIĞINI yamaç kanatlarıyla kesişiyor; 568×320'de Sesi aç ile de.
      - Dikey molada kanat düğmeleri molanın düğmeleriyle kesişiyor.
-   - Referans çekimler (`shots.spec.ts`): R1, R2, R3 (3 komutan), R5, R7 (zafer + yenilgi); iki kademede 22 çekim. İki koşuda 22/22 tabanla eşleşti (≤%0,1). Taban CI'nin linux çekimleri; yerel win32 çekimleri depoya girmez. Kalan: R4 ve R6 oyuncu girdisi ister, R8 ve R9 Faz 27'yle gelir.
+   - Referans çekimler (`shots.spec.ts`): R1, R2, R3 (3 komutan), R5, R7 (zafer + yenilgi); iki kademede 22 çekim. İki koşuda 22/22 tabanla eşleşti (≤%0,1). Taban CI'nin linux çekimleri; yerel win32 çekimleri depoya girmez. Kalan: R4 ve R6 oyuncu girdisi ister. R8 ve R9 (sanat açıları, `?pose=`) Faz 27'de eklendi.
    - Paket bütçesi (`npm run budget`): gzip toplam 348 kB (three 180, render 70, react 54, index 43), bütçe 385 kB.
    - PR şablonu: `.github/pull_request_template.md`.
    - Ölçüm tuzakları: hedef adı `textContent`'ten alınınca ilerleme sayacı ("0 / 14") ada giriyor ve liste boşuna kırılıyordu; ad artık erişilebilir adın ya da görünen metnin ilk parçası. Mola paneli kayarak girerken ölçülen konumlar titriyordu; bekçi sonlu animasyonların bitmesini bekler.
@@ -743,7 +743,9 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
   - ~~S3 zaman ölçeği~~ `2aa52d4`
   - ~~S2 olay kuyruğu~~ `55ffee4`
   - ~~A2 akış modu~~ `c0ba464`
-- Paralel: **görsel temel ve stil rehberi** (`STIL.md`): V6 ton eşleme (ölü ACES ayarı kalkar), V1 değer rolleri, V3 tarafa göre at rengi, V4 siluet imzaları, V5 çim yoğunluğu ve otağ, M2 düşük kademe kenar yumuşatma kararı (gerçek cihaz ölçümüyle). Kabul: R3/R5'te birim–zemin parlaklık farkı ΔL ≥0,15 (öğle ve gün batımı); Metehan yüksek kademe ≤55k üçgen; R8/R9 önce/sonra; senin görsel onayın.
+- Paralel: **görsel temel ve stil rehberi** ([STIL.md](STIL.md)): V6 ton eşleme (ölü ACES ayarı kalkar), V1 değer rolleri, V3 tarafa göre at rengi, V4 siluet imzaları, V5 çim yoğunluğu ve otağ, M2 düşük kademe kenar yumuşatma kararı (gerçek cihaz ölçümüyle). Kabul: R3/R5'te birim–zemin parlaklık farkı ΔL ≥0,15 (öğle ve gün batımı); Metehan yüksek kademe ≤55k üçgen; R8/R9 önce/sonra; senin görsel onayın.
+  - Durum (3 Ekim 2026): V1, V3, V4, V5, V6 yapıldı. R3/R5'te her grup ortanca |ΔL| 0,16–0,23 (önce 0,08–0,13), iki kademede `art.spec.ts` yeşil; Metehan yüksek 81,6k → 53,5k üçgen. Ölçüt işaretsiz |ΔL|: kahraman bilerek iki tonlu (STIL.md §2).
+  - Açık: M2 telefon ölçümü (`?quality=low&perf` ile `&msaa=2`, karar kuralı STIL.md §11) ve senin görsel onayın.
 - Sonra sırasıyla:
   1. G1 kamera yönetmeni ve kompozisyon (K1–K3). Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
   2. Ok kamerası
