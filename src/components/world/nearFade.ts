@@ -12,7 +12,7 @@ import { type Material, MeshDepthMaterial, RGBADepthPacking, Vector3 } from 'thr
 
 /** 1 = inceltme açık; sinematik çekimde kamera kapatır (ordugah kadrajı çerçeveler). */
 export const nearFadeStrength = { value: 1 }
-/** Ana kameranın dünya konumu (FollowCamera yazar): gölge pasosu da ona göre ölçer. */
+/** Ana kameranın dünya konumu (CameraDirector yazar): gölge pasosu da ona göre ölçer. */
 export const nearFadeEye = { value: new Vector3() }
 
 /**

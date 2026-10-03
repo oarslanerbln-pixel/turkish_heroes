@@ -5,7 +5,7 @@ import type { SkyUniforms } from './skyUniforms'
 // Gökyüzü: ufuktan tepeye renk geçişi, güneş diski ve çevresindeki parıltı.
 //
 // Taktik kamera 45° aşağı baktığı için oyun sırasında gökyüzü görünmez;
-// savaş açılışında ve gün batımında kamera alçalınca görünür (FollowCamera).
+// savaş açılışında ve gün batımında kamera alçalınca görünür (CameraDirector).
 // Ufuk rengi sisle aynı: uzak arazi gökyüzüne dikişsiz karışsın. Doku dosyası
 // yok — PWA çevrimdışı çalışsın.
 

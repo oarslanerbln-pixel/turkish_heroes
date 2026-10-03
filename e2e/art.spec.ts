@@ -101,6 +101,97 @@ function measure(page: Page): Promise<ArtResult> {
 
 test.use({ viewport: { width: 667, height: 375 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 })
 
+// Kadraj bekçisi (MIMARI.md K2, STIL.md §9): taktik kadrajda düşman cephesi HUD'un
+// altında kalmaz. Cephe, her 8 px'lik şeritte düşman maskesinin en alttaki
+// pikseli: ordu oyuncuya üstten gelir, oyuncuya en yakın saf odur. Şerit, arka
+// saflardan tek başına uzanan bir mızrak ucunun cephe sayılmasını önler. Ordunun gövdesi de büyük
+// ölçüde açıkta kalır; geçitteki kolun kuyruğu ufka uzandığı için sıfır değil.
+// Geçici duyurular (afiş, dalga başlığı, yara flaşı) sayılmaz: sönerler.
+const MAX_FRONT_UNDER_HUD = 0.02
+const MAX_BODY_UNDER_HUD = 0.23
+const FRONT_STRIP = 8
+
+interface Framing {
+  pixels: number
+  covered: number
+  columns: number
+  frontCovered: number
+  /** HUD altındaki cephe şeritleri [x, y], ilk birkaçı: rapor için. */
+  frontSample: [number, number][]
+}
+
+function enemyUnderHud(page: Page): Promise<Framing> {
+  return page.evaluate(async (strip) => {
+    type Frame = { png: string }
+    const probe = (window as unknown as { __artProbe: (mode: string) => Frame }).__artProbe
+    const transient = '.announce, .wave-banner, .hurt-flash'
+    // Saydam kapsayıcı (köşe, satır) kendisi örtmez; içindekiler örter.
+    const rects: DOMRect[] = []
+    const collect = (el: Element) => {
+      if (el.matches(transient)) return
+      const style = getComputedStyle(el)
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return
+      const clear = /rgba\(.*,\s*0\)|transparent/.test(style.backgroundColor) && style.backgroundImage === 'none'
+      if (clear && el.children.length) for (const child of el.children) collect(child)
+      else rects.push(el.getBoundingClientRect())
+    }
+    for (const child of document.querySelector('.hud')?.children ?? []) collect(child)
+
+    const img = new Image()
+    img.src = probe('enemy').png
+    await img.decode()
+    probe('normal')
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+    ctx.drawImage(img, 0, 0)
+    const d = ctx.getImageData(0, 0, img.width, img.height).data
+    const underHud = (x: number, y: number) => rects.some((r) => x >= r.left && x < r.right && y >= r.top && y < r.bottom)
+    const front = new Int32Array(Math.ceil(img.width / strip)).fill(-1)
+    let pixels = 0
+    let covered = 0
+    for (let y = 0; y < img.height; y++) {
+      for (let x = 0; x < img.width; x++) {
+        const i = (y * img.width + x) * 4
+        if (Math.max(d[i], d[i + 2]) - d[i + 1] <= 40) continue
+        pixels++
+        front[Math.floor(x / strip)] = y
+        if (underHud(x, y)) covered++
+      }
+    }
+    let columns = 0
+    const frontSample: [number, number][] = []
+    front.forEach((y, i) => {
+      if (y < 0) return
+      columns++
+      // En alttaki piksel şeridin neresinde olursa olsun: şeridin ortası yeterli değil.
+      for (let x = i * strip; x < (i + 1) * strip; x++) {
+        const j = (y * img.width + x) * 4
+        if (Math.max(d[j], d[j + 2]) - d[j + 1] > 40 && underHud(x, y)) {
+          frontSample.push([x, y])
+          break
+        }
+      }
+    })
+    return { pixels, covered, columns, frontCovered: frontSample.length, frontSample: frontSample.slice(0, 12) }
+  }, FRONT_STRIP)
+}
+
+for (const screen of SCREENS.filter((s) => s.name.startsWith('R3'))) {
+  test(`${screen.name} kadraj`, async ({ page }) => {
+    await openShot(page, { commander: screen.commander, moment: screen.moment, quality: 'low' })
+    await playToMoment(page)
+    const framing = await enemyUnderHud(page)
+    const front = framing.frontCovered / framing.columns
+    const body = framing.covered / framing.pixels
+    await test.info().attach('kadraj', { body: JSON.stringify({ ...framing, front, body }), contentType: 'application/json' })
+    expect(framing.pixels, 'düşman maskesi boş').toBeGreaterThan(MIN_PIXELS)
+    expect(front, `HUD altındaki cephe payı ≤ ${MAX_FRONT_UNDER_HUD}`).toBeLessThanOrEqual(MAX_FRONT_UNDER_HUD)
+    expect(body, `HUD altındaki ordu payı ≤ ${MAX_BODY_UNDER_HUD}`).toBeLessThanOrEqual(MAX_BODY_UNDER_HUD)
+  })
+}
+
 for (const quality of ['low', 'high'] as const) {
   for (const screen of SCREENS) {
     test(`${screen.name} ${quality}`, async ({ page }) => {

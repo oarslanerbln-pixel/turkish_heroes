@@ -648,7 +648,7 @@
 }
 
 /* ---- Ana menü: savaş seçimi ----
- * Arkada seçilen savaşın açılış karesi (FollowCamera). Menü onu örtmez:
+ * Arkada seçilen savaşın açılış karesi (CameraDirector). Menü onu örtmez:
  * iki panel sahnenin iki yanında, ortada kahraman ve ufuktaki ordu. Temel
  * ölçüler yatay telefona (844×390) göre; geniş ekranda büyür.
  */

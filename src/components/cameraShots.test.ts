@@ -1,5 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import { DUSK_FALL, DUSK_HOLD, DUSK_RISE, INTRO_TIME, shotDone, shotWeight } from './cameraShots'
+import { Vector3 } from 'three'
+import type { CameraCue } from '../sim/world'
+import {
+  BLEND_TIME,
+  DUSK_FALL,
+  DUSK_HOLD,
+  DUSK_RISE,
+  INTRO_TIME,
+  applyBlend,
+  createShotState,
+  shotDone,
+  shotWeight,
+  startShot,
+  type Pose,
+} from './cameraShots'
+
+const pose = (x: number, y: number, z: number): Pose => ({ pos: new Vector3(x, y, z), look: new Vector3(x, 0, z - 20) })
+
+/**
+ * CameraDirector'ın çekim adımlarını sabit duruşlarla oynatır; her karenin
+ * kamera konumunu döner. `cutAt` anında süren çekim açılışla kesilir.
+ */
+function film(first: CameraCue, cutAt: number, blend: boolean): Vector3[] {
+  const tactical = pose(0, 17, 22)
+  const cine: Record<CameraCue, Pose> = { intro: pose(6, 5.5, 14), dusk: pose(0, 9, 24) }
+  const shot = createShotState(pose(0, 0, 0))
+  const out = pose(0, 0, 0)
+  const frames: Vector3[] = []
+  const dt = 1 / 60
+  startShot(shot, first, out)
+  for (let t = 0; t < 6; t += dt) {
+    if (Math.abs(t - cutAt) < dt / 2) {
+      if (!blend) shot.cue = null
+      startShot(shot, 'intro', out)
+    }
+    out.pos.copy(tactical.pos)
+    out.look.copy(tactical.look)
+    if (shot.cue) {
+      shot.t += dt
+      const w = shotWeight(shot.cue, shot.t)
+      out.pos.lerp(cine[shot.cue].pos, w)
+      out.look.lerp(cine[shot.cue].look, w)
+      if (shotDone(shot.cue, shot.t)) shot.cue = null
+    }
+    applyBlend(shot, dt, out)
+    frames.push(out.pos.clone())
+  }
+  return frames
+}
+
+function maxStep(frames: Vector3[]): number {
+  let max = 0
+  for (let i = 1; i < frames.length; i++) max = Math.max(max, frames[i].distanceTo(frames[i - 1]))
+  return max
+}
 
 describe('sinematik çekimler', () => {
   it('açılış tam sinematik başlar, taktik duruşta biter', () => {
@@ -30,5 +84,25 @@ describe('sinematik çekimler', () => {
         prev = w
       }
     }
+  })
+
+  it('kesilen çekim sert kesmez: son duruştan süzülür (K3)', () => {
+    // Gün batımı tam alçalmışken açılış isteği gelir.
+    const cutAt = DUSK_RISE + DUSK_HOLD / 2
+    const hard = maxStep(film('dusk', cutAt, false))
+    const smooth = maxStep(film('dusk', cutAt, true))
+    // Geçişsiz, açılışın ilk karesine bir karede atlardı.
+    expect(hard).toBeGreaterThan(5)
+    // Kesintisiz bir çekimin en hızlı adımından belirgin hızlı değil.
+    const uncut = Math.max(maxStep(film('dusk', Infinity, true)), maxStep(film('intro', Infinity, true)))
+    expect(smooth).toBeLessThanOrEqual(1.5 * uncut)
+  })
+
+  it('geçiş BLEND_TIME sonunda biter, çekim kaldığı yerden sürer', () => {
+    const frames = film('dusk', 1, true)
+    const direct = film('intro', Infinity, true)
+    // Kesişten BLEND_TIME sonra kamera, aynı anda başlamış açılışla aynı yerde.
+    const i = Math.round((1 + BLEND_TIME) * 60) + 1
+    expect(frames[i].distanceTo(direct[i - 60])).toBeLessThan(1e-6)
   })
 })

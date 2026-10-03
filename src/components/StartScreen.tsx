@@ -10,7 +10,7 @@ import { SettingsButtons } from './SettingsButtons'
 
 /**
  * Ana menü — savaş seçimi. Arkada seçilen savaşın açılış karesi durur
- * (FollowCamera): menü bir kapı değil, savaşın ilk anı. İki panel sahnenin
+ * (CameraDirector): menü bir kapı değil, savaşın ilk anı. İki panel sahnenin
  * iki yanında, ortada kahraman ve ufuktaki ordu görünür.
  *
  *  - Solda sefer haritası: üç savaş, bozkırdan Anadolu'ya giden yolun
