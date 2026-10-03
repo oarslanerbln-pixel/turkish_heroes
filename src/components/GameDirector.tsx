@@ -28,6 +28,7 @@ import { pickLore } from '../lore/lore'
 import { scenarioOf, SCORE_PER_KILL, type Scenario } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
 import { haptic, play } from '../audio/sfx'
+import { stepHurt } from '../sim/hurt'
 import { duck, setBattleMusic } from '../audio/ambience'
 import { COMMANDERS } from '../mechanics/scenario'
 import { debrief } from '../debrief/debrief'
@@ -95,7 +96,8 @@ function finishBattle(scenario: Scenario): void {
   track({ ...end, advice: world.debrief?.advice.id })
 
   play(victory ? 'victory' : 'defeat')
-  if (!victory) haptic(200)
+  // Zafer üç notalı boruyla aynı ritimde, yenilgi tek ağır titreşim.
+  haptic(victory ? [50, 170, 50, 170, 140] : 200)
 }
 
 export function GameDirector() {
@@ -127,10 +129,10 @@ export function GameDirector() {
         : false
 
       world.attackers = countAttackers(world.enemies, world.player)
-      world.playerHealth = Math.max(
-        0,
-        world.playerHealth - calcContactDamage(world.attackers, dt, scenario.contactDamage(world)),
-      )
+      const damage = calcContactDamage(world.attackers, dt, scenario.contactDamage(world))
+      world.playerHealth = Math.max(0, world.playerHealth - damage)
+      // Kenar flaşı DOM'da: sayaç beklemeden artar, HUD eşitlemesini (12 Hz) beklemez.
+      if (stepHurt(world, damage, dt)) useGameStore.setState((s) => ({ hurtPulse: s.hurtPulse + 1 }))
 
       // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
       // Histerezis hedef üzerinde çalışmalı, dönerken geçilen ara açılar üzerinde değil.

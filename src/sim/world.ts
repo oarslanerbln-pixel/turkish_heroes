@@ -91,6 +91,11 @@ export interface World {
    * ilerlemez: kuşatmanın kapandığı an bir nefes boyu asılı kalır.
    */
   hitstop: number
+  /** Yara geri bildirimi (bkz. hurt.ts): biriken hasar, sıradaki tepkiye kalan süre. */
+  hurtPending: number
+  hurtCooldown: number
+  /** Son yaranın sarsıntısından kalan süre (sn); vuruş sarsıntısından hafif. */
+  hurtTimer: number
   /**
    * Ağır çekimin kalan süresi (gerçek zaman, sn). > 0 iken simülasyon
    * SLOWMO_SCALE hızında ilerler: ilk hamle ve akşam dönüşü gibi anlar okunsun.
@@ -179,6 +184,9 @@ function initialWorld(commander: CommanderId): World {
     mode: 'menu',
     generation: 0,
     hitstop: 0,
+    hurtPending: 0,
+    hurtCooldown: 0,
+    hurtTimer: 0,
     slowmo: 0,
     timeScale: 1,
     animTime: 0,

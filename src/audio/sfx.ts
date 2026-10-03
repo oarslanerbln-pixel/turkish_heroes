@@ -24,8 +24,11 @@ export type Sfx =
   | 'wingCharge'
   | 'rout'
   | 'rockslide'
+  | 'hurt'
+  | 'ui'
 
 const MUTE_KEY = 'hilal_muted'
+const HAPTICS_KEY = 'hilal_haptics'
 const MASTER_VOLUME = 0.5
 /** Ok vınlaması: kılıç savrulması örneği hızlı çalınır, tiz ve kısa duyulur. */
 const ARROW_RATE = 1.6
@@ -38,13 +41,23 @@ let noiseBuffer: AudioBuffer | null = null
 let muted = loadMuted()
 /** Molada bağlam askıda tutulur (bkz. holdAudio). */
 let held = false
-let haptics = true
+/** Oyuncunun ayarı (kalıcı) ve "hareketi azalt"; titreşim ikisi de izin verirse. */
+let hapticsPref = loadHapticsPref()
+let motionAllows = true
 
 function loadMuted(): boolean {
   try {
     return localStorage.getItem(MUTE_KEY) === '1'
   } catch {
     return false
+  }
+}
+
+function loadHapticsPref(): boolean {
+  try {
+    return localStorage.getItem(HAPTICS_KEY) !== '0'
+  } catch {
+    return true
   }
 }
 
@@ -115,16 +128,36 @@ export function audioGraph(): { ctx: AudioContext; master: GainNode } | null {
   return ctx && master ? { ctx, master } : null
 }
 
-/** Kısa titreşim — yalnızca destekleyen mobil cihazlarda, ses kapalıysa da. */
-/** Titreşim açık mı: "hareketi azalt" tercihinde kapalı (store yazar). */
-export function setHaptics(enabled: boolean): void {
-  haptics = enabled
+/**
+ * Cihaz titreyebiliyor mu. iOS Safari'de API yok; masaüstü Chrome'da var ama
+ * titreyecek motor yok, ayar düğmesi yalnız dokunmatikte gösterilir.
+ */
+export function canVibrate(): boolean {
+  return typeof navigator !== 'undefined' && 'vibrate' in navigator
 }
 
-export function haptic(pattern: number | number[]): void {
-  if (haptics && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    navigator.vibrate(pattern)
+/** Oyuncunun titreşim ayarı (hareketi azalttan bağımsız). */
+export function hapticsEnabled(): boolean {
+  return hapticsPref
+}
+
+export function setHapticsEnabled(enabled: boolean): void {
+  hapticsPref = enabled
+  try {
+    localStorage.setItem(HAPTICS_KEY, enabled ? '1' : '0')
+  } catch {
+    // Gizli sekme: tercih bu oturumla sınırlı.
   }
+}
+
+/** "Hareketi azalt" titreşimi de kapatır (store yazar). */
+export function setHaptics(enabled: boolean): void {
+  motionAllows = enabled
+}
+
+/** Kısa titreşim: destekleyen mobil cihazlarda, ses kapalıysa da. */
+export function haptic(pattern: number | number[]): void {
+  if (hapticsPref && motionAllows && canVibrate()) navigator.vibrate(pattern)
 }
 
 /**
@@ -141,7 +174,7 @@ export function play(sfx: Sfx, intensity = 1): void {
         noise(t, 0.35, 1800, 400, 0.5 + 0.4 * intensity)
       }
       sample('plate', t + 0.06, 0.2 + 0.5 * intensity)
-      tone(t, 'sine', 140, 45, 0.45, 0.8 * (0.6 + 0.4 * intensity))
+      drum(t, 140, 45, 0.45, 0.8 * (0.6 + 0.4 * intensity))
       break
     case 'refuse':
       tone(t, 'square', 150, 120, 0.12, 0.12)
@@ -185,11 +218,11 @@ export function play(sfx: Sfx, intensity = 1): void {
       break
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.
-      for (let i = 0; i < 3; i++) tone(t + i * 0.42, 'sine', 90, 40, 0.5, 0.7)
+      for (let i = 0; i < 3; i++) drum(t + i * 0.42, 90, 40, 0.5, 0.7)
       break
     case 'order':
       // Kola emir: tek kös + kısa boru — "emir alındı".
-      tone(t, 'sine', 110, 55, 0.25, 0.45)
+      drum(t, 110, 55, 0.25, 0.45)
       horn(t + 0.05, 294, 0.2)
       break
     case 'wingCharge':
@@ -201,13 +234,25 @@ export function play(sfx: Sfx, intensity = 1): void {
     case 'rockslide':
       // Kaya yığını: alçak gürleme, ardışık darbeler ve taş çatırtısı.
       noise(t, 1.1, 260, 60, 0.55)
-      for (let i = 0; i < 4; i++) tone(t + 0.08 + i * 0.13, 'sine', 80 - i * 8, 35, 0.3, 0.5)
+      for (let i = 0; i < 4; i++) drum(t + 0.08 + i * 0.13, 80 - i * 8, 35, 0.3, 0.5)
       for (let i = 0; i < 3; i++) sample('rocks', t + 0.05 + i * 0.18, 0.6 - i * 0.15, 1 - i * 0.12)
       break
     case 'rout':
       // Bozgun: düşmanın borusu düşerek susar, nal sesi uzaklaşır.
       tone(t, 'sawtooth', 220, 147, 0.7, 0.16, 800)
       if (!herd(t + 0.1, 5, 0.35, true)) noise(t + 0.1, 1.3, 420, 110, 0.3)
+      break
+    case 'hurt':
+      // Oyuncu yara aldı: zırha inen darbe ve kısa, boğuk inilti. Vuruştan
+      // (kılıç + kös) ayrı duyulsun diye kösü yok, perdesi orta.
+      if (!sample('plate', t, 0.25 + 0.3 * intensity, 0.75, 2200)) {
+        noise(t, 0.12, 900, 400, 0.3 + 0.25 * intensity)
+      }
+      tone(t, 'triangle', 240, 150, 0.16, 0.16 + 0.12 * intensity, 1200)
+      break
+    case 'ui':
+      // Arayüz: kısa, yumuşak tık.
+      tone(t, 'triangle', 1180, 880, 0.05, 0.07)
       break
   }
 }
@@ -264,6 +309,18 @@ export function tone(
   out.connect(dest ?? master)
   osc.start(start)
   osc.stop(start + duration + 0.05)
+}
+
+/**
+ * Kös ve gövde vuruşu. Alçak sinüs gövdeyi taşır ama telefon hoparlörü ~150 Hz
+ * altını çalmıyor: orada vuruşu deri şaplağı (bant gürültü) ile 2. ve 3.
+ * harmonik duyurur. Ortam müziğinin kösü de aynı yoldan (ambience.ts).
+ */
+function drum(start: number, fromHz: number, toHz: number, duration: number, volume: number): void {
+  tone(start, 'sine', fromHz, toHz, duration, volume)
+  tone(start, 'triangle', fromHz * 2, toHz * 2, duration * 0.6, volume * 0.35)
+  tone(start, 'sine', fromHz * 3, toHz * 3, duration * 0.35, volume * 0.2)
+  noise(start, 0.08, 1400, 700, volume * 0.4)
 }
 
 function horn(start: number, hz: number, duration: number): void {

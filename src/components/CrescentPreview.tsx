@@ -4,6 +4,7 @@ import { Group, Mesh, MeshBasicMaterial } from 'three'
 import { CRESCENT, HILAL_CONFIG } from '../mechanics/hilalSystem'
 import { isPlaying, world } from '../sim/world'
 import { crescentArgs } from './crescentGeometry'
+import { CHARGING_COLOR, READY_COLOR } from './palette'
 
 // Yönetmenden (2) sonra çalış ki yay o karenin yönünü ve sayımını kullansın.
 const VISUAL_PRIORITY = 3
@@ -40,11 +41,11 @@ export function CrescentPreview() {
 
     const fillMat = fill.material as MeshBasicMaterial
     fillMat.opacity = (0.04 + şarj * 0.16) * isabet
-    fillMat.color.setHex(hazır ? 0xff4400 : 0xffd700)
+    fillMat.color.set(hazır ? READY_COLOR : CHARGING_COLOR)
 
     const edgeMat = edge.material as MeshBasicMaterial
     edgeMat.opacity = (0.25 + şarj * 0.5) * isabet
-    edgeMat.color.setHex(hazır ? 0xff4400 : 0xffd700)
+    edgeMat.color.set(hazır ? READY_COLOR : CHARGING_COLOR)
   }, VISUAL_PRIORITY)
 
   return (
@@ -52,12 +53,12 @@ export function CrescentPreview() {
       {/* Yayın gövdesi */}
       <mesh ref={fillRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={crescentArgs(CRESCENT.innerRadius, CRESCENT.outerRadius)} />
-        <meshBasicMaterial color="#ffd700" transparent opacity={0.1} depthWrite={false} />
+        <meshBasicMaterial color={CHARGING_COLOR} transparent opacity={0.1} depthWrite={false} />
       </mesh>
       {/* Dış kenar — menzilin nerede bittiğini net göstersin */}
       <mesh ref={edgeRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={crescentArgs(CRESCENT.outerRadius - 0.35, CRESCENT.outerRadius)} />
-        <meshBasicMaterial color="#ffd700" transparent opacity={0.5} depthWrite={false} />
+        <meshBasicMaterial color={CHARGING_COLOR} transparent opacity={0.5} depthWrite={false} />
       </mesh>
     </group>
   )

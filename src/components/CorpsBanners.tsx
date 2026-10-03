@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Color, Group, Mesh, MeshBasicMaterial } from 'three'
 import { BATTLE_CONFIG, CORPS, corpsDiscipline } from '../mechanics/corps'
 import { world } from '../sim/world'
+import { CHARGE_COLOR } from './palette'
 
 // Birlik başına, askerlerin üstünde süzülen ince düzen çubuğu (tasarım
 // belgesi: "dünyaya bağlı düzen çubuğu; taciz edilen birliğin çubuğu parlar").
@@ -118,7 +119,7 @@ export function CorpsBanners() {
       ))}
       <mesh ref={emperorRing} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={5}>
         <ringGeometry args={[1.1, 1.45, 40]} />
-        <meshBasicMaterial color="#ff2a12" transparent opacity={0.75} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial color={CHARGE_COLOR} transparent opacity={0.75} depthWrite={false} toneMapped={false} />
       </mesh>
     </>
   )

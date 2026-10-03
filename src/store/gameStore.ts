@@ -10,7 +10,17 @@ import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
-import { holdAudio, isMuted, play, setHaptics, setMuted, unlockAudio } from '../audio/sfx'
+import {
+  haptic,
+  hapticsEnabled,
+  holdAudio,
+  isMuted,
+  play,
+  setHaptics,
+  setHapticsEnabled,
+  setMuted,
+  unlockAudio,
+} from '../audio/sfx'
 import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 import { PLAYTEST } from '../playtest'
@@ -58,6 +68,10 @@ interface GameState extends HudSnapshot {
   mode: FlowMode
   commander: CommanderId
   muted: boolean
+  /** Oyuncunun titreşim ayarı; "hareketi azalt" ayrıca kapatır. */
+  haptics: boolean
+  /** Her yarada bir artar: HUD'un kenar flaşı bununla yeniden oynar. */
+  hurtPulse: number
   /**
    * "Hareketi azalt": sarsıntı, titreşim, sinematik çekimler ve arayüzün
    * kayan/büyüyen animasyonları kapalı. Şimdilik işletim sisteminin tercihi.
@@ -94,9 +108,19 @@ interface GameState extends HudSnapshot {
   /** Sonuç ekranından doğrudan başka bir komutanın savaşına (kilit açılınca). */
   playCommander: (id: CommanderId) => void
   toggleMute: () => void
+  toggleHaptics: () => void
 }
 
 const WING_NAMES = ['Sol kol', 'Sağ kol']
+
+/**
+ * Menü düğmelerinin tıkı. Menüde ilk dokunuş bu olabilir: bağlam burada açılır
+ * (kullanıcı hareketinin içindeyiz); açılış sürerken ilk tık sessiz kalabilir.
+ */
+function uiTick(): void {
+  unlockAudio()
+  play('ui')
+}
 
 const INITIAL_HUD: HudSnapshot = {
   phase: 'idle',
@@ -153,6 +177,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   mode: world.mode,
   commander: world.commander,
   muted: isMuted(),
+  haptics: hapticsEnabled(),
+  hurtPulse: 0,
   reducedMotion: reducedMotionQuery?.matches ?? false,
   archive: null,
 
@@ -162,6 +188,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   selectCommander: (id) => {
     if (id === world.commander || world.mode !== 'menu') return
+    uiTick()
     // Sahne arkada seçilen savaşı göstersin: ordu, ordugah, oyuncunun yeri.
     resetWorld(id)
     set({ commander: id, bestScore: loadBestScore(id) })
@@ -190,14 +217,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().start()
   },
 
-  openArchive: (id) => set({ archive: id }),
+  openArchive: (id) => {
+    uiTick()
+    set({ archive: id })
+  },
 
-  closeArchive: () => set({ archive: null }),
+  closeArchive: () => {
+    uiTick()
+    set({ archive: null })
+  },
 
   toggleMute: () => {
     const muted = !get().muted
+    // Menüde ilk dokunuş bu olabilir: bağlam açılsın ki "ses açıldı" duyulsun.
+    unlockAudio()
     setMuted(muted)
     set({ muted })
+    play('ui')
+  },
+
+  toggleHaptics: () => {
+    const haptics = !get().haptics
+    setHapticsEnabled(haptics)
+    set({ haptics })
+    // Açıldığını eliyle hissetsin.
+    haptic(30)
   },
 
   // Simülasyona bayrak bırakır; GameDirector bir sonraki karede tüketir.

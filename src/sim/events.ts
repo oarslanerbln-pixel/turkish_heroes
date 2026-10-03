@@ -21,6 +21,8 @@ export type WorldEvent =
   | { type: 'charge'; corps: number; pos: Vec2 }
   /** Kırılan dalganın artığı kaçıyor. */
   | { type: 'rout'; count: number }
+  /** Oyuncu yara aldı; amount bu tepkiye biriken hasar (bkz. hurt.ts). */
+  | { type: 'hurt'; amount: number }
   | { type: 'sunset' }
   | { type: 'waveSpawn'; wave: number }
 

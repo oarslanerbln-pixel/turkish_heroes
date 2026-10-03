@@ -11,6 +11,7 @@ import { PauseScreen } from './PauseScreen'
 import { RotateOverlay } from './RotateOverlay'
 import { StartScreen } from './StartScreen'
 import { Ornament } from './Ornament'
+import { SettingsButtons } from './SettingsButtons'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import './hud.css'
@@ -37,6 +38,9 @@ const PASS_WINGS = [
   { name: 'SOL YAMAÇ', key: 'Q' },
   { name: 'SAĞ YAMAÇ', key: 'E' },
 ]
+
+/** Bu canın altında çubuk kırmızı ve taralı. */
+const LOW_HEALTH = 40
 
 const PHASE_COLOR: Record<HilalPhase, string> = {
   idle: '#cda9a0',
@@ -73,6 +77,7 @@ export function HilalEnergyHUD() {
 
   return (
     <div className={`hud${touch ? ' is-touch' : ''}${paused ? ' is-paused' : ''}`}>
+      {live && <HurtFlash />}
       <StatusCard />
       <Corner />
       <EnergyPanel touch={touch} />
@@ -137,11 +142,19 @@ function StatusCard() {
         </span>
         {attackers > 0 && <span className="contact">{attackers} temasta</span>}
       </div>
-      <div className="bar">
+      {/* Düşük can yalnız renkle söylenmez: çubuk taranır (renk körlüğü, güneşte ekran). */}
+      <div
+        className={health > LOW_HEALTH ? 'bar' : 'bar is-low'}
+        role="meter"
+        aria-label="Can"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(health)}
+      >
         <span
           style={{
             width: `${health}%`,
-            backgroundColor: health > 40 ? 'var(--health)' : 'var(--danger)',
+            backgroundColor: health > LOW_HEALTH ? 'var(--health)' : 'var(--danger)',
           }}
         />
       </div>
@@ -149,9 +162,19 @@ function StatusCard() {
   )
 }
 
+/**
+ * Yara anında ekran kenarı kızarır ve söner. Sayaç değişince yeniden oynar;
+ * bağlandığı andaki değer sayılmaz (yeni savaşa eski yara taşınmasın).
+ * Yalnız solar, kaymaz: hareketi azaltta da kalır.
+ */
+function HurtFlash() {
+  const pulse = useGameStore((s) => s.hurtPulse)
+  const [mounted] = useState(pulse)
+  if (pulse === mounted) return null
+  return <div key={pulse} className="hurt-flash" aria-hidden="true" />
+}
+
 function Corner() {
-  const muted = useGameStore((s) => s.muted)
-  const toggleMute = useGameStore((s) => s.toggleMute)
   const pause = useGameStore((s) => s.pause)
   const playing = useGameStore((s) => s.mode !== 'outcome')
 
@@ -162,14 +185,7 @@ function Corner() {
           <PauseIcon />
         </button>
       )}
-      <button
-        className="icon-btn"
-        onClick={toggleMute}
-        aria-label={muted ? 'Sesi aç' : 'Sesi kapat'}
-        title={muted ? 'Sesi aç' : 'Sesi kapat'}
-      >
-        <SpeakerIcon muted={muted} />
-      </button>
+      <SettingsButtons />
       {PERF_OVERLAY && <PerfBadge />}
       {import.meta.env.DEV && <DevStats />}
     </div>
@@ -415,19 +431,6 @@ function PauseIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <rect x="5" y="4" width="5" height="16" rx="1.5" />
       <rect x="14" y="4" width="5" height="16" rx="1.5" />
-    </svg>
-  )
-}
-
-function SpeakerIcon({ muted }: { muted: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" />
-      {muted ? (
-        <path d="m23 9-6 6M17 9l6 6" />
-      ) : (
-        <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
-      )}
     </svg>
   )
 }
