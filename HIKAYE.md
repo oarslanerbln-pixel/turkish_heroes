@@ -32,7 +32,9 @@ Ton: vaaz değil, ocak başı hikâyesi. Erdem söylenmez, oyuncu onu oynar. Anl
 
 ## 3. Çerçeve: yolcu derviş
 
-**Kim:** adı verilmemiş, genç bir derviş-ozan. Kurgu bir kişidir ve oyunda bunu açıkça söyleriz.
+**Kim:** **Aydoğdu**, genç bir derviş-ozan. Kurgu bir kişidir ve oyunda bunu açıkça söyleriz.
+
+**Neden bu ad:** "Ay doğdu", yani hilalin doğuşu. Oyunun simgesine bağlanır ve Selçuklu döneminde de kullanılmış bir addır.
 
 **Ne zaman ve nerede:** 12. yüzyılın sonu, Miryokefalon'dan (1176) birkaç yıl sonra. Horasan'dan Anadolu'ya yürüyen bir kervanla gelir.
 
@@ -47,7 +49,7 @@ Anlatıcının üç savaşa uzaklığı böylece doğal olarak farklılaşır.
 
 **Ekranda:**
 - Brifingin üstünde bir bağlam satırı (tarih gerçeği).
-- Altında bir anlatıcı satırı (italik, "Derviş:" etiketiyle).
+- Altında bir anlatıcı satırı (italik, "Aydoğdu:" etiketiyle).
 - Sonuç ekranında bir hikmet kartı.
 
 ## 4. Yol: üç durak
@@ -69,14 +71,14 @@ Birinci durak güçsüzken sabretmeyi, üçüncüsü güçlüyken sabretmeyi ö�
 
 Her savaş için dört metin var:
 - **Bağlam:** brifingin ilk satırı, tarih gerçeği.
-- **Derviş:** anlatıcı satırı.
+- **Aydoğdu:** anlatıcı satırı.
 - **Zafer / Yenilgi:** sonuç ekranında anlatıcının satırı.
 - **Hikmet kartı:** kaynaklı fikir. Künyesi doğrulanana kadar yer tutucu kalır.
 
 ### 5.1 Mete: sabır
 
 - **Bağlam:** "Çin kaynaklarında Modu Chanyu diye geçen hükümdar, MÖ 209'da Hun (Xiongnu) tahtına çıktı. Türk tarih geleneği onu Mete Han olarak anar." (T3, T4)
-- **Derviş:** "Komşu kavim Mete'den en iyi atını istedi; verdi. Sonra eşini istedi; onu da verdi. Ama bir parça çorak toprak isteyince 'yurt devletin temelidir' dedi ve atlandı. Sabır korkudan değil, zamanı bilmekten gelir."
+- **Aydoğdu:** "Komşu kavim Mete'den en iyi atını istedi; verdi. Sonra eşini istedi; onu da verdi. Ama bir parça çorak toprak isteyince 'yurt devletin temelidir' dedi ve atlandı. Sabır korkudan değil, zamanı bilmekten gelir."
   - Dayanak: Sima Qian, *Shiji* 110, Xiongnu bölümü.
   - "Yurt devletin temelidir" bir aktarmadır, birebir alıntı değil. Türkçe çevirisinden (ör. Ögel) doğrulanacak.
 - **Zafer:** "Yay ancak gerilince ok atar. Gerilmeyi bilen kazandı."
@@ -86,19 +88,22 @@ Her savaş için dört metin var:
 ### 5.2 Alp Arslan: tevekkül ve merhamet
 
 - **Bağlam:** "26 Ağustos 1071. Selçuklu Sultanı Alp Arslan, Bizans İmparatoru IV. Romanos Diogenes'in ordusunu Malazgirt yakınında karşıladı."
-- **Derviş:** "Kroniklere göre sultan savaşı cuma gününe, minberlerde dua edilen saate denk getirdi. Beyazlar giydi. Rivayet edilir ki 'düşersem kefenim olsun' demiş. Elinden geleni yaptı; gerisini bıraktı."
+- **Aydoğdu:** "Kroniklere göre sultan savaşı cuma gününe, minberlerde dua edilen saate denk getirdi. Beyazlar giydi. Rivayet edilir ki 'düşersem kefenim olsun' demiş. Elinden geleni yaptı; gerisini bıraktı."
   - Dayanak: İbnü'l-Esîr, *el-Kâmil*. Kefen sözünün en erken kaynağı tarihçiye soru 3'te açık.
 - **Zafer** (sonuç ekranındaki "an"):
   - "Esir imparatoru sultanın önüne getirdiler. Kroniklere göre sultan sordu: 'Ben senin elinde olsaydım ne yapardın?' Romanos acı bir cevap verdi. Sultan ise onu bağışladı, antlaşma yaptı ve yurduna gönderdi."
   - Dayanak: konuşma İslam kroniklerinde, iyi muamele Attaleiates'te. Sözler birebir değil.
 - **Yenilgi:** "Akşamı bekleyemeyen, sabahın zaferini de göremez."
 - **Hikmet kartı:** adalet ve hükümdarın merhameti üzerine Nizamülmülk'ün *Siyasetnâme*'sinden (1091) bir pasaj, künyesiyle.
-- **İsteğe bağlı kapanış** (kibre karşı tevazu): Alp Arslan bir yıl sonra, 1072'de, bir esirin hançeriyle öldü. Kroniklerde, ölmeden önce gücüne güvendiği için kendini kınayan sözleri aktarılır (İbnü'l-Esîr). Sefer haritasında iki bölüm arasında tek satır olarak düşünülebilir. Ağır bir an; kullanıcı kararı.
+- **Kapanış** (kibre karşı tevazu): sefer haritasında, Malazgirt ile Miryokefalon arasında tek satır.
+  - **Bağlam:** "1072'de Alp Arslan, bir sefer sırasında önüne getirilen bir esirin hançeriyle can verdi. Kroniklere göre son sözlerinde gücüne güvendiği için kendini kınadı."
+  - **Aydoğdu:** "Zaferin en zor sınavı, ondan sonraki gündür." Bu söz anlatıcının kendisinindir, alıntı değildir.
+  - Dayanak: İbnü'l-Esîr. Kroniklerdeki sözler birebir verilmez, yalnızca özetlenir.
 
 ### 5.3 II. Kılıçarslan: ölçü
 
 - **Bağlam:** "17 Eylül 1176. Bizans İmparatoru I. Manuel Komnenos, Selçuklu başkenti Konya'ya yürürken Miryokefalon'da Tzivritze geçidine girdi."
-- **Derviş:** "Sultan yolu dar yerde kesti. Kol sıkıştı, arka öne bindi. Ama asıl sınav savaştan sonra geldi."
+- **Aydoğdu:** "Sultan yolu dar yerde kesti. Kol sıkıştı, arka öne bindi. Ama asıl sınav savaştan sonra geldi."
 - **Zafer** (an):
   - "Galip olan sultan, imparatora barış önerdi. Şartı iki sınır kalesinin yıkılmasıydı. Güç elindeyken durmayı bildi."
   - Dayanak: Niketas Khoniates. Bu T1 düzeltmesidir: barışı Manuel istemedi, sultan önerdi.
@@ -107,7 +112,7 @@ Her savaş için dört metin var:
 
 ## 6. Sefer finali ve Mete epiloğu (T13)
 
-**Final.** Üç durak bittikten sonra kısa bir kapanış: kervan bir Anadolu kasabasına varır ve derviş ocağı söndürür.
+**Final.** Üç durak bittikten sonra kısa bir kapanış: kervan bir Anadolu kasabasına varır ve Aydoğdu ocağı söndürür.
 > "Üç hikâye anlattım: biri bekleyenin, biri bırakanın, biri durmayı bilenin. Yolun sonu yok; ama yürüyenin yükü hafifler."
 
 Bu söz anlatıcının kendisinindir, alıntı değildir.
@@ -120,7 +125,46 @@ Bu, yeniden oynamaya anlam katan bir kancadır.
 **Görsel dil:**
 - Ocak başı sahnesi tek bir illüstrasyon kartı olarak tasarlanır: alev, kervan siluetleri, yıldızlı gök.
 - Hat süslemesi STIL.md §3 paletinde kalır.
-- Derviş arkadan ya da siluet olarak görünür, yüzü çizilmez.
+- Aydoğdu arkadan ya da siluet olarak görünür, yüzü çizilmez.
+
+## 6a. Seslendirme
+
+**Ses karakteri:**
+- Sıcak, sakin, orta-pes bir erkek sesi.
+- Ocak başında yakından konuşuyormuş gibi: tiyatral değil, fısıltı da değil.
+- Tempo yavaş ama sürükleyici, cümle sonlarında kısa duraklar.
+- Yöre ağzı yok; yumuşak, standart Türkçe.
+
+**Ses dünyası:**
+- Konuşmanın altında hafif bir ocak çıtırtısı ve kopuz benzeri telli bir çalgının tek motifi.
+- Ney kullanılmaz: Mevlevî çağrışımı güçlü ve 13. yüzyıla ait, 1180 için anakronik kalır.
+- Anlatıcı konuşurken savaş sesleri yaklaşık 8 dB kısılır (ducking).
+
+**Oynatma kuralları:**
+- Her satırın altyazısı her zaman ekranda. Ses yalnızca ek bir katmandır.
+- Dokununca satır geçilir; ses de kesilir.
+- Genel ses kapalıysa (`hilal_muted`) anlatıcı da susar.
+- Ayarlarda ayrı bir "Anlatıcı" anahtarı olur. Bu, MIMARI.md'deki D5'in (ayrı ses sürgüleri) ilk parçasıdır.
+- Ses WebAudio master'ından (`sfx.ts`) geçer.
+
+**Teknik:**
+- Her satır ayrı bir dosya: `public/ses/anlatici/<satır-id>.m4a` (AAC, mono, yaklaşık 48 kbps).
+  - Safari'de Opus güvenilir olmadığı için AAC.
+  - Dosyalar savaş ya da brifing açılınca tembel yüklenir, JS bütçesine girmez.
+  - Toplam hedef 1 MB'ın altı.
+- Metinlerin tek kaynağı bir dosya olur (ör. `src/story/anlati.ts`). Her satırın kimliği, metni, kaynağı ve ses dosyası orada tutulur.
+- Bir test, her satırın ses dosyasının var olduğunu ve altyazıyla aynı kimliği taşıdığını denetler.
+
+**Üretim hattı:**
+1. **Geçici ses.**
+   - Türkçe destekleyen bir yapay ses hizmetiyle bir betik, `anlati.ts`'teki satırları seslendirir.
+   - API anahtarı yalnızca ortam değişkeninde durur; koda ve commit'e girmez.
+   - Hizmetin ticari kullanım lisansı kontrol edilir.
+   - Gerçek bir kişinin sesi izinsiz klonlanmaz.
+   - CREDITS.md'de "geçici yapay ses" diye işaretlenir.
+2. **Kalıcı ses.** Metinler tarihçi ve din/kültür okumasından geçince bir seslendirme sanatçısı aynı kimliklerle okur. Dosyalar yerine konur; kodda değişiklik gerekmez.
+   - Kayıt listesi `anlati.ts`'ten çıkarılır: satır, bağlam notu ve vurgu notu.
+   - Tahmini toplam süre: 15–20 satır, 2–3 dakika.
 
 ## 7. Oyuna işleme sırası
 
@@ -134,7 +178,8 @@ Her adım ayrı PR olarak yapılır.
 3. **Hikmet kartları:** `lore.ts` içinde `{ text, source: { work, edition, ref } }` yapısı. `source.ref` boş olan kart üretim derlemesinde gösterilmez; bunu bir test korur.
 4. **Sonuç ekranı anları:** Romanos'un bağışlanması ve Kılıçarslan'ın barış önerisi. Zaferden sonra bir kez gösterilen, geçilebilir kısa bir kart.
 5. **Sefer finali ve Mete epiloğu.**
-6. **İsteğe bağlı:** ocak başı illüstrasyonu ve anlatıcı sesi (seslendirme ya da kopuz motifi).
+6. **Seslendirme** (§6a): önce yapay sesle geçici kayıt, metinler onaylanınca seslendirme sanatçısıyla kalıcı kayıt.
+7. **Ocak başı illüstrasyonu.**
 
 **Erişilebilirlik:**
 - Anlatıcı satırları ekran okuyucuya okunur.
@@ -152,10 +197,12 @@ Her adım ayrı PR olarak yapılır.
 1. Tevekkül, sabır ve ölçü kavramları tasavvuf literatüründeki anlamlarıyla doğru kullanılıyor mu?
 2. Savaşla tasavvufu yan yana koymak hassas bir konu. Erdemlerin savaşın kendisine değil, komutanın kendini tutmasına bağlanması bu kaygıyı karşılıyor mu?
 
-**Kullanıcıya:**
-1. Anlatıcı adsız mı kalsın, yoksa bir ad mı alsın?
-2. Alp Arslan'ın ölümü sefer haritasına girsin mi (§5.2 kapanış)?
-3. Anlatıcıya ses (seslendirme) istiyor muyuz?
+**Kullanıcı kararları (4 Ekim 2026):**
+- Anlatıcının adı Aydoğdu.
+- Seslendirme önce yapay sesle, sonra insan sesiyle.
+- Alp Arslan'ın ölümü sefer haritasına tek satır olarak girer.
+
+**Kullanıcıya açık:** yapay ses hizmetinin seçimi ve hesabı (§6a).
 
 ## 9. Kaynakça (doğrulanacak baskılar)
 
