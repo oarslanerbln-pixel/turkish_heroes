@@ -11,7 +11,7 @@ import { PauseScreen } from './PauseScreen'
 import { RotateOverlay } from './RotateOverlay'
 import { StartScreen } from './StartScreen'
 import { Ornament } from './Ornament'
-import { PERF_OVERLAY, QUALITY, useQuality } from '../perf/quality'
+import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import './hud.css'
 
@@ -190,7 +190,7 @@ function PerfBadge() {
       kalite {TIER_LABEL[tier]}
       {locked && ' (sabit)'}
       <br />
-      dpr {dpr.toFixed(2)}
+      dpr {dpr.toFixed(2)} · msaa {SESSION_MULTISAMPLING}
     </div>
   )
 }

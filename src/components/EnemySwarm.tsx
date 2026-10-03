@@ -1,12 +1,12 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
+import { Color, InstancedMesh, type Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { MODE_FORMATION } from '../mechanics/corps'
 import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import type { Enemy } from '../mechanics/types'
 import { isPlaying, simDelta, world } from '../sim/world'
 import { scenarioOf } from '../sim/scenarios'
-import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
+import { buildHorseGeometry, buildRiderGeometry, buildStandardGeometry } from '../characters/riderGeometry'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const ENEMY_PRIORITY = 1
@@ -24,6 +24,9 @@ const EMPEROR_COLOR = new Color('#e8b923')
 /** İmparator kalabalıkta seçilsin: biraz daha iri. */
 const EMPEROR_SCALE = 1.25
 
+/** Görsel temel ölçümü için (bkz. ArtProbe). */
+const UNIT = { unit: 'enemy' }
+
 /** Dörtnal: adım hızı (rad/sn), zıplama ve öne-arkaya yalpalama genliği. */
 const GALLOP_RATE = 9
 const GALLOP_BOB = 0.1
@@ -36,8 +39,13 @@ const DEATH_TIME = 1.1
 export function EnemySwarm() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
-  const horse = useMemo(buildHorseGeometry, [])
+  const standardRef = useRef<Mesh>(null)
+  const horse = useMemo(() => buildHorseGeometry('enemy'), [])
   const rider = useMemo(() => buildRiderGeometry('enemy'), [])
+  const standards = useMemo(
+    () => ({ romanos: buildStandardGeometry('romanos'), manuel: buildStandardGeometry('manuel') }),
+    [],
+  )
   const horseMaterial = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), [])
   const riderMaterial = useMemo(
     () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }),
@@ -64,7 +72,8 @@ export function EnemySwarm() {
   useFrame((_, delta) => {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
-    if (!horseMesh || !riderMesh) return
+    const standard = standardRef.current
+    if (!horseMesh || !riderMesh || !standard) return
     const dt = simDelta(delta)
 
     // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
@@ -89,6 +98,9 @@ export function EnemySwarm() {
     horseMesh.count = n
     riderMesh.count = n
     const time = world.animTime
+    // Sancak imparatorla birlikte yürür, devrilir, kaybolur; imparator yoksa görünmez.
+    standard.visible = false
+    standard.geometry = battle?.layout.pass ? standards.manuel : standards.romanos
 
     for (let i = 0; i < n; i++) {
       const e = world.enemies[i]
@@ -127,6 +139,12 @@ export function EnemySwarm() {
       dummy.updateMatrix()
       horseMesh.setMatrixAt(i, dummy.matrix)
       riderMesh.setMatrixAt(i, dummy.matrix)
+      if (e.emperor) {
+        standard.position.copy(dummy.position)
+        standard.rotation.copy(dummy.rotation)
+        standard.scale.copy(dummy.scale)
+        standard.visible = true
+      }
 
       if (e.emperor) color.copy(EMPEROR_COLOR)
       else if (battle && battle.mode[i] !== MODE_FORMATION) color.copy(CHARGE_COLOR)
@@ -151,13 +169,16 @@ export function EnemySwarm() {
         args={[horse, horseMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
       <instancedMesh
         ref={riderRef}
         args={[rider, riderMaterial, ENEMY_CAPACITY]}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
+      <mesh ref={standardRef} material={horseMaterial} castShadow visible={false} userData={UNIT} />
     </>
   )
 }

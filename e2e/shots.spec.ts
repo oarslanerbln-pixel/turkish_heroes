@@ -6,8 +6,7 @@ import { openShot, playToMoment, type Shot } from './shot.ts'
 // Görsel fark şimdilik yalnız CI çıktısı, birleştirmeyi durdurmaz. Her çekim
 // rapora ayrıca eklenir: PR şablonundaki önce/sonra tablosu buradan doldurulur.
 //
-// Henüz yok: R4 ilk vuruş ve R6 yığılma (oyuncu girdisi ister), R8/R9 sanat
-// açıları (sabit poz; faz 27'nin görsel temeliyle gelir).
+// Henüz yok: R4 ilk vuruş ve R6 yığılma (oyuncu girdisi ister).
 
 const VIEWS = {
   yatay: { width: 667, height: 375 },
@@ -19,6 +18,7 @@ interface RefShot {
   commander: Shot['commander']
   /** Yoksa menü çekimi: SAVAŞA GİR'e basılmaz. */
   moment?: Shot['moment']
+  pose?: Shot['pose']
   views: (keyof typeof VIEWS)[]
 }
 
@@ -32,6 +32,13 @@ const SHOTS: RefShot[] = [
   // Tohum 1071'de boşta kalan oyuncu Malazgirt'i kazanır, Miryokefalon'u kaybeder.
   { id: 'R7-zafer', commander: 'alp-arslan', moment: 'end', views: ['yatay', 'dikey'] },
   { id: 'R7-yenilgi', commander: 'kilicarslan', moment: 'end', views: ['yatay', 'dikey'] },
+  // Sanat açıları: oyun kamerası değil; model ve renk kararları bunlarla yargılanır.
+  { id: 'R8-yer-metehan', commander: 'metehan', moment: 6, pose: 'ground', views: ['yatay'] },
+  { id: 'R8-yer-malazgirt', commander: 'alp-arslan', moment: 6, pose: 'ground', views: ['yatay'] },
+  { id: 'R8-yer-miryokefalon', commander: 'kilicarslan', moment: 6, pose: 'ground', views: ['yatay'] },
+  { id: 'R9-genis-metehan', commander: 'metehan', moment: 6, pose: 'wide', views: ['yatay'] },
+  { id: 'R9-genis-malazgirt', commander: 'alp-arslan', moment: 6, pose: 'wide', views: ['yatay'] },
+  { id: 'R9-genis-miryokefalon', commander: 'kilicarslan', moment: 6, pose: 'wide', views: ['yatay'] },
 ]
 
 test.use({ hasTouch: true, isMobile: true, deviceScaleFactor: 1 })
@@ -42,7 +49,7 @@ for (const shot of SHOTS) {
       const name = `${shot.id}-${view}-${quality}`
       test(name, async ({ page }) => {
         await page.setViewportSize(VIEWS[view])
-        await openShot(page, { commander: shot.commander, moment: shot.moment ?? 0, quality })
+        await openShot(page, { commander: shot.commander, moment: shot.moment ?? 0, quality, pose: shot.pose })
         if (shot.moment !== undefined) await playToMoment(page)
         await test.info().attach(name, { body: await page.screenshot(), contentType: 'image/png' })
         await expect(page).toHaveScreenshot(`${name}.png`)

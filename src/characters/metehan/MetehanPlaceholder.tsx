@@ -27,7 +27,7 @@ export function MetehanPlaceholder() {
   const strideRef = useRef(0)
   const keys = useKeyboard()
   const touch = useTouchControls()
-  const horse = useMemo(buildHorseGeometry, [])
+  const horse = useMemo(() => buildHorseGeometry('hero'), [])
   const rider = useMemo(() => buildRiderGeometry('hero'), [])
 
   useFrame((_, delta) => {
@@ -112,7 +112,8 @@ export function MetehanPlaceholder() {
 
   return (
     <group ref={groupRef}>
-      <group ref={bodyRef}>
+      {/* Görsel temel ölçümü yalnız binici ve atı sayar, zemin halkasını değil (bkz. ArtProbe). */}
+      <group ref={bodyRef} userData={{ unit: 'player' }}>
         <mesh geometry={horse} castShadow>
           <meshStandardMaterial vertexColors roughness={0.8} />
         </mesh>

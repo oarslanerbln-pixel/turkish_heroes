@@ -6,7 +6,7 @@ import type { BattleState } from '../mechanics/corps'
 import { WING_CONFIG, type WingState } from '../mechanics/wings'
 import { simDelta, world } from '../sim/world'
 import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
-import { applyNearFade } from './world/nearFade'
+import { applyNearFade, nearFadeDepthMaterial } from './world/nearFade'
 
 // Selçuklu kolları sahada: her kol bir avuç atlı okçu.
 //
@@ -22,6 +22,8 @@ import { applyNearFade } from './world/nearFade'
 const VISUAL_PRIORITY = 3
 const RIDERS = WING_CONFIG.riders
 const COUNT = RIDERS * 2
+/** Görsel temel ölçümü için (bkz. ArtProbe). */
+const UNIT = { unit: 'ally' }
 
 /** Süvarinin yerine akma hızı (1/sn) ve yön dönüş hızı. */
 const FOLLOW_RATE = 3
@@ -52,7 +54,11 @@ const SKIRMISH_STAGGER = 0.15
 /** Tükenmek üzere olan kolun vur-kaçı, taze kolunkinin bu kadarına iner: ağırlaşır ama durmaz. */
 const SKIRMISH_TIRED = 0.5
 
-/** Ordugah kameraya yakın: pusudaki kol da onunla aynı mesafede incelir (bkz. Camp). */
+/**
+ * Pusudaki kol ordugahın yanında, kameraya yakın durabilir: atlı bütün olarak
+ * incelir. Bant ordugahınkinden (bkz. Camp) yakın — kol bir oyun birimi,
+ * yalnız gerçekten kameraya dayandığında kaybolsun.
+ */
 const FADE_NEAR = 20
 const FADE_FAR = 23
 
@@ -142,7 +148,7 @@ function turnToward(from: number, to: number, t: number): number {
 export function AlliedWings() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
-  const horse = useMemo(buildHorseGeometry, [])
+  const horse = useMemo(() => buildHorseGeometry('ally'), [])
   const rider = useMemo(() => buildRiderGeometry('ally'), [])
   const [horseMaterial, riderMaterial] = useMemo(() => {
     const h = new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })
@@ -151,14 +157,16 @@ export function AlliedWings() {
     applyNearFade(r, FADE_NEAR, FADE_FAR)
     return [h, r]
   }, [])
+  const depthMaterial = useMemo(() => nearFadeDepthMaterial(FADE_NEAR, FADE_FAR), [])
   useEffect(
     () => () => {
       horse.dispose()
       rider.dispose()
       horseMaterial.dispose()
       riderMaterial.dispose()
+      depthMaterial.dispose()
     },
-    [horse, rider, horseMaterial, riderMaterial],
+    [horse, rider, horseMaterial, riderMaterial, depthMaterial],
   )
 
   // Yalnızca çizim durumu: süvarinin konumu, yönü ve hızı.
@@ -242,14 +250,18 @@ export function AlliedWings() {
       <instancedMesh
         ref={horseRef}
         args={[horse, horseMaterial, COUNT]}
+        customDepthMaterial={depthMaterial}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
       <instancedMesh
         ref={riderRef}
         args={[rider, riderMaterial, COUNT]}
+        customDepthMaterial={depthMaterial}
         castShadow
         frustumCulled={false}
+        userData={UNIT}
       />
     </>
   )

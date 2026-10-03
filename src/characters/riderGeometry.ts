@@ -18,6 +18,12 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 /** Beyaz = boyanabilir: instanceColor bu parçalara olduğu gibi geçer. */
 const TINT = '#ffffff'
+const SHAFT = '#7a5c3a'
+/**
+ * Mızrak ve direk kalınlığı. Taktik kamerada bir birim ~13 piksel: 0,035
+ * birimlik mızrak yarım pikseldi, kenar yumuşatmada kayboluyordu (STIL.md §Siluet).
+ */
+const POLE = 0.09
 
 export interface Placement {
   x?: number
@@ -52,10 +58,22 @@ export function merge(parts: BufferGeometry[]): BufferGeometry {
   return merged
 }
 
-/** Doru at: gövde, boyun, baş, yele, dört bacak, kuyruk. */
-export function buildHorseGeometry(): BufferGeometry {
-  const coat = '#6b4426'
-  const dark = '#2e1d12'
+export type RiderStyle = 'enemy' | 'hero' | 'ally'
+
+/**
+ * At donu tarafı söyler (STIL.md §Değer): kahraman ak at — birlikler arasında
+ * tek açık leke; Selçuklu doru; Bizans yağız, en koyu. Yele ve kuyruk her
+ * donda gövdeden ayrı tonda: at, kutu değil at gibi okunsun.
+ */
+const COATS: Record<RiderStyle, { coat: string; dark: string }> = {
+  hero: { coat: '#e6dfd2', dark: '#8c8478' },
+  ally: { coat: '#4e2a17', dark: '#1e120a' },
+  enemy: { coat: '#262019', dark: '#0f0c0a' },
+}
+
+/** At: gövde, boyun, baş, yele, dört bacak, kuyruk. */
+export function buildHorseGeometry(style: RiderStyle): BufferGeometry {
+  const { coat, dark } = COATS[style]
   return merge([
     paint(new BoxGeometry(0.52, 0.55, 1.25), coat, { y: 0.95 }),
     // Pozitif rx üst ucu öne (+z) yatırır: boyun öne uzanır, baş aşağı bakar.
@@ -70,10 +88,8 @@ export function buildHorseGeometry(): BufferGeometry {
   ])
 }
 
-export type RiderStyle = 'enemy' | 'hero' | 'ally'
-
 /**
- * Binici. `enemy`: gövde, eyer örtüsü ve kalkan beyaz — disiplin rengi
+ * Binici. `enemy`: gövde, eyer örtüsü, kalkan ve flama beyaz — disiplin rengi
  * instanceColor ile gelir. `hero`: Metehan'ın sabit renkleri ve sırtında tuğ
  * (at kılı sancak): sürünün içinde tek bakışta bulunsun diye. `ally`: Selçuklu
  * atlı okçusu — komutanla aynı renk ailesi, daha koyu; mızrak yerine yay.
@@ -93,22 +109,63 @@ export function buildRiderGeometry(style: RiderStyle): BufferGeometry {
     paint(new ConeGeometry(0.15, 0.26, 6), metal, { y: 2.22, z: -0.08 }),
   ]
   if (ally) {
-    // Yay: sol elde, dikey; sırtı dışa dönük.
-    parts.push(paint(new TorusGeometry(0.42, 0.025, 4, 10, Math.PI), '#5a3a20', { x: -0.3, y: 1.6, z: 0.1, rz: Math.PI / 2 }))
+    // Yay: sol elde, dikey, kameraya dönük; açık boynuz rengi koyu doru ve
+    // kaftan üstünde seçilsin. Selçuklu atlısının imzası: mızrak yok, yay var.
+    parts.push(paint(new TorusGeometry(0.5, 0.06, 3, 8, Math.PI), '#a8773f', { x: -0.34, y: 1.6, z: 0.1, rz: Math.PI / 2 }))
+  } else if (hero) {
+    // Mızrak: ucu öne ve yukarı — kahraman saldırıda.
+    parts.push(paint(new BoxGeometry(POLE, POLE, 2.2), SHAFT, { x: 0.27, y: 1.75, z: 0.4, rx: -0.35 }))
   } else {
-    // Mızrak: ucu öne ve yukarı.
-    parts.push(paint(new BoxGeometry(0.035, 0.035, 2.0), '#7a5c3a', { x: 0.27, y: 1.75, z: 0.35, rx: -0.35 }))
+    // Bizans mızrağı dik, ucunun altında flama: sürü yukarıdan bir mızrak
+    // ormanı olarak okunur. Flama boyanabilir: düzen ve hamle rengini taşır.
+    parts.push(
+      paint(new BoxGeometry(POLE, 2.6, POLE), SHAFT, { x: 0.27, y: 2.3, z: 0.1 }),
+      paint(new BoxGeometry(0.32, 0.22, 0.02), TINT, { x: 0.47, y: 3.3, z: 0.1 }),
+    )
   }
   if (hero) {
-    // Tuğ: direk, altın tepelik, koyu at kılı püskül.
+    // Tuğ: direk, altın tepelik, koyu at kılı püskül — sürünün üstünde ilk
+    // görülen şey (kahramanın koyu yarısı; ak at açık yarısı).
     parts.push(
-      paint(new BoxGeometry(0.04, 1.5, 0.04), '#5a4630', { x: -0.2, y: 2.3, z: -0.3 }),
-      paint(new BoxGeometry(0.12, 0.12, 0.12), '#e9c46a', { x: -0.2, y: 3.08, z: -0.3 }),
-      paint(new ConeGeometry(0.16, 0.5, 6), '#2b1b12', { x: -0.2, y: 2.75, z: -0.3, rx: Math.PI }),
+      paint(new BoxGeometry(0.07, 1.9, 0.07), '#5a4630', { x: -0.2, y: 2.5, z: -0.3 }),
+      paint(new BoxGeometry(0.18, 0.18, 0.18), '#e9c46a', { x: -0.2, y: 3.5, z: -0.3 }),
+      paint(new ConeGeometry(0.26, 0.8, 6), '#2b1b12', { x: -0.2, y: 3.0, z: -0.3, rx: Math.PI }),
     )
   } else if (!ally) {
     // Yuvarlak kalkan, sol yanda.
-    parts.push(paint(new CylinderGeometry(0.2, 0.2, 0.05, 8), cloth, { x: -0.24, y: 1.55, rz: Math.PI / 2 }))
+    parts.push(paint(new CylinderGeometry(0.2, 0.2, 0.05, 6), cloth, { x: -0.24, y: 1.55, rz: Math.PI / 2 }))
+  }
+  return merge(parts)
+}
+
+export type Emperor = 'romanos' | 'manuel'
+
+/**
+ * İmparator sancağı: imparatorun yanında taşınan, ordunun üstüne çıkan direk.
+ * Altın binici ve iri ölçek tek başına kalabalıkta kayboluyordu. İki imparator
+ * ayrı okunsun: Romanos (Malazgirt) mor kare sancak, altın haç; Manuel
+ * (Miryokefalon) kızıl, çatal kuyruklu, altın kuşak. Tarihî arma iddiası yok —
+ * ayırt etme imzası (STIL.md §Siluet).
+ */
+export function buildStandardGeometry(emperor: Emperor): BufferGeometry {
+  const parts = [
+    paint(new BoxGeometry(POLE, 3.4, POLE), SHAFT, { x: 0.4, y: 2.6, z: 0.1 }),
+    paint(new BoxGeometry(1.0, POLE, POLE), SHAFT, { x: 0.4, y: 4.15, z: 0.1 }),
+    paint(new ConeGeometry(0.12, 0.3, 6), '#e9c46a', { x: 0.4, y: 4.45, z: 0.1 }),
+  ]
+  if (emperor === 'romanos') {
+    parts.push(
+      paint(new BoxGeometry(0.9, 0.95, 0.03), '#5b2a86', { x: 0.4, y: 3.62, z: 0.1 }),
+      paint(new BoxGeometry(0.14, 0.75, 0.05), '#e9c46a', { x: 0.4, y: 3.62, z: 0.1 }),
+      paint(new BoxGeometry(0.6, 0.14, 0.05), '#e9c46a', { x: 0.4, y: 3.72, z: 0.1 }),
+    )
+  } else {
+    parts.push(
+      paint(new BoxGeometry(0.9, 0.7, 0.03), '#9e1f1f', { x: 0.4, y: 3.75, z: 0.1 }),
+      paint(new BoxGeometry(0.3, 0.5, 0.03), '#9e1f1f', { x: 0.1, y: 3.15, z: 0.1 }),
+      paint(new BoxGeometry(0.3, 0.5, 0.03), '#9e1f1f', { x: 0.7, y: 3.15, z: 0.1 }),
+      paint(new BoxGeometry(0.9, 0.12, 0.05), '#e9c46a', { x: 0.4, y: 3.75, z: 0.1 }),
+    )
   }
   return merge(parts)
 }

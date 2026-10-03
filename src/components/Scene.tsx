@@ -1,8 +1,8 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { PerformanceMonitor, Stats } from '@react-three/drei'
-import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
-import { BlendFunction } from 'postprocessing'
+import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing'
+import { BlendFunction, ToneMappingMode } from 'postprocessing'
 import { Terrain } from './world/Terrain'
 import { Stones } from './world/Stones'
 import { Grass } from './world/Grass'
@@ -31,6 +31,7 @@ import { useAutoPause } from '../hooks/useAutoPause'
 import { TouchJoystick } from './TouchJoystick'
 import { CrashScreen } from './CrashScreen'
 import { ShotDirector } from './ShotDirector'
+import { ArtProbe } from './ArtProbe'
 import { useGameStore } from '../store/gameStore'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
 import { PLAYTEST } from '../playtest'
@@ -75,6 +76,8 @@ export function Scene() {
         {preset.bloom && (
           <Bloom luminanceThreshold={0.55} luminanceSmoothing={0.2} intensity={0.7} mipmapBlur />
         )}
+        {/* Işık yüksek dinamik aralıkta birikir; ekrana ACES eğrisiyle iner (STIL.md §Ton). */}
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         <Vignette offset={0.3} darkness={0.6} />
         {preset.noise && <Noise opacity={0.03} blendFunction={BlendFunction.OVERLAY} />}
       </>
@@ -96,12 +99,8 @@ export function Scene() {
           antialias: false,
           stencil: false,
           powerPreference: 'high-performance',
-          // Not: burada eskiden ACES ton eşlemesi vardı. EffectComposer
-          // renderer'ın ton eşlemesini kapatıyor ve ölçüldüğünde (ACES açık /
-          // kapalı) çıktı piksel parlaklığı birebir aynıydı — ayar hiç etki
-          // etmiyordu, yalnızca pencere boyutu değişince açılıp kapanıyordu.
-          // Gerçek ACES istenirse efekt zincirine <ToneMapping> eklenmeli; bu
-          // görünümü değiştirir, bilinçli bir sanat kararı olarak yapılmalı.
+          // Ton eşleme burada değil, efekt zincirinde: EffectComposer
+          // renderer'ınkini kapatıyor (bkz. effects).
         }}
         onCreated={({ gl, scene, invalidate }) => {
           if (import.meta.env.DEV) Object.assign(globalThis, { __gl: gl, __scene: scene })
@@ -141,6 +140,7 @@ export function Scene() {
           <DayCycle />
           <InvalidateOnFlow />
           {SHOT !== null && <ShotDirector moment={SHOT} />}
+          {SHOT !== null && <ArtProbe />}
           <Terrain />
           <Stones />
           <Grass />

@@ -46,14 +46,14 @@ const NOON: Keyframe = {
 // düşer, ordu kızıl ufka karşı siluet olur.
 const SUNSET: Keyframe = {
   sun: new Color('#ff7a3d'),
-  sunIntensity: 2.0,
-  sunPos: new Vector3(22, 9, -20),
+  sunIntensity: 2.8,
+  sunPos: new Vector3(22, 12, -20),
   haze: new Color('#d98553'),
   zenith: new Color('#3d4b7a'),
   disc: new Vector3(0.42, 0.06, -0.9).normalize(),
   sky: new Color('#ffb07a'),
   ground: new Color('#3b2418'),
-  hemi: 0.5,
+  hemi: 0.8,
   ambient: 0.22,
 }
 
