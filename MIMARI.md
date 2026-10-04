@@ -56,7 +56,7 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
                          b.events (kural kaydı) burada silinir; world.events'e sunum olayları itilir
                          sonunda stepTime: donma, ağır çekim süresi, hız rampası
 3   görseller            AlliedWings, ArrowVolley, StrikeSparks …
-5   FollowCamera         taktik kamera + açılış ve alacakaranlık çekimi
+5   CameraDirector       taktik kadraj + açılış ve alacakaranlık çekimi, çekimler arası geçiş
 6   CameraShake          sarsıntı
 7   kameraya bakanlar    CorpsBanners, DustTrails (kameranın bu karedeki yönü)
 9   EventFlush           world.events boşalır
@@ -77,7 +77,8 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
   - `world` 0,08 sn'de bir `syncHud` ile zustand'a, oradan DOM'a gider; mod her eşitlemede kopyalanır. Savaşın bittiği kare eşitlemeyi zorlar.
   - HUD düğmeleri store eylemlerini çağırır; eylem önce `world`'ü, sonra `set()` ile store'u değiştirir.
 - **Kamera:**
-  - Tek gerçek yazıcı FollowCamera; CameraShake onun üstüne ekler.
+  - Tek gerçek yazıcı CameraDirector; CameraShake onun üstüne yönlü sarsıntı ekler (`shake.ts`, rastgele yok).
+  - Taktik kadraj `tacticalCamera.ts`'te saf: 38° eğim, bakış oyuncunun 3 birim önünde, yaya doğru 1,5 birim.
   - fov'u kimse yazmıyor.
   - `cameraShots.ts` saf ve testli eğriler içeriyor.
 - **Oklar:**
@@ -188,6 +189,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
     - Hedef fonksiyonlu bir çekim yığını tutar.
     - fov, yakın soluklaşma, sarsıntı ve `world.cinematic` ağırlığı onundur.
 - Zaman: **faz 27'nin çekirdeği**
+- **Durum (4 Ekim 2026): ilk yarı kapandı.** FollowCamera → `CameraDirector`; kesilen çekim son çizilen duruştan 1 sn süzülür (`cameraShots.ts` `applyBlend`). K1–K3 kapandı. Hareketli hedefli çekim yığını ve fov ok kamerasıyla gelir; ihtiyaç orada doğuyor.
 
 **G2 · Kolların tacizi oyuncunun oku olarak çiziliyor**
 - Kanıt: `corps.ts:715`, `ArrowVolley.tsx:59,69-70`
@@ -757,7 +759,8 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
   - Durum (3 Ekim 2026): V1, V3, V4, V5, V6 yapıldı. R3/R5'te her grup ortanca |ΔL| 0,16–0,23 (önce 0,08–0,13), iki kademede `art.spec.ts` yeşil; Metehan yüksek 81,6k → 53,5k üçgen. Ölçüt işaretsiz |ΔL|: kahraman bilerek iki tonlu (STIL.md §2).
   - Açık: M2 telefon ölçümü (`?quality=low&perf` ile `&msaa=2`, karar kuralı STIL.md §11) ve senin görsel onayın.
 - Sonra sırasıyla:
-  1. G1 kamera yönetmeni ve kompozisyon (K1–K3). Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
+  1. ~~G1 kamera yönetmeni ve kompozisyon (K1–K3).~~ Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
+     - Durum (4 Ekim 2026): yapıldı. K1 ~%25 → ~%8 (`tacticalCamera.test.ts`). K2: R3'te HUD altındaki cephe Malazgirt %2,9 → 0, Miryokefalon %8,3 → 0; ordunun HUD altındaki payı %26 → %7 / %20 (`art.spec.ts` kadraj). K3: geçiş testi `cameraShots.test.ts`, yönlü sarsıntı `shake.test.ts`. Eğim 45° → 38°; 36° cepheyi daha açıyordu ama R5'te kahraman |ΔL| 0,12'ye düşüyordu.
   2. Ok kamerası
   3. Savaş açılış çekimi, letterbox ve atlama
   4. Ağır çekim sesi
@@ -857,9 +860,9 @@ S4 doğrulandı: O1–O3 sayıları botlarda enerji donması olmayan, daha kolay
 | V6 | Orta | Ton eşleme yok: EffectComposer `NoToneMapping` kuruyor, ACES ayarı ölü. Renk derecelendirmenin önkoşulu. | `Scene.tsx:91-96` |
 | V7 | Düşük | Gölge çerçevesi orijine sabit (±35); kanyona özgü ışık dizisi yok. | `DayCycle.tsx:100-103, 147-166` |
 | V8 | Orta | Cinzel küçük harfleri noktasız küçük büyük harf: karışık harfli metinde i = ı. "→" yedek yazıya düşüyor. 7–10,5 px Cinzel metinler var. | woff harf tablosu, `hud.css` |
-| K1 | Orta | İleriye bakış 180° dönüşte oyuncuyu ekranda ~%25 yükseklik savuruyor. | `FollowCamera.tsx:19`, `hilalSystem.ts:41` |
-| K2 | Orta | 667×375'te düşman cephesi üst kenarda, HUD'un altında. | ekran görüntüsü, Malazgirt t≈6 |
-| K3 | Orta | Tek eğim, sabit fov 55. Sarsıntı ±3,7 px yönsüz gürültü. Kesilen çekim sert kesme yapıyor. | `CameraShake.tsx:21-26`, `cameraShots.ts:91-92` |
+| ~~K1~~ | Orta | **Kapandı (G1).** İleriye bakış 180° dönüşte oyuncuyu ekranda ~%25 yükseklik savuruyor. | `FollowCamera.tsx:19`, `hilalSystem.ts:41` |
+| ~~K2~~ | Orta | **Kapandı (G1).** 667×375'te düşman cephesi üst kenarda, HUD'un altında. | ekran görüntüsü, Malazgirt t≈6 |
+| ~~K3~~ | Orta | **Kapandı (G1); fov açık.** Tek eğim, sabit fov 55. Sarsıntı ±3,7 px yönsüz gürültü. Kesilen çekim sert kesme yapıyor. | `CameraShake.tsx:21-26`, `cameraShots.ts:91-92` |
 
 ### 10.3 UX ve erişilebilirlik
 

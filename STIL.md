@@ -193,13 +193,17 @@ HUD'un arkasına düşüyor. Kameraya yakın yapılar noktalı (dither) incelir:
 
 - **Taktik kadraj okunabilirlik içindir.** Düşman cephesi HUD'un altında
   kalmaz (K2); oyuncu 180° dönüşte ekranda ≤%10 yükseklik kayar (K1).
+  Eğim 38°, bakış oyuncunun 3 birim önünde (`tacticalCamera.ts`); bekçisi
+  `art.spec.ts` kadraj.
 - **Sinematik kadraj değer yapısını kullanır.** Ordu ufka karşı (koyu üstüne
   açık); geniş planda ufuk kadrajda olur, yoksa ordu pusa karışır (§2, R9).
 - **Ön plan çerçeveler.** Ordugah, kayalar, kanyon duvarı sinematik çekimde
   kadrajın kenarını tutar; taktikte incelir.
 - **Kahraman tek açık leke** olduğu için her kadrajda gözün ilk durağıdır;
   sinematik kompozisyon onu üçte bir çizgilerine koyar, ortalamaz.
-- Sarsıntı vuruş yönünde olur; bugünkü yönsüz gürültü (K3) G1'de kalkar.
+- Sarsıntı vuruş yönünde olur: hilal vuruşu yay yönünde ileri-geri, yara
+  dikey (`shake.ts`). Rastgele gürültü yok.
+- Kesilen çekim sert kesmez; son çizilen duruştan 1 sn süzülür.
 - Her çekim: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı.
 
 ## 10. Bütçe

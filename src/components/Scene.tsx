@@ -20,7 +20,7 @@ import { TuningPanel } from './TuningPanel'
 import { MetehanPlaceholder } from '../characters/metehan/MetehanPlaceholder'
 import { CameraShake } from './CameraShake'
 import { CrescentPreview } from './CrescentPreview'
-import { FollowCamera } from './FollowCamera'
+import { CameraDirector } from './CameraDirector'
 import { EnemySwarm } from './EnemySwarm'
 import { GameDirector } from './GameDirector'
 import { EventFlush } from './EventFlush'
@@ -164,7 +164,7 @@ export function Scene() {
             </>
           )}
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
-          <FollowCamera />
+          <CameraDirector />
           <CameraShake />
           <EventFlush />
           {/*

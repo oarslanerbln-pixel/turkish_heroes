@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useGameStore } from './gameStore'
 import { haptic } from '../audio/sfx'
-import { shakeStrength } from '../components/shake'
+import { Vector3 } from 'three'
+import { shakeOffset } from '../components/shake'
 import { resetWorld, world } from '../sim/world'
+
+const shake = (reduced: boolean) => shakeOffset(world, reduced, new Vector3()).length()
 
 describe('hareketi azalt', () => {
   afterEach(() => {
@@ -25,11 +28,11 @@ describe('hareketi azalt', () => {
     resetWorld()
     world.strikeTimer = 0.2
     world.hurtTimer = 0.1
-    expect(shakeStrength(world, false)).toBeGreaterThan(0)
-    expect(shakeStrength(world, true)).toBe(0)
+    expect(shake(false)).toBeGreaterThan(0)
+    expect(shake(true)).toBe(0)
     world.strikeTimer = 0
-    expect(shakeStrength(world, false)).toBeGreaterThan(0)
-    expect(shakeStrength(world, true)).toBe(0)
+    expect(shake(false)).toBeGreaterThan(0)
+    expect(shake(true)).toBe(0)
   })
 
   it('oyuncu titreşimi kapatınca titreşmez', async () => {
