@@ -55,7 +55,8 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
 2   GameDirector         kurallar ve olaylar → ses, duyuru, ağır çekim, kamera işareti
                          b.events (kural kaydı) burada silinir; world.events'e sunum olayları itilir
                          sonunda stepTime: donma, ağır çekim süresi, hız rampası
-3   görseller            AlliedWings, ArrowVolley, StrikeSparks …
+3   görseller            AlliedWings, ArrowVolley …
+4   StrikeSparks         vuruş ve ok kamerasındaki saplanma olaylarını okur
 5   CameraDirector       taktik kadraj + açılış ve alacakaranlık çekimi, çekimler arası geçiş
 6   CameraShake          sarsıntı
 7   kameraya bakanlar    CorpsBanners, DustTrails (kameranın bu karedeki yönü)
@@ -189,7 +190,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
     - Hedef fonksiyonlu bir çekim yığını tutar.
     - fov, yakın soluklaşma, sarsıntı ve `world.cinematic` ağırlığı onundur.
 - Zaman: **faz 27'nin çekirdeği**
-- **Durum (4 Ekim 2026): ilk yarı kapandı.** FollowCamera → `CameraDirector`; kesilen çekim son çizilen duruştan 1 sn süzülür (`cameraShots.ts` `applyBlend`). K1–K3 kapandı. Hareketli hedefli çekim yığını ve fov ok kamerasıyla gelir; ihtiyaç orada doğuyor.
+- **Durum (4 Ekim 2026): ilk yarı kapandı.** FollowCamera → `CameraDirector`; kesilen çekim son çizilen duruştan 1 sn süzülür (`cameraShots.ts` `applyBlend`). K1–K3 kapandı. Hareketli hedefli ilk çekim ok kamerası (`arrowShot.ts`); fov hâlâ sabit 55, ihtiyaç doğana dek.
 
 **G2 · Kolların tacizi oyuncunun oku olarak çiziliyor**
 - Kanıt: `corps.ts:715`, `ArrowVolley.tsx:59,69-70`
@@ -635,7 +636,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 
 | Fikir | Ne yapar | Ne gerekir | Maliyet → etki |
 |---|---|---|---|
-| **Ok kamerası** (planlı) | Önemli bir atışta kamera oka atılır, uçarken etrafında döner, vuruşta ağır çekimde biter. | S2 + G1 + S3 | orta → çok yüksek |
+| **Ok kamerası** (yapıldı, 4 Ekim 2026) | Önemli bir atışta kamera oka atılır, uçarken etrafında döner, vuruşta ağır çekimde biter. | S2 + G1 + S3 | orta → çok yüksek |
 | **Ağır çekim ses tasarımı** | Ağır çekime girerken alçak geçiren süzgeç, perde düşüşü, nefes ve kalp atışı. `sfx.ts`'teki `sample(…, lowpassHz)` zaten hazır. | — | çok düşük → yüksek |
 | **Karar anı tekrarı** | Sonuç ekranından önce savaşı kazandıran 4 sn, başka bir açıdan ve ağır çekimde. | Tam deterministik simülasyon gerekmez: son ~6 sn'deki birim konumlarını halka bir bellekte tutmak yeter (~48 birim × 30 Hz × 6 sn ≈ 100 KB). | orta → yüksek |
 | **Renk derecelendirme** | Savaş başına bir LUT (Malazgirt: sıcak toz; Miryokefalon: soğuk dağ geçidi), hafif vinyet ve film greni. | Yalnızca yüksek kademede; G3'e dikkat. | düşük → orta |
@@ -761,7 +762,8 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 - Sonra sırasıyla:
   1. ~~G1 kamera yönetmeni ve kompozisyon (K1–K3).~~ Kabul: 180° dönüşte oyuncunun ekran kayması ≤%10 yükseklik; R3/R4'te düşman cephesi HUD'un altında kalmaz; kesilen çekim sert kesme yapmaz.
      - Durum (4 Ekim 2026): yapıldı. K1 ~%25 → ~%8 (`tacticalCamera.test.ts`). K2: R3'te HUD altındaki cephe Malazgirt %2,9 → 0, Miryokefalon %8,3 → 0; ordunun HUD altındaki payı %26 → %7 / %20 (`art.spec.ts` kadraj). K3: geçiş testi `cameraShots.test.ts`, yönlü sarsıntı `shake.test.ts`. Eğim 45° → 38°; 36° cepheyi daha açıyordu ama R5'te kahraman |ΔL| 0,12'ye düşüyordu.
-  2. Ok kamerası
+  2. ~~Ok kamerası~~
+     - Durum (4 Ekim 2026): yapıldı (`arrowShot.ts`). Tetik savaş başına en çok iki: oyuncunun ilk tacizi ve imparatorun açığa çıkışı (merkeze giden ilk ok); ok 2,5 sn içinde kalkmazsa istek düşer. Kamera 0,6 sn'de oka iner, ok ağır çekimde uçarken arkasından yana ~80° döner, saplanınca yükselip vuruş yerine bakar (kıvılcım), 0,7 sn bekler ve 1,1 sn'de taktiğe döner; toplam ~4,5 sn. Süren çekimi kesmez, hareketi azaltta kapalı. Yeni bir dokunuş ya da tuş her çekimi atlar (`skipShot`): açılış ve gün batımı dahil. Referans anlarına (R3 6 sn, R5 104 sn) düşmez: hareketsiz oyuncuda ilk taciz Malazgirt'te 50–70, Miryokefalon'da 20–40 sn arası.
   3. Savaş açılış çekimi, letterbox ve atlama
   4. Ağır çekim sesi
   5. Renk derecelendirme (yüksek kademe; görsel temeldeki ton eşlemeye bağlı)

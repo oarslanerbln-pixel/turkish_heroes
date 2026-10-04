@@ -18,6 +18,11 @@ export interface Arrow {
   tz: number
   /** Bırakıldığı an (world.animTime); yuva yeniden kullanılınca değişir. */
   t0: number
+  /**
+   * Yere saplandıktan sonra çizilmeye devam ettiği süre (sim sn). Yalnız ok
+   * kamerasının izlediği ok saplı kalır: kamera ona bakarken kaybolmasın.
+   */
+  stick: number
 }
 
 export const arrows: Arrow[] = Array.from({ length: ARROW_POOL }, () => ({
@@ -28,7 +33,13 @@ export const arrows: Arrow[] = Array.from({ length: ARROW_POOL }, () => ({
   tx: 0,
   tz: 0,
   t0: 0,
+  stick: 0,
 }))
+
+/** Ok havada ya da saplı, yani çiziliyor mu. */
+export function arrowVisible(a: Arrow): boolean {
+  return a.age < ARROW_FLIGHT + a.stick
+}
 
 /** Okun havadaki konumu ve hız vektörü (uçuş yönü; birim değil). */
 export function arrowPose(a: Arrow, pos: Vector3, vel: Vector3): void {

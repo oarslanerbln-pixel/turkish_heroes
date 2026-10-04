@@ -21,6 +21,16 @@ import { canEnter, type FlowMode } from './flow'
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
 export type CameraCue = 'intro' | 'dusk'
 
+/**
+ * Ok kamerası isteği (bkz. components/arrowShot.ts): oyuncunun bu birliğe
+ * (null: herhangi birine) bırakacağı ilk ok izlenir. Ok `wait` gerçek saniye
+ * içinde kalkmazsa ya da başka bir çekim sürüyorsa istek düşer.
+ */
+export interface ArrowCue {
+  corps: number | null
+  wait: number
+}
+
 export interface World {
   /** Oynanan komutan; senaryo kuralları buna göre seçilir (sim/scenarios.ts). */
   commander: CommanderId
@@ -131,6 +141,7 @@ export interface World {
    * boşaltır; simülasyonu etkilemez.
    */
   cameraCue: CameraCue | null
+  arrowCue: ArrowCue | null
   /** Savaş bitince yazılan karne (bkz. debrief/debrief.ts); savaş sürerken null. */
   debrief: Debrief | null
   /** Bu zaferle kilidi açılan komutan — sonuç ekranı onu doğrudan önerir. */
@@ -197,6 +208,7 @@ function initialWorld(commander: CommanderId): World {
     announceQueue: [],
     stars: 0,
     cameraCue: null,
+    arrowCue: null,
     debrief: null,
     unlocked: null,
     lore: null,

@@ -19,7 +19,7 @@ export const DUSK_FALL = 1.5
 /** Kesilen çekimden yenisine geçiş (sn): son çizilen duruştan süzülür (K3). */
 export const BLEND_TIME = 1
 
-function smoothstep(t: number): number {
+export function smoothstep(t: number): number {
   const x = Math.min(1, Math.max(0, t))
   return x * x * (3 - 2 * x)
 }
@@ -40,6 +40,9 @@ export function shotDone(cue: CameraCue, t: number): boolean {
   return cue === 'intro' ? t >= INTRO_TIME : t >= DUSK_RISE + DUSK_HOLD + DUSK_FALL
 }
 
+/** Süren çekim: senaryonun işaretleri ya da ok kamerası (arrowShot.ts). */
+export type ShotCue = CameraCue | 'arrow'
+
 /** Kameranın konumu ve baktığı nokta. */
 export interface Pose {
   pos: Vector3
@@ -48,7 +51,7 @@ export interface Pose {
 
 /** Yönetmenin çekim durumu (bkz. CameraDirector). */
 export interface ShotState {
-  cue: CameraCue | null
+  cue: ShotCue | null
   /** Çekim başlayalı geçen gerçek süre. */
   t: number
   /** Geçişin başladığı duruş: çekim kesildiği an çizilen kare. */
@@ -65,7 +68,7 @@ export function createShotState(from: Pose): ShotState {
  * Yeni çekim. Süren bir çekimi keserse eğri baştan başlar; kamera oraya
  * atlamasın diye son çizilen duruştan süzülür.
  */
-export function startShot(s: ShotState, cue: CameraCue, rendered: Pose): void {
+export function startShot(s: ShotState, cue: ShotCue, rendered: Pose): void {
   if (s.cue) beginBlend(s, rendered)
   s.cue = cue
   s.t = 0
@@ -78,6 +81,13 @@ export function startShot(s: ShotState, cue: CameraCue, rendered: Pose): void {
 export function resetShot(s: ShotState): void {
   s.cue = null
   s.blend = BLEND_TIME
+}
+
+/** Oyuncu dokundu: çekim biter, kamera son çizilen duruştan taktik kadraja süzülür. */
+export function skipShot(s: ShotState, rendered: Pose): void {
+  if (!s.cue) return
+  beginBlend(s, rendered)
+  s.cue = null
 }
 
 function beginBlend(s: ShotState, rendered: Pose): void {

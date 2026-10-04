@@ -11,6 +11,7 @@ import {
   createShotState,
   shotDone,
   shotWeight,
+  skipShot,
   startShot,
   type Pose,
 } from './cameraShots'
@@ -21,7 +22,7 @@ const pose = (x: number, y: number, z: number): Pose => ({ pos: new Vector3(x, y
  * CameraDirector'ın çekim adımlarını sabit duruşlarla oynatır; her karenin
  * kamera konumunu döner. `cutAt` anında süren çekim açılışla kesilir.
  */
-function film(first: CameraCue, cutAt: number, blend: boolean): Vector3[] {
+function film(first: CameraCue, cutAt: number, blend: boolean, skipAt = Infinity): Vector3[] {
   const tactical = pose(0, 17, 22)
   const cine: Record<CameraCue, Pose> = { intro: pose(6, 5.5, 14), dusk: pose(0, 9, 24) }
   const shot = createShotState(pose(0, 0, 0))
@@ -34,9 +35,10 @@ function film(first: CameraCue, cutAt: number, blend: boolean): Vector3[] {
       if (!blend) shot.cue = null
       startShot(shot, 'intro', out)
     }
+    if (Math.abs(t - skipAt) < dt / 2) skipShot(shot, out)
     out.pos.copy(tactical.pos)
     out.look.copy(tactical.look)
-    if (shot.cue) {
+    if (shot.cue && shot.cue !== 'arrow') {
       shot.t += dt
       const w = shotWeight(shot.cue, shot.t)
       out.pos.lerp(cine[shot.cue].pos, w)
@@ -96,6 +98,16 @@ describe('sinematik çekimler', () => {
     // Kesintisiz bir çekimin en hızlı adımından belirgin hızlı değil.
     const uncut = Math.max(maxStep(film('dusk', Infinity, true)), maxStep(film('intro', Infinity, true)))
     expect(smooth).toBeLessThanOrEqual(1.5 * uncut)
+  })
+
+  it('dokununca çekim atlanır, kamera taktiğe süzülür', () => {
+    const skipAt = DUSK_RISE + DUSK_HOLD / 2
+    const frames = film('dusk', Infinity, true, skipAt)
+    const uncut = maxStep(film('dusk', Infinity, true))
+    expect(maxStep(frames)).toBeLessThanOrEqual(1.5 * uncut)
+    // BLEND_TIME sonra taktik duruşta; gün batımı kendi başına hâlâ alçakta olurdu.
+    const i = Math.round((skipAt + BLEND_TIME) * 60) + 1
+    expect(frames[i].distanceTo(new Vector3(0, 17, 22))).toBeLessThan(1e-6)
   })
 
   it('geçiş BLEND_TIME sonunda biter, çekim kaldığı yerden sürer', () => {

@@ -3,7 +3,7 @@ import { Vector3 } from 'three'
 import { ARROW_FLIGHT, arrowPose, type Arrow } from './arrowPool'
 
 describe('ok yayı', () => {
-  const arrow = (age: number): Arrow => ({ age, sx: 0, sy: 2, sz: 0, tx: 10, tz: -6, t0: 0 })
+  const arrow = (age: number): Arrow => ({ age, sx: 0, sy: 2, sz: 0, tx: 10, tz: -6, t0: 0, stick: 0 })
   const pos = new Vector3()
   const vel = new Vector3()
 

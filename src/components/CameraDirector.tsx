@@ -1,9 +1,32 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { isPlaying, newBattleWatch, world } from '../sim/world'
 import { useGameStore } from '../store/gameStore'
-import { applyBlend, createShotState, resetShot, shotDone, shotWeight, startShot, type Pose } from './cameraShots'
+import { arrows } from './arrowPool'
+import {
+  ARROW_SLOWMO,
+  arrowChasePose,
+  arrowDone,
+  arrowHolding,
+  arrowTracked,
+  arrowWeight,
+  beginArrow,
+  createArrowShot,
+  endArrow,
+  findRelease,
+  trackArrow,
+} from './arrowShot'
+import {
+  applyBlend,
+  createShotState,
+  resetShot,
+  shotDone,
+  shotWeight,
+  skipShot,
+  startShot,
+  type Pose,
+} from './cameraShots'
 import { TACTICAL_OFFSET, followLook, tacticalTarget } from './tacticalCamera'
 import { nearFadeEye, nearFadeStrength } from './world/nearFade'
 import { SHOT_POSE, SHOT_POSES } from '../shot'
@@ -47,10 +70,29 @@ export function CameraDirector() {
   const smooth = useMemo(() => new Vector3(), [])
   const started = useMemo(() => ({ value: false }), [])
   const shot = useMemo(() => createShotState(pose()), [])
+  const arrowShot = useMemo(createArrowShot, [])
+  /** Oyuncu çekim sırasında dokundu ya da tuşa bastı: çekim atlanır. */
+  const skip = useMemo(() => ({ value: false }), [])
   const cine = useMemo(pose, [])
   /** Bu karenin duruşu; bir sonraki karede kesilen çekimin geçiş başlangıcı. */
   const out = useMemo(pose, [])
   const newBattle = useMemo(newBattleWatch, [])
+
+  useEffect(() => {
+    const onPointer = () => {
+      skip.value = true
+    }
+    // Basılı tutulan tuşun tekrarı yeni bir istek değil.
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.repeat) skip.value = true
+    }
+    window.addEventListener('pointerdown', onPointer, true)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer, true)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [skip])
 
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.1)
@@ -67,11 +109,33 @@ export function CameraDirector() {
     followLook(smooth, target, dt, !started.value)
     started.value = true
 
+    // Çekim girdiyi kilitlemez; oyuncu yeni bir dokunuşla geri alır. Çekimden
+    // önceki dokunuş sayılmaz (SAVAŞA GİR'in kendisi açılışı atlamasın).
+    if (skip.value) {
+      skip.value = false
+      if (isPlaying()) skipShot(shot, out)
+    }
+
     // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
     // Hareketi azaltta çekim oynamaz: kamera süzülmek yerine taktik kadraja keser.
     if (world.cameraCue && isPlaying()) {
       if (!reducedMotion) startShot(shot, world.cameraCue, out)
       world.cameraCue = null
+    }
+
+    // Ok kamerası süren çekimi kesmez; istenen ok o sırada kalkarsa istek düşer.
+    if (world.arrowCue) {
+      const cue = world.arrowCue
+      cue.wait -= dt
+      const release =
+        isPlaying() && !reducedMotion && !shot.cue ? findRelease(world.events, cue.corps) : undefined
+      if (release) {
+        beginArrow(arrowShot, release, arrows[release.slot])
+        startShot(shot, 'arrow', out)
+        world.arrowCue = null
+      } else if (reducedMotion || cue.wait <= 0) {
+        world.arrowCue = null
+      }
     }
 
     out.pos.copy(smooth).add(TACTICAL_OFFSET)
@@ -86,6 +150,17 @@ export function CameraDirector() {
       resetShot(shot)
       out.pos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
       out.look.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+    } else if (shot.cue === 'arrow') {
+      shot.t += dt
+      const arrow = arrows[arrowShot.slot]
+      trackArrow(arrowShot, arrow, shot.t)
+      // Ok kaybolursa (yuva başka oka geçti) kamera son duruşunda bekler.
+      if (arrowTracked(arrowShot, arrow)) arrowChasePose(arrow, arrowShot.side, world.battle?.layout.pass ?? false, cine)
+      weight = arrowWeight(arrowShot, shot.t)
+      if (arrowHolding(arrowShot, shot.t)) world.slowmo = Math.max(world.slowmo, ARROW_SLOWMO)
+      out.pos.lerp(cine.pos, weight)
+      out.look.lerp(cine.look, weight)
+      if (arrowDone(arrowShot, shot.t)) shot.cue = null
     } else if (shot.cue) {
       // Gerçek zaman: gün batımının ağır çekimi çekimi uzatmasın.
       shot.t += dt
@@ -101,6 +176,7 @@ export function CameraDirector() {
       out.look.lerp(cine.look, weight)
       if (shotDone(shot.cue, shot.t)) shot.cue = null
     }
+    if (shot.cue !== 'arrow') endArrow(arrowShot, arrows)
     applyBlend(shot, dt, out)
     // Sinematik kadrajda ordugah ön planı çerçeveler; taktikte HUD'un arkasında incelir.
     nearFadeStrength.value = 1 - weight

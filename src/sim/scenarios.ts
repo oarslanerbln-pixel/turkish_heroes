@@ -11,6 +11,7 @@ import {
   afterStrike,
   BATTLE_CONFIG,
   battleSiege,
+  CENTER,
   battleStars,
   countSurrendered,
   resolveBattle,
@@ -196,6 +197,14 @@ const FIRST_CHARGE_SLOWMO = 0.45
 const SUNSET_SLOWMO = 0.9
 
 /**
+ * Ok kamerası (bkz. components/arrowShot.ts) savaş başına en çok iki kez:
+ * oyuncunun ilk tacizi (oklar düzeni bozar, bu anlatılsın) ve imparatorun
+ * açığa çıkışı (merkeze giden ilk ok). Ok bu süre (gerçek sn) içinde
+ * kalkmazsa istek düşer: oyuncu menzilden çıkmış olabilir.
+ */
+const ARROW_CUE_WAIT = 2.5
+
+/**
  * Ordu düzeninde savaş: Alp Arslan (Malazgirt, açık bozkır, gün batımında
  * dönüş) ve II. Kılıçarslan (Miryokefalon, geçitte kol). Kurallar ortak;
  * farkı savaş alanı düzeni (corps.ts BattleLayout) taşır.
@@ -244,6 +253,7 @@ const battle: Scenario = {
         case 'harass':
           // İpucu oyuncu başına bir kez: ikinci savaşta artık biliyor.
           if (takeHint('harass')) announce(EVENT_TEXT.harass)
+          w.arrowCue = { corps: null, wait: ARROW_CUE_WAIT }
           break
         case 'charge':
           play('charge')
@@ -283,6 +293,7 @@ const battle: Scenario = {
         case 'emperorExposed':
           play('horn')
           announce(eventText(b, event))
+          w.arrowCue = { corps: CENTER, wait: ARROW_CUE_WAIT }
           break
         case 'blockade':
           play('rockslide')

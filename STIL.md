@@ -204,6 +204,8 @@ HUD'un arkasına düşüyor. Kameraya yakın yapılar noktalı (dither) incelir:
 - Sarsıntı vuruş yönünde olur: hilal vuruşu yay yönünde ileri-geri, yara
   dikey (`shake.ts`). Rastgele gürültü yok.
 - Kesilen çekim sert kesmez; son çizilen duruştan 1 sn süzülür.
+- Ok kamerası okun arkasından yana döner, saplanırken yükselir: alçakta
+  kalan kamera saflığın içine gömülür. Vuruş kıvılcımla okunur.
 - Her çekim: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı.
 
 ## 10. Bütçe
