@@ -751,7 +751,11 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - T10: yirmi dört beyin hepsi "on bin atlı" unvanlı, büyükleri on bin, küçükleri birkaç bin atlı yönetir; kataphrakt kartının kaynağı Praecepta Militaria; Romanos önce tahtını (Ekim 1071), sonra gözlerini (Haziran 1072) kaybeder.
     - T12: sayfa tanımında "gerçek taktikleriyle" yerine "taktiklerinden esinlenen".
     - `lore.test`: kartlarda yasak ifadeler (Manuel … istedi, kaya, öncü durdu, kolun başı dur, teslim oldu, Türk yurdu, kalıcı).
-    - Kalan: T3 çerçeve cümlesi ve T13 bağlam satırları HIKAYE.md §7 adım 2'de. PAZARLAMA.md'nin tek cümlesi ("gerçek taktiklerini", akşamı bekleme) T5 ile birlikte düzelir.
+    - Kalan: PAZARLAMA.md'nin tek cümlesi ("gerçek taktiklerini", akşamı bekleme) T5 ile birlikte düzelir.
+  - **Yapıldı (5 Ekim 2026, `claude/hikaye-anlatici`, HIKAYE.md §7 adım 2):**
+    - T3 çerçeve cümlesi: Metehan bağlamı "Türk tarih geleneği ona Mete Han der".
+    - T13'ün ilk parçası: her brifing bir bağlam satırı ve Aydoğdu'nun satırıyla açılır; sonuç ekranında Aydoğdu'nun zafer ya da yenilgi satırı var.
+    - `lore.test` yasak ifadeleri hikâye metinlerinde de arar. Düzen bekçisi iki satır sınırını ve yatay telefonda adımların görünmesini denetler.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
 - **2f Denge (yalnız simülasyon):**
   1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).

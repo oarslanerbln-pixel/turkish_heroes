@@ -44,11 +44,25 @@ describe('tarih notları — kurallar', () => {
     }
   })
 
-  it('kartlar kaynakla çelişmez, sonuçtan geriye bakmaz (MIMARI.md §10.7)', () => {
+  it('kartlar ve hikâye kaynakla çelişmez, sonuçtan geriye bakmaz (MIMARI.md §10.7)', () => {
     // T1 barışı sultan önerdi; T2 öncü geçti, yolu kesen kaya kurgu; T6 ordu
     // dağıldı; T7 teleoloji yok. Oyunun YOLU KES'i kaya yığınıdır, kart değil.
     const banned = [/Manuel[^.]*istedi/, /kaya/i, /öncü durdu/i, /kolun başı dur/i, /teslim oldu/i, /Türk yurdu/i, /kalıcı/i]
-    for (const c of LORE) for (const b of banned) expect(`${c.title}. ${c.text}`, c.id).not.toMatch(b)
+    const texts = [
+      ...LORE.map((c) => [c.id, `${c.title}. ${c.text}`]),
+      ...COMMANDERS.map((c) => [c.id, [c.context, c.narrator, c.outcome.victory, c.outcome.defeat].join(' ')]),
+    ]
+    for (const [id, text] of texts) for (const b of banned) expect(text, id).not.toMatch(b)
+  })
+
+  it('her brifing bir bağlam satırıyla açılır, Aydoğdu her savaşı anlatır (HIKAYE.md §7)', () => {
+    for (const c of COMMANDERS) {
+      for (const text of [c.context, c.narrator, c.outcome.victory, c.outcome.defeat]) {
+        expect(text.trim().length, c.id).toBeGreaterThan(0)
+      }
+    }
+    // T3: Mete'nin Modu olduğu olgu değil, Türk tarih geleneğinin kabulü.
+    expect(COMMANDERS.find((c) => c.id === 'metehan')?.context).toMatch(/Türk tarih geleneği/)
   })
 
   it('her komutanın en az dört kartı var', () => {

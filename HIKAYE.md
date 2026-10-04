@@ -110,6 +110,21 @@ Her savaş için dört metin var:
 - **Yenilgi:** "Darda düzen tutulmaz; ama acele eden de darda kalır."
 - **Hikmet kartı:** ölçü ve kanaat üzerine bir Kutadgu Bilig beyti. Odgurmış'ın (kanaatin) sözlerinden biri, künyesiyle.
 
+### 5.4 Oyundaki satırlar (§7 adım 2)
+
+Brifing paneli dar (masaüstünde 316 px, yatay telefonda 230 px). Taslaklar bu yüzden kısaldı. Anlam aynı kaldı, ama oyundaki hâl de onay bekliyor.
+
+| Savaş | Bağlam | Aydoğdu | Zafer | Yenilgi |
+|---|---|---|---|---|
+| Mete | "MÖ 209: Modu Hun tahtına çıktı; Türk tarih geleneği ona Mete Han der." | "Atını da eşini de verdi; toprak istenince atlandı. Sabır, zamanı bilmektir." | "Yay ancak gerilince ok atar. Gerilmeyi bilen kazandı." | "Erken bırakılan ok boşa gider. Bir daha dene; bu sefer bekle." |
+| Alp Arslan | "26 Ağustos 1071: Alp Arslan, Romanos Diogenes'i Malazgirt'te karşıladı." | "Cuma vaktini bekledi; elinden geleni yaptı, gerisini bıraktı." | "Elinden geleni yaptın; gerisini akşam getirdi." | "Akşamı bekleyemeyen, sabahın zaferini de göremez." |
+| Kılıçarslan | "17 Eylül 1176: İmparator Manuel, Miryokefalon'da Tzivritze geçidine girdi." | "Sultan kolu dar yerde bekledi. Asıl sınav savaştan sonra geldi." | "Güç elindeyken durmayı bilen, iki kez kazanır." | "Darda düzen tutulmaz; ama acele eden de darda kalır." |
+
+Notlar:
+- Kefen rivayeti (T8) ve "yurt devletin temelidir" aktarması oyunda yok. Biri rivayet çerçevesi ister, öteki doğrulanmamış bir alıntı; ikisi de iki satıra sığmıyor.
+- Kılıçarslan'ın satırında "yolu kesti" yerine "kolu bekledi" var (T2: öncü geçti, kesilen yol kurgu).
+- Alp Arslan ile Kılıçarslan'ın zafer satırları yeni. Taslaktaki uzun zafer metinleri sonuç ekranı anlarıdır (§7 adım 4).
+
 ## 6. Sefer finali ve Mete epiloğu (T13)
 
 **Final.** Üç durak bittikten sonra kısa bir kapanış: kervan bir Anadolu kasabasına varır ve Aydoğdu ocağı söndürür.
@@ -175,6 +190,7 @@ Her adım ayrı PR olarak yapılır.
    - `mechanics/scenario.ts` içindeki `CommanderInfo`'ya `context`, `narrator` ve `outcome: { victory, defeat }` alanları eklenir.
    - Brifing ve OutcomeScreen bu alanları gösterir.
    - `lore.test` genişler: her komutanın bağlamı ve anlatıcısı olmalı, yasak ifadeler hiçbir metinde geçmemeli.
+   - **Yapıldı (5 Ekim 2026, `claude/hikaye-anlatici`):** metinler §5.4'te. Yatay telefonda brifingin bağlam, anlatıcı ve adımları birlikte kayar.
 3. **Hikmet kartları:** `lore.ts` içinde `{ text, source: { work, edition, ref } }` yapısı. `source.ref` boş olan kart üretim derlemesinde gösterilmez; bunu bir test korur.
 4. **Sonuç ekranı anları:** Romanos'un bağışlanması ve Kılıçarslan'ın barış önerisi. Zaferden sonra bir kez gösterilen, geçilebilir kısa bir kart.
 5. **Sefer finali ve Mete epiloğu.**
@@ -184,7 +200,7 @@ Her adım ayrı PR olarak yapılır.
 **Erişilebilirlik:**
 - Anlatıcı satırları ekran okuyucuya okunur.
 - Sonuç ekranı kartları dokunarak geçilebilir.
-- Metinler en fazla iki satırdır (brifing düzen bekçisi).
+- Metinler geniş ve dikey ekranda en fazla iki satırdır. Yatay telefonda brifing gövdesi kayar ve adımların başı görünür kalır. İkisini de düzen bekçisi (`e2e/layout.spec.ts`) denetler.
 
 ## 8. Açık sorular
 

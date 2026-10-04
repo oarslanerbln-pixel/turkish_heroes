@@ -5,6 +5,7 @@ import type { Debrief, TimelineMark } from '../debrief/debrief'
 import { LORE, type LoreCard } from '../lore/lore'
 import { earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
+import { Narrator } from './Narrator'
 import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 import { DataConsent } from './DataConsent'
@@ -57,6 +58,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
         </div>
         {captured && <div className="epilogue">{EPILOGUE[commander]}</div>}
+        <Narrator text={commanderInfo(commander).outcome[outcome]} className="outcome-narrator" />
 
         <div className="outcome-scroll">
           <div className="result-stats">

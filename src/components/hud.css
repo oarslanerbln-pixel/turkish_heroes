@@ -1098,6 +1098,51 @@
   letter-spacing: 0.08em;
 }
 
+/*
+ * Brifing gövdesi: hikâye (tarih gerçeği, anlatıcı) ve adımlar. Kısa ekranda
+ * birlikte kayar; başlık ve SAVAŞA GİR yerinde kalır.
+ */
+.brief-body {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+/* Tarih gerçeği ve anlatıcı (HIKAYE.md §3): geniş ve dikey ekranda en çok iki satır. */
+.brief-context {
+  margin: 0;
+  color: var(--ivory-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.narrator {
+  margin: 0;
+  color: var(--ivory-soft);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.narrator-name {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.brief-narrator {
+  padding-left: 10px;
+  border-left: 1px solid rgb(var(--metal-rgb) / 0.25);
+}
+
+.outcome-narrator {
+  max-width: 460px;
+}
+
 .brief-steps {
   margin: 0;
   padding: 0;
@@ -1468,8 +1513,11 @@
  */
 @media (max-height: 340px) {
   .menu-brand .ornament, .menu-tagline { display: none; }
-  /* Brifingde eksen ve komutan satırı düşer: ikisi de yandaki haritada seçili düğümde yazıyor. */
-  .menu-brief .brief-axis, .menu-brief .brief-sub { display: none; }
+  /*
+   * Brifingde eksen ve tarih satırı düşer: eksen, yıl ve yer yandaki haritada
+   * seçili düğümde yazıyor. Anlatıcı kalır; adımlar onun altında kayar.
+   */
+  .menu-brief .brief-axis, .menu-brief .brief-context { display: none; }
   .strike-touch { bottom: calc(20px + var(--safe-bottom)); }
   .is-touch .wings { bottom: calc(120px + var(--safe-bottom)); }
   /*
@@ -1540,6 +1588,8 @@
   .menu-panel { gap: 7px; }
   .menu-brand .ornament, .menu-tagline { display: none; }
   .sefer { aspect-ratio: auto; height: 148px; }
+  /* Brifing kalan yüksekliğe sığar, gövdesi kayar (bkz. kısa ekran brifingi). */
+  .menu-brief { flex: 0 1 auto; min-height: 0; }
 }
 
 /* ---- Sonuç: yıldızlar ---- */
@@ -2305,16 +2355,35 @@
   padding: 11px 44px;
 }
 
-/* Kısa ekranlı telefonlar (yatay) — menüleri sıkıştır. */
-@media (max-height: 460px) {
-  /*
-   * Menü brifingi: başlık, SAVAŞA GİR ve alt satır yerinde durur, adımlar
-   * kendi içinde kayar. Panelin tamamı kayınca SAVAŞA GİR'in otomatik odağı
-   * onu düğmeye kaydırıyor, başlık görünmüyordu.
-   */
+/*
+ * Kısa ekran brifingi (yatay telefon, kısa dikey telefon): başlık, SAVAŞA GİR
+ * ve alt satır yerinde durur; hikâye ve adımlar gövdede birlikte kayar. Panelin
+ * ya da menünün tamamı kayınca SAVAŞA GİR'in otomatik odağı onu düğmeye
+ * kaydırıyor, başlık ve harita görünmüyordu. Komutan satırı düşer: haritada
+ * seçili düğümde yazıyor, yeri hikâyeye kalsın.
+ */
+@media (max-height: 460px), (max-aspect-ratio: 1/1) and (max-height: 700px) {
   .menu-brief { overflow: hidden; }
   .menu-brief > * { flex-shrink: 0; }
-  .menu-brief .brief-steps { flex-shrink: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+  .menu-brief .brief-sub { display: none; }
+  /*
+   * Alt kenar solar: kaydırma çubuğu yok, gövdenin devam ettiğini solma söyler.
+   * Dolgu solan şeride denk; sona kayınca son satır solmaz.
+   */
+  .menu-brief .brief-body {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding-bottom: 14px;
+    mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+  }
+}
+
+/* Kısa ekranlı telefonlar (yatay) — menüleri sıkıştır. */
+@media (max-height: 460px) {
+  /* Anlatıcı adımlarla aynı boyda: dar panelde adımların başı görünür kalsın. */
+  .menu-brief .brief-narrator { font-size: 12px; }
   .screen { gap: 10px; }
   .screen h1 { font-size: clamp(36px, 7vw, 56px); }
   .result-title { font-size: clamp(34px, 6vw, 48px); }
