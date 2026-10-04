@@ -119,8 +119,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
 /** Üç yıldızın (imparator / Manuel) tarihteki sonucu. */
 const EPILOGUE: Partial<Record<string, string>> = {
   'alp-arslan': 'Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.',
-  kilicarslan:
-    "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
+  kilicarslan: 'Sultan barış önerdi; Manuel sınır kalelerini yıkmayı kabul edip ordusunu geri çekti.',
 }
 
 /**

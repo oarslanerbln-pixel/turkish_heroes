@@ -35,7 +35,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
   {
     id: 'metehan',
     name: 'Metehan',
-    battle: 'Hilal taktiği · MÖ 209',
+    battle: 'Hilal taktiği · MÖ 209–200',
     axis: 'NASIL',
     question: 'Düşmanı nasıl kuşatırsın?',
     steps: [

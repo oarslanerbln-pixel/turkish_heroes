@@ -44,6 +44,13 @@ describe('tarih notları — kurallar', () => {
     }
   })
 
+  it('kartlar kaynakla çelişmez, sonuçtan geriye bakmaz (MIMARI.md §10.7)', () => {
+    // T1 barışı sultan önerdi; T2 öncü geçti, yolu kesen kaya kurgu; T6 ordu
+    // dağıldı; T7 teleoloji yok. Oyunun YOLU KES'i kaya yığınıdır, kart değil.
+    const banned = [/Manuel[^.]*istedi/, /kaya/i, /öncü durdu/i, /kolun başı dur/i, /teslim oldu/i, /Türk yurdu/i, /kalıcı/i]
+    for (const c of LORE) for (const b of banned) expect(`${c.title}. ${c.text}`, c.id).not.toMatch(b)
+  })
+
   it('her komutanın en az dört kartı var', () => {
     for (const c of COMMANDERS) expect(loreOf(c.id).length, c.id).toBeGreaterThanOrEqual(4)
   })

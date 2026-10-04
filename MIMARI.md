@@ -742,6 +742,16 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - Kalan: gerçek telefonda his (titreşim süreleri, flaş şiddeti) ve D5 (limiter, ayrı ses sürgüleri) düşük önemde açık.
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
+  - **Yapıldı (5 Ekim 2026, `claude/tarih-duzeltmeleri`):**
+    - T1: barışı sultan önerir (elçi Gabras); kart, sonuç ekranı, karne ve geçit duyurusu.
+    - T2: geçit kartında öncü geçidi az kayıpla aşar, darbe arkadan gelen kola iner. YOLU KES'in kaya yığını oyun kuralı olarak kalır; kartlarda geçmez.
+    - T4: Metehan kartı "MÖ 209–200" (tahta çıkıştan Baideng'e).
+    - T6: Malazgirt karnesinde ordu dağılır.
+    - T7: "Türk yurdu oldu" kalktı. Son kart: Manuel yenilgiyi Malazgirt'e benzetti; Miryokefalon yaylayı geri alma çabalarının son büyük seferi.
+    - T10: yirmi dört beyin hepsi "on bin atlı" unvanlı, büyükleri on bin, küçükleri birkaç bin atlı yönetir; kataphrakt kartının kaynağı Praecepta Militaria; Romanos önce tahtını (Ekim 1071), sonra gözlerini (Haziran 1072) kaybeder.
+    - T12: sayfa tanımında "gerçek taktikleriyle" yerine "taktiklerinden esinlenen".
+    - `lore.test`: kartlarda yasak ifadeler (Manuel … istedi, kaya, öncü durdu, kolun başı dur, teslim oldu, Türk yurdu, kalıcı).
+    - Kalan: T3 çerçeve cümlesi ve T13 bağlam satırları HIKAYE.md §7 adım 2'de. PAZARLAMA.md'nin tek cümlesi ("gerçek taktiklerini", akşamı bekleme) T5 ile birlikte düzelir.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
 - **2f Denge (yalnız simülasyon):**
   1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).
