@@ -72,6 +72,14 @@ Hex değerleri kodda tek yerde; buradaki tablo özet. L = OKLab L.
 | Hamle | `#ff2a12` doygun kırmızı | 0,64 |
 | İmparator | `#e8b923` altın | 0,81 |
 
+**Durum** (`palette.ts`; HUD'da `--ready`)
+
+| Öğe | Renk |
+|---|---|
+| Hilal şarj | `#ffd700` altın |
+| Hilal hazır | `#5ef2e0` parlak turkuaz |
+| Düşman hamlesi | `#ff2a12` (yukarıda) |
+
 Metehan'ın düşmanı (savaş dışı dalgalar): düzen `#6b7d99` çelik mavisi,
 dağılmış `#d04a3a`.
 

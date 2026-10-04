@@ -7,6 +7,7 @@ import type { Enemy } from '../mechanics/types'
 import { isPlaying, simDelta, world } from '../sim/world'
 import { scenarioOf } from '../sim/scenarios'
 import { buildHorseGeometry, buildRiderGeometry, buildStandardGeometry } from '../characters/riderGeometry'
+import { CHARGE_COLOR as CHARGE } from './palette'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const ENEMY_PRIORITY = 1
@@ -19,7 +20,7 @@ const BROKEN_COLOR = new Color('#d04a3a')
 // daha doygun: "bu asker şimdi üstüne geliyor" düzen renginden ayırt edilsin.
 const BYZANTINE_COLOR = new Color('#6a3a96')
 const BYZANTINE_BROKEN = new Color('#b0605a')
-const CHARGE_COLOR = new Color('#ff2a12')
+const CHARGE_COLOR = new Color(CHARGE)
 const EMPEROR_COLOR = new Color('#e8b923')
 /** İmparator kalabalıkta seçilsin: biraz daha iri. */
 const EMPEROR_SCALE = 1.25

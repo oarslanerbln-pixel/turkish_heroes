@@ -19,6 +19,9 @@
   --velvet-rgb: 85 26 31;
   --indigo: #3d57a3;
   --ember: #ff5a1a;
+  /* Hilal hazır: Selçuklu turkuazının parlak tonu (palette.ts READY_COLOR). Kırmızı düşmanın hamlesidir. */
+  --ready: #5ef2e0;
+  --ready-rgb: 94 242 224;
   --health: #5a9b45;
   --danger: #d23b2b;
   --font-display: 'Cinzel', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
@@ -160,6 +163,28 @@
   transition: width 0.12s linear, background-color 0.3s ease;
 }
 
+/* Düşük can: renk yanında doku da söyler (U7). */
+.bar.is-low > span {
+  background-image: repeating-linear-gradient(
+    135deg, rgba(0, 0, 0, 0.38) 0 4px, transparent 4px 8px);
+}
+
+/* Yara: ekran kenarı kızarır ve söner (HurtFlash). Yalnız solar. */
+.hurt-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%,
+    rgba(210, 40, 30, 0) 55%, rgba(210, 40, 30, 0.5) 100%);
+  opacity: 0;
+  animation: hurt-flash 0.5s ease-out;
+}
+
+@keyframes hurt-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .contact {
   color: var(--ember);
   animation: blink 0.8s steps(2, start) infinite;
@@ -263,12 +288,12 @@
 }
 
 .energy.is-ready .bar {
-  border-color: var(--ember);
+  border-color: var(--ready);
   animation: glow 1s ease-in-out infinite;
 }
 
 .energy.is-ready .bar > span {
-  background: var(--ember);
+  background: var(--ready);
 }
 
 .strike-btn {
@@ -285,9 +310,9 @@
 
 .strike-btn.is-live {
   color: var(--ink);
-  background: var(--ember);
-  border-color: var(--ember);
-  box-shadow: 0 0 18px rgba(255, 90, 26, 0.55);
+  background: var(--ready);
+  border-color: var(--ready);
+  box-shadow: 0 0 18px rgb(var(--ready-rgb) / 0.55);
 }
 
 /* ---- Sağ alt: dokunmatik vuruş ---- */
@@ -309,8 +334,8 @@
 
 .strike-touch.is-live {
   color: var(--ink);
-  background: var(--ember);
-  border-color: var(--ember);
+  background: var(--ready);
+  border-color: var(--ready);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -1459,6 +1484,31 @@
 }
 
 /* Dikey telefon: paneller alt alta, sahne üstte görünür kalır. */
+/* Menüde ses ve titreşim: yatayda iki panelin arasında, üstte. */
+.menu-settings {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  /* Dikeyde paneller tam genişlik: düğmeler sefer panelinin başlığını iki yandan çevreler. */
+  .menu-settings {
+    left: calc(28px + var(--safe-left));
+    right: calc(28px + var(--safe-right));
+    top: calc(30px + var(--safe-top));
+    transform: none;
+    flex-direction: row;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .menu-settings > * { pointer-events: auto; }
+}
+
 @media (max-aspect-ratio: 1/1) {
   .menu {
     flex-direction: column;
@@ -2323,12 +2373,12 @@
 }
 
 @keyframes glow {
-  50% { box-shadow: 0 0 14px rgba(255, 90, 26, 0.7); }
+  50% { box-shadow: 0 0 14px rgb(var(--ready-rgb) / 0.7); }
 }
 
 @keyframes pulse {
-  50% { box-shadow: 0 0 0 10px rgba(255, 90, 26, 0); transform: scale(1.04); }
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 26, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgb(var(--ready-rgb) / 0); transform: scale(1.04); }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--ready-rgb) / 0.5); }
 }
 
 @keyframes banner {

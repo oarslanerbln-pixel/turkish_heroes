@@ -6,6 +6,7 @@ import { Ornament } from './Ornament'
 import { LockIcon, ScrollIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
 import { SeferMap } from './SeferMap'
+import { SettingsButtons } from './SettingsButtons'
 
 /**
  * Ana menü — savaş seçimi. Arkada seçilen savaşın açılış karesi durur
@@ -55,6 +56,10 @@ export function StartScreen({ touch }: { touch: boolean }) {
         </section>
 
         <Briefing key={commander} id={commander} touch={touch} />
+
+        <div className="menu-settings">
+          <SettingsButtons />
+        </div>
       </div>
     </div>
   )

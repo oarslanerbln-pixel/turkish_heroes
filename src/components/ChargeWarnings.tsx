@@ -4,6 +4,7 @@ import { BufferGeometry, Float32BufferAttribute, InstancedMesh, MeshBasicMateria
 import { MODE_CHARGE, MODE_TELEGRAPH } from '../mechanics/corps'
 import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import { world } from '../sim/world'
+import { CHARGE_COLOR } from './palette'
 
 // Hamle uyarısı: uyarıdaki askerden oyuncuya uzanan kırmızı zemin kaması
 // (tasarım belgesi: "askerler kırmızıya döner, yerde bir koni belirir").
@@ -36,7 +37,7 @@ export function ChargeWarnings() {
   const material = useMemo(
     () =>
       new MeshBasicMaterial({
-        color: '#ff2a12',
+        color: CHARGE_COLOR,
         transparent: true,
         opacity: 0.45,
         depthWrite: false,
