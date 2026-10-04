@@ -8,7 +8,7 @@ import type { BattleState } from '../mechanics/corps'
 import { wingHarass, type WingState } from '../mechanics/wings'
 import { isPlaying, newBattleWatch, simDelta, world } from '../sim/world'
 import { terrainHeight } from './world/terrainShape'
-import { ARROW_FLIGHT, ARROW_POOL, arrowPose, arrows } from './arrowPool'
+import { ARROW_FLIGHT, ARROW_POOL, arrowPose, arrowVisible, arrows } from './arrowPool'
 
 // Ok yağmuru: taciz edilen birliğe okçularından yay çizen oklar.
 // Taciz mekaniğin çekirdeği ama kendi başına görünmez bir sayı (düzen düşüşü);
@@ -47,7 +47,10 @@ export function ArrowVolley() {
     const b = world.battle
 
     if (newBattle()) {
-      for (const a of arrows) a.age = ARROW_FLIGHT
+      for (const a of arrows) {
+        a.age = ARROW_FLIGHT
+        a.stick = 0
+      }
       budget.current = 0
     }
 
@@ -65,10 +68,13 @@ export function ArrowVolley() {
           const target = pickSoldier(ci)
           if (!target) break
           const wing = Math.random() * c.harass < fromWings ? pickWing(b, ci) : null
-          const slot = next.current
+          let slot = next.current
+          // Ok kamerasının izlediği saplı ok yerinde kalsın; havuzda en çok bir tane olur.
+          if (arrowVisible(arrows[slot]) && arrows[slot].stick > 0) slot = (slot + 1) % ARROW_POOL
           const a = arrows[slot]
           next.current = (slot + 1) % ARROW_POOL
           a.age = 0
+          a.stick = 0
           a.t0 = world.animTime
           if (wing) {
             a.sx = wing.pos.x + (Math.random() - 0.5) * WING_SPREAD
@@ -88,6 +94,8 @@ export function ArrowVolley() {
             origin: { x: a.sx, z: a.sz },
             target: { x: a.tx, z: a.tz },
             t0: a.t0,
+            corps: ci,
+            byPlayer: !wing,
           })
         }
       })
@@ -100,8 +108,10 @@ export function ArrowVolley() {
 
     let n = 0
     for (const a of arrows) {
-      if (a.age >= ARROW_FLIGHT) continue
+      if (!arrowVisible(a)) continue
+      const flying = a.age < ARROW_FLIGHT
       a.age += dt
+      if (flying && a.stick > 0 && a.age >= ARROW_FLIGHT) world.events.push({ type: 'arrowLanded', x: a.tx, z: a.tz })
       arrowPose(a, dummy.position, vel)
       dummy.lookAt(vel.add(dummy.position))
       dummy.updateMatrix()

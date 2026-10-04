@@ -6,10 +6,14 @@ import type { QualityTier } from '../perf/quality'
 import { newBattleWatch, simDelta, world } from '../sim/world'
 
 // Yönetmenden (2) sonra: o karenin vuruş olayından düşenlerin konumunu okur.
-const VISUAL_PRIORITY = 3
+// Ok yağmurundan (3) sonra: izlenen okun saplanma olayını da.
+const VISUAL_PRIORITY = 4
 
 /** Düşen başına kıvılcım; ucuz kademe daha az çizer. */
 const PER_KILL: Record<QualityTier, number> = { high: 14, medium: 9, low: 5 }
+/** Ok kamerasında saplanan okun kıvılcımı, düşen başınakinin oranı: vuruştan küçük. */
+const ARROW_SHARE = 0.6
+const ARROW_SPEED = 0.6
 /** Havuz: 38 kişilik dalganın tamamı bir vuruşta düşse de yeter. */
 const POOL = 540
 const LIFE = 0.8
@@ -59,23 +63,24 @@ export function StrikeSparks() {
 
     if (newBattle()) for (const s of sparks) s.age = LIFE
 
-    for (const ev of world.events) {
-      if (ev.type !== 'strike') continue
-      for (const k of ev.victims) {
-        for (let j = 0; j < perKill; j++) {
-          const s = sparks[cursor.current]
-          cursor.current = (cursor.current + 1) % POOL
-          const a = Math.random() * Math.PI * 2
-          const out = 1.5 + Math.random() * 2.5
-          s.age = 0
-          s.x = k.x
-          s.y = 1.2 + Math.random() * 0.6
-          s.z = k.z
-          s.vx = Math.cos(a) * out
-          s.vz = Math.sin(a) * out
-          s.vy = 3 + Math.random() * 5
-        }
+    const burst = (x: number, z: number, count: number, speed: number) => {
+      for (let j = 0; j < count; j++) {
+        const s = sparks[cursor.current]
+        cursor.current = (cursor.current + 1) % POOL
+        const a = Math.random() * Math.PI * 2
+        const out = (1.5 + Math.random() * 2.5) * speed
+        s.age = 0
+        s.x = x
+        s.y = 1.2 + Math.random() * 0.6
+        s.z = z
+        s.vx = Math.cos(a) * out
+        s.vz = Math.sin(a) * out
+        s.vy = (3 + Math.random() * 5) * speed
       }
+    }
+    for (const ev of world.events) {
+      if (ev.type === 'strike') for (const k of ev.victims) burst(k.x, k.z, perKill, 1)
+      else if (ev.type === 'arrowLanded') burst(ev.x, ev.z, Math.round(perKill * ARROW_SHARE), ARROW_SPEED)
     }
 
     // Hitstop'ta sıfır: kıvılcımlar doğdukları yerde asılı kalır, donma bitince saçılır.

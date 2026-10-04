@@ -15,8 +15,22 @@ export type WorldEvent =
   /**
    * Taciz oku bırakıldı. slot ok havuzundaki yeri (bkz. arrowPool); havuz
    * döndüğü için okuyan, yuvanın hâlâ bu oku taşıdığını t0 ile doğrular.
+   * corps vurulan birlik; byPlayer oku oyuncu mu attı, yoksa bir kol mu.
    */
-  | { type: 'arrowReleased'; slot: number; origin: Vec2; target: Vec2; t0: number }
+  | {
+      type: 'arrowReleased'
+      slot: number
+      origin: Vec2
+      target: Vec2
+      t0: number
+      corps: number
+      byPlayer: boolean
+    }
+  /**
+   * Ok kamerasının izlediği ok saplandı. Yalnız o: her taciz okunda kıvılcım
+   * olsaydı ok yağmuru gürültüye dönerdi.
+   */
+  | { type: 'arrowLanded'; x: number; z: number }
   /** Bir birlik hamleye kalktı; pos hamle edenlerin ortası. */
   | { type: 'charge'; corps: number; pos: Vec2 }
   /** Kırılan dalganın artığı kaçıyor. */
