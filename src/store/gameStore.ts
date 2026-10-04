@@ -4,7 +4,7 @@ import type { Outcome } from '../mechanics/combat'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scenario'
-import { announce, enterMode, isPlaying, resetWorld, world } from '../sim/world'
+import { announce, enterMode, isPlaying, resetWorld, world, type CameraCue } from '../sim/world'
 import type { FlowMode } from '../sim/flow'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
@@ -77,6 +77,11 @@ interface GameState extends HudSnapshot {
    * kayan/büyüyen animasyonları kapalı. Şimdilik işletim sisteminin tercihi.
    */
   reducedMotion: boolean
+  /**
+   * Savaş açılış çekimi sürüyor: sinema şeritleri iner, savaş arayüzü bekler.
+   * Yazarı CameraDirector; atlanınca ya da çekim bitince kalkar.
+   */
+  cinematic: boolean
   /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
   archive: CommanderId | null
   syncHud: (snapshot: HudSnapshot) => void
@@ -166,6 +171,24 @@ if (urlCommander) resetWorld(urlCommander)
 const reducedMotionQuery =
   typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
 
+/** Bu oturumda açılış uçuşu oynamış savaşlar: aynı savaşa dönüşte kısa açılış yeter. */
+const openingsSeen = new Set<CommanderId>()
+
+/** Savaşa girişin çekimi: oturumdaki ilk girişte uçuş, sonra kısa açılış. */
+function entryCue(id: CommanderId): CameraCue {
+  if (openingsSeen.has(id)) return 'intro'
+  openingsSeen.add(id)
+  return 'opening'
+}
+
+/**
+ * Açılış uçuşu oynayacak mı. Şeritler savaşın ilk render'ında insin: yoksa
+ * arayüz bir kare görünüp kaybolurdu. Sonrasını CameraDirector sürdürür.
+ */
+function flies(reducedMotion: boolean): boolean {
+  return world.cameraCue === 'opening' && !reducedMotion
+}
+
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
 export function isCommanderAvailable(id: CommanderId): boolean {
   return id === urlCommander || isUnlocked(id)
@@ -180,6 +203,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   haptics: hapticsEnabled(),
   hurtPulse: 0,
   reducedMotion: reducedMotionQuery?.matches ?? false,
+  cinematic: false,
   archive: null,
 
   // Mod da her eşitlemede kopyalanır: savaşın bittiği kare sonucu ve karneyi
@@ -207,8 +231,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     startAmbience()
     enterMode('playing')
     // Açılış çekimi yalnızca menüden girerken: YENİDEN'de oyuncu hemen oynamak ister.
-    world.cameraCue = 'intro'
-    set({ mode: world.mode, archive: null })
+    world.cameraCue = entryCue(world.commander)
+    set({ mode: world.mode, archive: null, cinematic: flies(get().reducedMotion) })
   },
 
   enterBattle: (id) => {
@@ -312,8 +336,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Savaş hemen başlar: yeni savaş alanı, açılış çekimiyle.
     resetWorld(id)
     enterMode('playing')
-    world.cameraCue = 'intro'
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, mode: world.mode })
+    world.cameraCue = entryCue(id)
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, mode: world.mode, cinematic: flies(get().reducedMotion) })
   },
 
   backToMenu: () => {
