@@ -23,6 +23,8 @@ export interface Enemy {
    * İmparator, muhafızları dağılana kadar böyle.
    */
   guarded?: boolean
+  /** Baideng'de Gaozu'nun arbaletli muhafızı (bkz. baideng.ts). */
+  guard?: boolean
   /** Savaş alanını terk etti — düşmedi; ölüm animasyonu oynatılmaz. */
   fled?: boolean
   /**

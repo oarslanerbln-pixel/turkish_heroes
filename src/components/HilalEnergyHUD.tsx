@@ -50,10 +50,16 @@ const PHASE_COLOR: Record<HilalPhase, string> = {
 }
 
 /** Dalga bannerının alt satırı — oyuncuya neyin değiştiğini söyler. */
+/**
+ * Dalga başlığının alt satırı: Mete'nin seferleri Shiji 110'daki sırayla
+ * (doğuda Donghu, batıda Yüeçi, güneyde Loufan ve Baiyang, sonra Baideng)
+ * ve o dalganın yeni kuralı.
+ */
 const WAVE_HINT = [
-  'Düşmanı peşine tak, düzenini boz',
-  'Düşman artık daha çabuk toparlanıyor',
-  'Son dalga — ordunun tamamı karşında',
+  'Doğu Hu — düşmanı peşine tak, düzenini boz',
+  'Yüeçi — bir kol yandan dolanıp kaçış yolunu kesiyor',
+  'Loufan ve Baiyang — düşman daha çabuk toparlanıyor',
+  "Baideng, MÖ 200 — Gaozu'nun arbaletleri: kırmızı halkadan çık",
 ]
 
 /**

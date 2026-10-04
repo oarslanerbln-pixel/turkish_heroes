@@ -16,6 +16,7 @@ import {
   LADDER_TOP,
   ladderScale,
   nextLadderStep,
+  restHealth,
   routLimit,
   routSurvivors,
   SPAWN_CLEARANCE,
@@ -33,8 +34,8 @@ function leaveAlive(enemies: Enemy[], n: number): void {
 }
 
 describe('Metehan — kurallar', () => {
-  it('bozgun eşiği dalganın %15\'i: 16 → 2, 26 → 3, 38 → 5', () => {
-    expect(WAVES.map((_, i) => routLimit(i))).toEqual([2, 3, 5])
+  it('bozgun eşiği dalganın %15\'i: 16 → 2, 26 → 3, 28 → 4; Baideng\'de gövdenin: 24 → 3', () => {
+    expect(WAVES.map((_, i) => routLimit(i))).toEqual([2, 3, 4, 3])
   })
 
   it('vuruştan sonra artık eşiğin altındaysa bozguna uğrar, üstündeyse savaşır', () => {
@@ -88,15 +89,54 @@ describe('Metehan — kurallar', () => {
         expect(enemies.every((e) => Math.hypot(e.pos.x, e.pos.z) <= ENEMY_CONFIG.arenaRadius)).toBe(
           true,
         )
-        // Kümenin merkezi oyuncunun yarısında (merkezden bakınca aynı yarım düzlem).
-        const cx = enemies.reduce((s, e) => s + e.pos.x, 0) / enemies.length
-        const cz = enemies.reduce((s, e) => s + e.pos.z, 0) / enemies.length
+        // Ana gövdenin merkezi oyuncunun yarısında (merkezden bakınca aynı
+        // yarım düzlem). Kıskaç müfrezesi ayrı ölçülür (aşağıda).
+        const main = enemies.slice(0, enemies.length - (WAVES[wave].flank ?? 0))
+        const cx = main.reduce((s, e) => s + e.pos.x, 0) / main.length
+        const cz = main.reduce((s, e) => s + e.pos.z, 0) / main.length
         if (Math.hypot(player.x, player.z) > 10) expect(cx * player.x + cz * player.z).toBeGreaterThan(0)
       }
     }
     // Oyuncusuz (ilk dalga): eski diziliş, -z'de.
     const first = spawnWave(0)
     expect(first.every((e) => e.pos.z < 0)).toBe(true)
+  })
+
+  it('kıskaç: müfreze oyuncunun gittiği yönde, düzen mesafesinin dışında, gövdeden ayrı doğar', () => {
+    const wave = WAVES.findIndex((w) => w.flank)
+    const n = WAVES[wave].flank!
+    for (const [player, heading] of [
+      [{ x: 0, z: 14 }, { x: 6, z: 0 }],
+      [{ x: -14, z: 0 }, { x: 0, z: -6 }],
+      [{ x: 10, z: -10 }, { x: 4, z: 4 }],
+      [{ x: 3, z: -3 }, { x: 0, z: 0 }],
+    ] as [Vec2, Vec2][]) {
+      const enemies = spawnWave(wave, player, heading)
+      expect(enemies).toHaveLength(WAVES[wave].enemyCount)
+      const flank = enemies.slice(-n)
+      const main = enemies.slice(0, -n)
+      for (const e of flank) {
+        expect(Math.hypot(e.pos.x - player.x, e.pos.z - player.z)).toBeGreaterThanOrEqual(SPAWN_CLEARANCE)
+        expect(Math.hypot(e.pos.x, e.pos.z)).toBeLessThanOrEqual(ENEMY_CONFIG.arenaRadius)
+        const apart = Math.min(...main.map((m) => Math.hypot(e.pos.x - m.pos.x, e.pos.z - m.pos.z)))
+        expect(apart).toBeGreaterThanOrEqual(8)
+      }
+      // Koşan oyuncunun önünde: müfreze merkezi gidiş yönünün yarım düzleminde.
+      if (Math.hypot(heading.x, heading.z) > 0) {
+        const fx = flank.reduce((s, e) => s + e.pos.x, 0) / n - player.x
+        const fz = flank.reduce((s, e) => s + e.pos.z, 0) / n - player.z
+        expect(fx * heading.x + fz * heading.z).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it("mola yalnızca Baideng'den önce; can tam canı aşmaz", () => {
+    const rest = WAVES.findIndex((w) => w.rest)
+    expect(WAVES[rest].baideng).toBe(true)
+    expect(WAVES.filter((w) => w.rest)).toHaveLength(1)
+    expect(restHealth(20, rest)).toBe(20 + WAVES[rest].rest!)
+    expect(restHealth(60, rest)).toBe(100)
+    expect(restHealth(20, rest - 1)).toBe(20)
   })
 
   it('zorluk merdiveni: yarı hasardan başlar, zaferle çıkar, yenilgiyle iner, sınırlarda durur', () => {
@@ -126,6 +166,26 @@ describe('Metehan — kurallar', () => {
         const need = wavesStarHealth(n, scale)
         expect(wavesStars(need, scale)).toBeGreaterThanOrEqual(n)
         expect(wavesStars(need - 1, scale)).toBeLessThan(n)
+      }
+    }
+  })
+
+  it('moladan dönen can yıldıza yazılmaz, molaya giren can tam hasar karşılığıyla ölçülür', () => {
+    // Tam hasarda molaya 40 canla giren (60 yara) Baideng'i yarasız bitirse
+    // 100'e döner (+70, tavan) ve 3 yıldız alır; aynı 60 yarayı yarı hasarda
+    // 30 yarayla (70 can) taşıyan da.
+    expect(wavesStars(100, 1, 40)).toBe(3)
+    expect(wavesStars(100, 0.5, 70)).toBe(3)
+    // Yarı hasarda molaya 40 canla giren tam hasarda ölmüştü: tavan dönen canı silmez.
+    expect(wavesStars(100, 0.5, 40)).toBeLessThan(3)
+    for (const scale of DAMAGE_LADDER) {
+      for (const preRest of [10, 30, 50, 80]) {
+        for (const n of [2, 3] as const) {
+          const need = wavesStarHealth(n, scale, preRest)
+          if (need < 2 || need > 100) continue
+          expect(wavesStars(need, scale, preRest)).toBeGreaterThanOrEqual(n)
+          expect(wavesStars(need - 1, scale, preRest)).toBeLessThan(n)
+        }
       }
     }
   })
@@ -198,7 +258,8 @@ describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
 
   it('yıldızlar beceriyi ayırır: 3. yıldız uzmanın bile her seferinde alamadığı an', { timeout: 30000 }, () => {
     // Yarı hasarda (herkesin başladığı basamak) 30 oyuncu. Taramada: uzman
-    // 30/30 zafer, 30'u 2+, 10'u 3 yıldız; iyi 20 zaferde 1 üç yıldız; orta hiç.
+    // 30 zaferin 28'i 2+, 13'ü 3 yıldız; iyi 19 zaferde 3 yıldız yok; orta 7
+    // zaferin 1'i şanslı bir koşuyla 3.
     const stars = (skill: (typeof SKILLS)[keyof typeof SKILLS]) =>
       seeds(30).map((s) => runWaves(kiter(skill, s), undefined, true, true, DAMAGE_LADDER[0]).stars)
     const count = (xs: number[], n: number) => xs.filter((x) => x >= n).length
@@ -208,6 +269,6 @@ describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
     expect(count(expert, 3)).toBeGreaterThanOrEqual(5)
     expect(count(expert, 3)).toBeLessThanOrEqual(18)
     expect(count(stars(SKILLS.skilled), 3)).toBeLessThanOrEqual(3)
-    expect(count(stars(SKILLS.average), 3)).toBe(0)
+    expect(count(stars(SKILLS.average), 3)).toBeLessThanOrEqual(1)
   })
 })

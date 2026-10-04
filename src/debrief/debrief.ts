@@ -28,7 +28,7 @@ import {
   REARGUARD,
 } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
-import { TOTAL_WAVES, WAVES, wavesStarHealth } from '../mechanics/waves'
+import { TOTAL_WAVES, WAVES, waveConfig, wavesStarHealth } from '../mechanics/waves'
 import type { BattleSummary } from '../telemetry/summary'
 
 export type AdviceId =
@@ -37,6 +37,7 @@ export type AdviceId =
   | 'closeRange'
   | 'tighten'
   | 'kite'
+  | 'dodgeVolley'
   | 'sweep'
   | 'clean'
   | 'flawless'
@@ -102,6 +103,8 @@ const DAY_STRIKES_WASTEFUL = 2
 const DUSK_STRIKE_GOOD = 6
 /** Metehan: vuruş başına bundan az düşen: küme dağınıkken vurulmuş. */
 const LOOSE_STRIKE = 4
+/** Baideng: bu kadar yaylım yiyen halkadan kaçmayı öğrenmemiş. */
+const DODGE_VOLLEY_HITS = 2
 /** Kollar gün batımında bundan güçsüzse gündüz tüketilmiş (bkz. wings.test.ts). */
 const WINGS_TIRED = 0.5
 /** Akşam düşen oyuncu gün batımına bu candan azıyla girdiyse yaralar gündüzden. */
@@ -126,12 +129,13 @@ function at(s: BattleSummary, t: number): number {
   return s.duration > 0 ? Math.min(1, Math.max(0, t / s.duration)) : 0
 }
 
-// ——— Metehan: üç dalga ———
+// ——— Metehan: dört dalga ———
 
 const WAVE_TOTAL = sum(WAVES.map((w) => w.enemyCount))
 
 function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
-  const kills = sum(s.strikes.map((x) => x.kills))
+  // Baideng'de kendi yaylımının altında düşen Han atlısı da oyuncunun hanesine.
+  const kills = sum(s.strikes.map((x) => x.kills)) + sum(s.volleys.map((x) => x.felled))
   const routed = sum(s.routs.map((x) => x.count))
   const peakStrike = bestStrike(s)
   const peak = peakStrike
@@ -173,19 +177,21 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
 /**
  * Üç yıldız yoksa hedef bir sonraki yıldız: bu savaşın basamağında kalması
  * gereken can (merdiven gizli; oyuncu yalnızca can çubuğunu görüyor). Üç
- * yıldızdan sonra rekor.
+ * yıldızdan sonra, ya da yıldız bu savaşta artık alınamıyorsa, rekor.
  */
 function waveVictoryGoal(s: BattleSummary, ctx: DebriefContext): Debrief['goal'] {
-  if (s.stars < 3) {
-    const next = s.stars < 2 ? 2 : 3
-    return {
-      label: `${next}. yıldız: az yara`,
-      value: s.health,
-      target: wavesStarHealth(next, s.assist),
-      unit: 'can',
-    }
+  const next = s.stars < 2 ? 2 : 3
+  const target = wavesStarHealth(next, s.assist, preRest(s))
+  // Sonsuz hedef: molaya tam hasarda ölü varılırdı, yıldız artık can çubuğunda değil.
+  if (s.stars < 3 && Number.isFinite(target)) {
+    return { label: `${next}. yıldız: az yara`, value: s.health, target, unit: 'can' }
   }
   return s.score < ctx.best ? { label: 'Rekor', value: s.score, target: ctx.best, unit: 'puan' } : null
+}
+
+/** Baideng öncesi molaya girerkenki can; molaya varılmadıysa undefined. */
+function preRest(s: BattleSummary): number | undefined {
+  return s.waves.find((w) => waveConfig(w.wave + 1).rest)?.health
 }
 
 /**
@@ -216,8 +222,9 @@ function waveAt(s: BattleSummary, t: number): number {
 
 /**
  * Metehan yenilgisinde en çok işe yarayacak tek tavsiye. Sıra, hatanın ne
- * kadar net okunduğuna göre: ret sayıları oyuncunun kendi basışları (kesin),
- * vuruş başına düşen dolaylı, "hep kaç" varsayılan.
+ * kadar net okunduğuna göre: ret sayıları oyuncunun kendi basışları ve
+ * Baideng'de yediği yaylımlar (kesin), vuruş başına düşen dolaylı, "hep kaç"
+ * varsayılan.
  */
 function waveAdvice(s: BattleSummary): Debrief['advice'] {
   // Erken basmanın kendisi zarar vermez; ama mekaniğin anlaşılmadığını
@@ -233,6 +240,13 @@ function waveAdvice(s: BattleSummary): Debrief['advice'] {
     return {
       id: 'closeRange',
       text: 'Yayın menzili 13 adım. Kaçarken kümeyi çok geride bırakma; peşindeyken vur.',
+    }
+  }
+  const volleyHits = s.volleys.filter((x) => x.hit).length
+  if (volleyHits >= DODGE_VOLLEY_HITS) {
+    return {
+      id: 'dodgeVolley',
+      text: `Han yaylımı seni ${volleyHits} kez vurdu. Kırmızı halka belirince yön değiştir: ok, gittiğin yere düşer. Atlıları halkaya çekersen kendi okları onları düşürür.`,
     }
   }
   const strikes = s.strikes.filter((x) => x.kills > 0)

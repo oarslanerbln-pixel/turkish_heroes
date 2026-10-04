@@ -22,6 +22,12 @@ const BYZANTINE_COLOR = new Color('#6a3a96')
 const BYZANTINE_BROKEN = new Color('#b0605a')
 const CHARGE_COLOR = new Color(CHARGE)
 const EMPEROR_COLOR = new Color('#e8b923')
+/**
+ * Baideng: Gaozu'nun arbaletli muhafızları kara lake zırhlı. Sürünün iki
+ * renginden (düzen mavisi, bozgun kızılı) ayrı: yaylımı onlar atar, onlar
+ * düşmedikçe çember Gaozu'yu barışa zorlayamaz.
+ */
+const GUARD_COLOR = new Color('#26242b')
 /** İmparator kalabalıkta seçilsin: biraz daha iri. */
 const EMPEROR_SCALE = 1.25
 
@@ -44,7 +50,11 @@ export function EnemySwarm() {
   const horse = useMemo(() => buildHorseGeometry('enemy'), [])
   const rider = useMemo(() => buildRiderGeometry('enemy'), [])
   const standards = useMemo(
-    () => ({ romanos: buildStandardGeometry('romanos'), manuel: buildStandardGeometry('manuel') }),
+    () => ({
+      romanos: buildStandardGeometry('romanos'),
+      manuel: buildStandardGeometry('manuel'),
+      gaozu: buildStandardGeometry('gaozu'),
+    }),
     [],
   )
   const horseMaterial = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), [])
@@ -101,7 +111,7 @@ export function EnemySwarm() {
     const time = world.animTime
     // Sancak imparatorla birlikte yürür, devrilir, kaybolur; imparator yoksa görünmez.
     standard.visible = false
-    standard.geometry = battle?.layout.pass ? standards.manuel : standards.romanos
+    standard.geometry = battle ? (battle.layout.pass ? standards.manuel : standards.romanos) : standards.gaozu
 
     for (let i = 0; i < n; i++) {
       const e = world.enemies[i]
@@ -148,6 +158,7 @@ export function EnemySwarm() {
       }
 
       if (e.emperor) color.copy(EMPEROR_COLOR)
+      else if (e.guard) color.copy(GUARD_COLOR)
       else if (battle && battle.mode[i] !== MODE_FORMATION) color.copy(CHARGE_COLOR)
       else color.copy(calm).lerp(broken, 1 - e.discipline)
       riderMesh.setColorAt(i, color)

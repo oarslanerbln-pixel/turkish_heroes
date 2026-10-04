@@ -59,20 +59,23 @@ export function merge(parts: BufferGeometry[]): BufferGeometry {
 }
 
 export type RiderStyle = 'enemy' | 'hero' | 'ally'
+/** `tint`: don instanceColor'dan gelir (Baideng'in dört renkli Hun çemberi). */
+export type Coat = RiderStyle | 'tint'
 
 /**
  * At donu tarafı söyler (STIL.md §Değer): kahraman ak at — birlikler arasında
  * tek açık leke; Selçuklu doru; Bizans yağız, en koyu. Yele ve kuyruk her
  * donda gövdeden ayrı tonda: at, kutu değil at gibi okunsun.
  */
-const COATS: Record<RiderStyle, { coat: string; dark: string }> = {
+const COATS: Record<Coat, { coat: string; dark: string }> = {
   hero: { coat: '#e6dfd2', dark: '#8c8478' },
   ally: { coat: '#4e2a17', dark: '#1e120a' },
   enemy: { coat: '#262019', dark: '#0f0c0a' },
+  tint: { coat: TINT, dark: '#4a423a' },
 }
 
 /** At: gövde, boyun, baş, yele, dört bacak, kuyruk. */
-export function buildHorseGeometry(style: RiderStyle): BufferGeometry {
+export function buildHorseGeometry(style: Coat): BufferGeometry {
   const { coat, dark } = COATS[style]
   return merge([
     paint(new BoxGeometry(0.52, 0.55, 1.25), coat, { y: 0.95 }),
@@ -138,14 +141,15 @@ export function buildRiderGeometry(style: RiderStyle): BufferGeometry {
   return merge(parts)
 }
 
-export type Emperor = 'romanos' | 'manuel'
+export type Emperor = 'romanos' | 'manuel' | 'gaozu'
 
 /**
  * İmparator sancağı: imparatorun yanında taşınan, ordunun üstüne çıkan direk.
  * Altın binici ve iri ölçek tek başına kalabalıkta kayboluyordu. İki imparator
  * ayrı okunsun: Romanos (Malazgirt) mor kare sancak, altın haç; Manuel
- * (Miryokefalon) kızıl, çatal kuyruklu, altın kuşak. Tarihî arma iddiası yok —
- * ayırt etme imzası (STIL.md §Siluet).
+ * (Miryokefalon) kızıl, çatal kuyruklu, altın kuşak; Gaozu (Baideng) uzun,
+ * dar, kara kenarlı kızıl flama — Liu Bang'ın bayrakları kızıldı (Shiji 8).
+ * Tarihî arma iddiası yok — ayırt etme imzası (STIL.md §Siluet).
  */
 export function buildStandardGeometry(emperor: Emperor): BufferGeometry {
   const parts = [
@@ -158,6 +162,13 @@ export function buildStandardGeometry(emperor: Emperor): BufferGeometry {
       paint(new BoxGeometry(0.9, 0.95, 0.03), '#5b2a86', { x: 0.4, y: 3.62, z: 0.1 }),
       paint(new BoxGeometry(0.14, 0.75, 0.05), '#e9c46a', { x: 0.4, y: 3.62, z: 0.1 }),
       paint(new BoxGeometry(0.6, 0.14, 0.05), '#e9c46a', { x: 0.4, y: 3.72, z: 0.1 }),
+    )
+  } else if (emperor === 'gaozu') {
+    parts.push(
+      paint(new BoxGeometry(0.5, 1.6, 0.03), '#b3261e', { x: 0.4, y: 3.32, z: 0.1 }),
+      paint(new BoxGeometry(0.08, 1.6, 0.05), '#1a1716', { x: 0.65, y: 3.32, z: 0.1 }),
+      paint(new BoxGeometry(0.5, 0.08, 0.05), '#1a1716', { x: 0.4, y: 4.08, z: 0.1 }),
+      paint(new BoxGeometry(0.5, 0.08, 0.05), '#1a1716', { x: 0.4, y: 2.56, z: 0.1 }),
     )
   } else {
     parts.push(

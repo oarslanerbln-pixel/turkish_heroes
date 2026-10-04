@@ -48,6 +48,12 @@ const INTRO_LOOK = new Vector3(-6, 2, -36)
 const DUSK_OFFSET = new Vector3(0, 9, 24)
 const DUSK_LOOK = new Vector3(0, 4, -6)
 
+/**
+ * Baideng kuşatması: vinç çekimi. Oyuncuyla Gaozu'nun ortasına yüksekten
+ * bakar; dört renkli atlılar kadrajın kenarlarından içeri kapanır.
+ */
+const CRANE_OFFSET = new Vector3(0, 28, 22)
+
 const pose = (): Pose => ({ pos: new Vector3(), look: new Vector3() })
 
 /**
@@ -165,9 +171,13 @@ export function CameraDirector() {
       // Gerçek zaman: gün batımının ağır çekimi çekimi uzatmasın.
       shot.t += dt
       weight = shotWeight(shot.cue, shot.t)
+      const ring = world.baideng?.ring
       if (shot.cue === 'intro') {
         cine.pos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
         cine.look.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+      } else if (shot.cue === 'encircle' && ring) {
+        cine.look.set((smooth.x + ring.center.x) / 2, 0, (smooth.z + ring.center.z) / 2)
+        cine.pos.copy(cine.look).add(CRANE_OFFSET)
       } else {
         cine.pos.copy(smooth).add(DUSK_OFFSET)
         cine.look.copy(smooth).add(DUSK_LOOK)

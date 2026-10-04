@@ -11,7 +11,7 @@ import type { CameraCue } from '../sim/world'
 /** Açılış: ordugahın ardından ufka bakış, sonra taktik duruşa yükseliş (sn). */
 export const INTRO_TIME = 2.8
 
-/** Gün batımı: alçalış, bekleyiş, dönüş (sn). */
+/** Gün batımı (ve Baideng'in vinç çekimi): alçalış, bekleyiş, dönüş (sn). */
 export const DUSK_RISE = 0.9
 export const DUSK_HOLD = 1.8
 export const DUSK_FALL = 1.5

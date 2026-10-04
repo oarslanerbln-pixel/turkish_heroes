@@ -60,7 +60,7 @@ describe('savaş karnesi — Metehan', () => {
     expect(d.headline).toBe('2. dalgada düştün — 4 düşman kalmıştı.')
     expect(d.close).toBe(true)
     // Bozguna uğrayanlar da yolun parçası: 12 + 2 + 20.
-    expect(d.goal).toEqual({ label: 'Zafere', value: 34, target: 80, unit: 'düşman' })
+    expect(d.goal).toEqual({ label: 'Zafere', value: 34, target: 103, unit: 'düşman' })
     expect(d.peak).toBe('En büyük hilalin: tek vuruşta 20 düşman (2. dalga)')
     expect(d.timeline.dusk).toBeNull()
     expect(d.timeline.marks.map((m) => m.kind).sort()).toEqual(['rout', 'strike', 'strike', 'wave'])
@@ -74,7 +74,7 @@ describe('savaş karnesi — Metehan', () => {
     expect(d.peak).toBeNull()
   })
 
-  it('tavsiye sırası: erken basma → menzil → küçük vuruş → hep kaç', () => {
+  it('tavsiye sırası: erken basma → menzil → yaylım → küçük vuruş → hep kaç', () => {
     const refused = (reason: 'notReady' | 'noTargets'): TelemetryEvent => ({
       type: 'strike_refused',
       reason,
@@ -86,7 +86,9 @@ describe('savaş karnesi — Metehan', () => {
       'waitReady',
     )
     expect(advice([[1, refused('noTargets')], [2, refused('noTargets')]])).toBe('closeRange')
-    expect(advice([[5, strike(2)], [9, strike(3)]])).toBe('tighten')
+    const hit = (felled = 0): TelemetryEvent => ({ type: 'volley', hit: true, felled })
+    expect(advice([[5, strike(2)], [9, strike(3)], [20, hit()], [26, hit()]])).toBe('dodgeVolley')
+    expect(advice([[5, strike(2)], [9, strike(3)], [20, hit()]])).toBe('tighten')
     expect(advice([[5, strike(8)], [9, strike(6)]])).toBe('kite')
   })
 
@@ -127,6 +129,36 @@ describe('savaş karnesi — Metehan', () => {
     expect(goal(40, 1, 0.5)).toEqual({ label: '2. yıldız: az yara', value: 40, target: 50, unit: 'can' })
     expect(goal(55, 2, 0.5)).toEqual({ label: '3. yıldız: az yara', value: 55, target: 68, unit: 'can' })
     expect(goal(20, 2, 1)).toMatchObject({ target: 35 })
+  })
+
+  it('Baideng: molaya giriş canı yıldız hedefine, yaylımın düşürdüğü zafer yoluna katılır', () => {
+    // Yarı hasarda molaya 60 canla girildi: tam hasarda 20 olurdu, mola 70
+    // döndürürdü (90). 2. yıldız için tam hasarda 0, yani bu basamakta 55 can.
+    const victory = (preRest: number) =>
+      debrief(
+        summary(
+          'metehan',
+          [
+            [60, { type: 'wave_clear', wave: 2, health: preRest }],
+            [100, end('victory', { health: 50, stars: 1, score: 100 })],
+          ],
+          0.5,
+        ),
+        { best: 9000 },
+      )
+    expect(victory(60).goal).toEqual({ label: '2. yıldız: az yara', value: 50, target: 55, unit: 'can' })
+    // 40 canla girilseydi tam hasarda ölünmüştü: yıldız hedefi yok, rekor.
+    expect(victory(40).goal).toMatchObject({ label: 'Rekor' })
+
+    const defeat = debrief(
+      summary('metehan', [
+        [10, strike(12)],
+        [70, { type: 'volley', hit: false, felled: 5 }],
+        [90, end('defeat', { wave: 3, remaining: 20, health: 0 })],
+      ]),
+      { best: 0 },
+    )
+    expect(defeat.goal).toMatchObject({ value: 17 })
   })
 })
 

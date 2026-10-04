@@ -29,6 +29,8 @@ export type TelemetryEvent =
   | { type: 'wave_clear'; wave: number; health: number }
   /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
   | { type: 'rout'; count: number }
+  /** Baideng: arbalet yaylımı indi. hit oyuncu halkadaydı; felled halkada düşen Han atlısı. */
+  | { type: 'volley'; hit: boolean; felled: number }
   /** Miryokefalon: YOLU KES — yığının düştüğü z (geçidin neresi: asıl karar). */
   | { type: 'blockade'; z: number }
   /** alive: vuruştan önce sahada (Malazgirt'te teslim olmamış) kalan. */
@@ -90,6 +92,8 @@ export interface BattleSummary {
   refusals: Record<Refusal, number>
   waves: { wave: number; t: number; health: number }[]
   routs: { t: number; count: number }[]
+  /** Baideng'in arbalet yaylımları. */
+  volleys: { t: number; hit: boolean; felled: number }[]
   /** Miryokefalon: yolun kesildiği an ve yer; kesilmediyse null. */
   blockade: { t: number; z: number } | null
   events: { event: BattleEvent; t: number }[]
@@ -130,6 +134,7 @@ export function startSummary(
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],
     routs: [],
+    volleys: [],
     blockade: null,
     events: [],
     pauses: [],
@@ -154,6 +159,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'rout':
       s.routs.push({ t: e.t, count: e.count })
+      break
+    case 'volley':
+      s.volleys.push({ t: e.t, hit: e.hit, felled: e.felled })
       break
     case 'blockade':
       s.blockade = { t: e.t, z: e.z }

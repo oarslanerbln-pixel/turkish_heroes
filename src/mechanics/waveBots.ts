@@ -22,14 +22,32 @@ import {
 } from './hilalSystem'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
-import { routSurvivors, spawnWave, TOTAL_WAVES, waveConfig, wavesStars } from './waves'
+import {
+  afterBaidengStrike,
+  BAIDENG,
+  createBaidengState,
+  siegeCorps,
+  stepCommand,
+  stepPeace,
+  stepVolleys,
+  type BaidengEvent,
+  type BaidengState,
+  type Volley,
+} from './baideng'
+import {
+  restHealth,
+  routSurvivors,
+  spawnWave,
+  TOTAL_WAVES,
+  waveBreak as breakBefore,
+  waveConfig,
+  wavesStars,
+} from './waves'
 import type { TelemetryEvent } from '../telemetry/summary'
 
 export const WAVE_BOT_DT = 1 / 60
 /** Oyuncunun başlangıcı (world.ts ile aynı). */
 const PLAYER_START: Vec2 = { x: 0, z: 8 }
-/** Yönetmenle aynı: dalga temizlenince yenisi doğmadan önceki mola. */
-const WAVE_BREAK = 1.5
 /** Hiçbir bot bundan uzun oynamaz (sonsuz döngü sigortası). */
 const MAX_TIME = 600
 
@@ -41,6 +59,10 @@ export interface WaveView {
   health: number
   waveIndex: number
   time: number
+  /** Baideng: düşmesi beklenen ok yağmurları (yerdeki halkalar). */
+  volleys: readonly Volley[]
+  /** Baideng: dört renkli çemberin merkezi; çember kurulmadıysa null. */
+  focus: Vec2 | null
 }
 
 export interface WaveAction {
@@ -69,6 +91,7 @@ export interface WaveRun {
  *   bot koşusunu oyuncunun özetine böyle çevirir). t: oyun süresi (sn).
  * @param rout false: bozgun kuralı olmadan (önce/sonra karşılaştırması için).
  * @param spawnAway false: dalgalar eskisi gibi hep aynı yerde doğar.
+ * @param startWave Bu dalgadan, tam canla başlar (tek dalgayı ölçmek için).
  */
 export function runWaves(
   bot: WaveBot,
@@ -76,22 +99,38 @@ export function runWaves(
   rout = true,
   spawnAway = true,
   damageScale = 1,
+  startWave = 0,
 ): WaveRun {
-  let enemies = spawnWave(0)
+  let enemies = spawnWave(startWave)
   const player = { ...PLAYER_START }
   const vel = { x: 0, z: 0 }
   let health: number = COMBAT_CONFIG.playerMaxHealth
+  /** Molaya girerkenki can (yıldızlar için); mola yoksa undefined. */
+  let preRest: number | undefined
   let energy = 0
   let facing = Math.PI
   let facingTarget = Math.PI
   let retreating = false
-  let waveIndex = 0
+  let waveIndex = startWave
   let waveBreak = 0
   let strikeTimer = 0
   let kills = 0
   let time = 0
   const strikes: number[] = []
-  const view: WaveView = { enemies, player, energy, inCrescent: 0, health, waveIndex, time }
+  const first = waveConfig(startWave)
+  let baideng: BaidengState | null = first.baideng ? createBaidengState(first.enemyCount) : null
+  const baidengEvents: BaidengEvent[] = []
+  const view: WaveView = {
+    enemies,
+    player,
+    energy,
+    inCrescent: 0,
+    health,
+    waveIndex,
+    time,
+    volleys: [],
+    focus: null,
+  }
   const alive = () => enemies.reduce((n, e) => n + (e.alive ? 1 : 0), 0)
   /** Yenilgide "kalan": savaşmaya devam eden (bozguna uğrayan sayılmaz). */
   const fighting = () => enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0)
@@ -107,6 +146,8 @@ export function runWaves(
     view.health = health
     view.waveIndex = waveIndex
     view.time = time
+    view.volleys = baideng?.volleys ?? []
+    view.focus = baideng?.ring?.center ?? null
     const action = bot(view)
 
     // Oyuncu (öncelik 0): hız retreatSpeed'e sınırlı, arena içinde.
@@ -128,12 +169,15 @@ export function runWaves(
 
     // Sürü (öncelik 1): yönetmenin bir önceki karede bulduğu kaçış durumuyla.
     stepEnemies(enemies, player, dt, retreating, waveConfig(waveIndex).disciplineRecoveryMult)
+    if (baideng) stepCommand(baideng, enemies, player, dt)
 
     // Yönetmen (öncelik 2).
-    const siege = calcSiegeState(enemies)
+    const siege = calcSiegeState(enemies, baideng ? siegeCorps(baideng) : undefined)
     retreating = siege.centroid ? isRetreatingFrom(player, vel, siege.centroid) : false
     const perEnemy = COMBAT_CONFIG.damagePerEnemy * damageScale
-    health = Math.max(0, health - calcContactDamage(countAttackers(enemies, player), dt, perEnemy))
+    const volleyDamage = baideng ? stepVolleys(baideng, enemies, player, vel, dt, baidengEvents) : 0
+    const contact = calcContactDamage(countAttackers(enemies, player), dt, perEnemy)
+    health = Math.max(0, health - contact - volleyDamage * damageScale)
     facingTarget = calcFacing(enemies, player, facingTarget, siege.centroid)
     facing = approachAngle(facing, facingTarget, HILAL_CONFIG.facingTurnRate * dt)
     view.inCrescent = countInCrescent(enemies, player, facing)
@@ -152,23 +196,38 @@ export function runWaves(
       kills += n
       energy = 0
       strikeTimer = HILAL_CONFIG.strikeDuration
-      const routed = rout ? routSurvivors(enemies, waveIndex) : 0
-      if (routed > 0) record?.({ type: 'rout', count: routed }, time)
+      if (baideng) afterBaidengStrike(baideng, enemies, baidengEvents)
+      else {
+        const routed = rout ? routSurvivors(enemies, waveIndex) : 0
+        if (routed > 0) record?.({ type: 'rout', count: routed }, time)
+      }
     } else {
       energy = stepEnergy(energy, siege.vulnerability, dt)
     }
+    if (baideng) stepPeace(baideng, enemies, baidengEvents)
+    for (const e of baidengEvents) {
+      if (e.type === 'encircle') record?.({ type: 'rout', count: e.routed }, time)
+      if (e.type === 'volleyLanded') record?.({ type: 'volley', hit: e.hit, felled: e.felled.length }, time)
+    }
+    baidengEvents.length = 0
 
     // Dalga geçişi (scenarios.ts'teki waves.advance ile aynı).
     const moreWaves = waveIndex < TOTAL_WAVES - 1
     if (alive() === 0 && moreWaves) {
       if (waveBreak === 0) {
-        waveBreak = WAVE_BREAK
+        waveBreak = breakBefore(waveIndex + 1)
         record?.({ type: 'wave_clear', wave: waveIndex, health: Math.round(health) }, time)
+        if (waveConfig(waveIndex + 1).rest) {
+          preRest = health
+          health = restHealth(health, waveIndex + 1)
+        }
       } else {
         waveBreak = Math.max(0, waveBreak - dt)
         if (waveBreak === 0) {
           waveIndex++
-          enemies = spawnWave(waveIndex, spawnAway ? player : undefined)
+          const cfg = waveConfig(waveIndex)
+          baideng = cfg.baideng ? createBaidengState(cfg.enemyCount) : null
+          enemies = spawnWave(waveIndex, spawnAway ? player : undefined, vel)
         }
       }
     }
@@ -180,7 +239,7 @@ export function runWaves(
 
   const final = result ?? 'defeat'
   const remaining = fighting()
-  const stars = final === 'victory' ? wavesStars(health, damageScale) : 0
+  const stars = final === 'victory' ? wavesStars(health, damageScale, preRest) : 0
   record?.(
     {
       type: 'battle_end',
@@ -246,14 +305,20 @@ export function kiter(skill: KiterSkill, seed: number): WaveBot {
   let delay = 0
   let blunderUntil = -1
   let wobble = 0
+  /** Her ok yağmurunu fark etme gecikmesi (sn). */
+  const noticeDelay = new WeakMap<Volley, number>()
   return (v) => {
     const dt = WAVE_BOT_DT
 
     // Yön: teğet + yarıçapa dönüş, üstüne yavaş değişen direksiyon hatası.
-    const r = Math.hypot(v.player.x, v.player.z) || 1
-    const ux = v.player.x / r
-    const uz = v.player.z / r
-    const radial = Math.max(-1, Math.min(1, (skill.radius - r) / 3))
+    // Baideng çemberi kurulunca çember merkezinin çevresinde, yay menzilinde.
+    const cx = v.focus?.x ?? 0
+    const cz = v.focus?.z ?? 0
+    const radius = v.focus ? FOCUS_RADIUS : skill.radius
+    const r = Math.hypot(v.player.x - cx, v.player.z - cz) || 1
+    const ux = (v.player.x - cx) / r
+    const uz = (v.player.z - cz) / r
+    const radial = Math.max(-1, Math.min(1, (radius - r) / 3))
     let mx = -uz * spin + ux * radial
     let mz = ux * spin + uz * radial
     wobble += (gaussian(rand) * skill.wobble - wobble) * Math.min(1, 2 * dt)
@@ -270,6 +335,37 @@ export function kiter(skill: KiterSkill, seed: number): WaveBot {
         mz = c.z - v.player.z
       }
     }
+    // Ok yağmuru: halkayı tepki gecikmesiyle fark eder. İçindeyse dışarı
+    // kaçar; kenarındaysa halkaya giren bileşeni atıp kenar boyunca dolanır
+    // (yalnız dışarı itilse çember onu yine içeri çeker, sınırda titrerdi).
+    for (const vol of v.volleys) {
+      let delay = noticeDelay.get(vol)
+      if (delay === undefined) {
+        delay = skill.reaction * (0.5 + rand())
+        noticeDelay.set(vol, delay)
+      }
+      if (BAIDENG.volleyTelegraph - vol.left < delay) continue
+      const dx = v.player.x - vol.x
+      const dz = v.player.z - vol.z
+      const d = Math.hypot(dx, dz)
+      if (d > BAIDENG.volleyRadius + DODGE_MARGIN) continue
+      if (d < 0.01) {
+        ;[mx, mz] = [-mz, mx]
+        continue
+      }
+      const ox = dx / d
+      const oz = dz / d
+      if (d < BAIDENG.volleyRadius + DODGE_MARGIN / 2) {
+        ;[mx, mz] = [ox, oz]
+        continue
+      }
+      const inward = -(mx * ox + mz * oz)
+      if (inward > 0) {
+        mx += ox * inward
+        mz += oz * inward
+      }
+    }
+
     const ml = Math.hypot(mx, mz) || 1
     const move = { x: (mx / ml) * HILAL_CONFIG.retreatSpeed, z: (mz / ml) * HILAL_CONFIG.retreatSpeed }
 
@@ -291,6 +387,11 @@ export function kiter(skill: KiterSkill, seed: number): WaveBot {
     return { move, strike }
   }
 }
+
+/** Çember kurulunca botun çember merkezine uzaklığı: yayın menzilinde. */
+const FOCUS_RADIUS = 9
+/** Halkanın bu kadar dışına kadar kaç. */
+const DODGE_MARGIN = 0.8
 
 function centroid(enemies: readonly Enemy[]): Vec2 | null {
   let x = 0
