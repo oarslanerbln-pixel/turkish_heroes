@@ -129,7 +129,8 @@ export function GameDirector() {
         : false
 
       world.attackers = countAttackers(world.enemies, world.player)
-      const damage = calcContactDamage(world.attackers, dt, scenario.contactDamage(world))
+      const damage =
+        calcContactDamage(world.attackers, dt, scenario.contactDamage(world)) + scenario.hazards(world, dt)
       world.playerHealth = Math.max(0, world.playerHealth - damage)
       // Kenar flaşı DOM'da: sayaç beklemeden artar, HUD eşitlemesini (12 Hz) beklemez.
       if (stepHurt(world, damage, dt)) useGameStore.setState((s) => ({ hurtPulse: s.hurtPulse + 1 }))

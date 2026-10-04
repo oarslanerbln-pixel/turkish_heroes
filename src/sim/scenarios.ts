@@ -21,15 +21,26 @@ import {
   type BattleState,
 } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
+import {
+  afterBaidengStrike,
+  createBaidengState,
+  siegeCorps,
+  stepCommand,
+  stepPeace,
+  stepVolleys,
+  type BaidengEvent,
+} from '../mechanics/baideng'
 import { stepEnemies } from '../mechanics/enemySim'
 import { WING_CONFIG } from '../mechanics/wings'
 import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
 import type { CommanderId } from '../mechanics/scenario'
 import {
   ladderScale,
+  restHealth,
   routSurvivors,
   spawnWave,
   TOTAL_WAVES,
+  waveBreak,
   waveClearBonus,
   waveConfig,
   wavesStars,
@@ -47,6 +58,11 @@ export interface Scenario {
   assist(w: World): number
   /** Temas eden düşman başına saniyelik hasar. */
   contactDamage(w: World): number
+  /**
+   * Temastan başka gelen hasar, çarpanı uygulanmış (Baideng'in arbalet
+   * yaylımları). Yönetmen temas hasarıyla toplayıp yaraya işler.
+   */
+  hazards(w: World, dt: number): number
   /** Düşmanları bir kare ilerletir (EnemySwarm, öncelik 1). */
   moveEnemies(w: World, dt: number): void
   /** Hilal enerjisini besleyen kuşatılabilirlik. */
@@ -67,19 +83,71 @@ export const SCORE_PER_KILL = 100
 /** Zaferde kalan can başına bonus — temiz oynamayı ödüllendirir. */
 const HEALTH_BONUS_PER_POINT = 5
 
-/** Dalga temizlendikten sonra yenisi doğmadan önceki mola (saniye). */
-const WAVE_BREAK = 1.5
-
 function countAlive(w: World): number {
   let n = 0
   for (const e of w.enemies) if (e.alive) n++
   return n
 }
 
-/** Metehan: üç dalga halinde gelen, peşine takılınca kümelenen sürü. */
+/** Baideng kurallarının bu karedeki olayları; presentBaideng boşaltır. */
+const baidengEvents: BaidengEvent[] = []
+
+/** Çember kurulurken ağır çekim (gerçek sn): dört yandan gelen atlılar görülsün. */
+const ENCIRCLE_SLOWMO = 0.9
+
+/**
+ * Baideng olaylarını sunar: dünya olayı, ses, duyuru, puan ve telemetri.
+ * Yaylımın altında düşen Han atlısı oyuncunun hanesine yazılır: onları
+ * oraya o çekti.
+ */
+function presentBaideng(w: World): void {
+  for (const e of baidengEvents) {
+    switch (e.type) {
+      case 'volleyAimed':
+        if (takeHint('volley')) announce('Kırmızı halka: Han arbaletleri — halkadan çık')
+        play('volley')
+        w.events.push(e)
+        break
+      case 'volleyLanded': {
+        const felled = e.felled.length
+        if (felled > 0 && w.baideng?.felled === felled) {
+          announce('Han atlıları kendi oklarının altında kaldı!')
+        }
+        w.totalKills += felled
+        w.score += felled * SCORE_PER_KILL
+        track({ type: 'volley', hit: e.hit, felled })
+        w.events.push({ type: 'volleyLanded', x: e.x, z: e.z, hit: e.hit, felled })
+        break
+      }
+      case 'encircle':
+        announce('Dört yandan Hun atlıları — Gaozu kuşatılıyor!')
+        play('horn')
+        w.slowmo = ENCIRCLE_SLOWMO
+        w.cameraCue = 'encircle'
+        track({ type: 'rout', count: e.routed })
+        w.events.push({ type: 'rout', count: e.routed })
+        w.events.push({ type: 'encircle', center: e.center })
+        break
+      case 'peace':
+        announce('Han barış istedi — Baideng, MÖ 200')
+        w.events.push(e)
+        break
+    }
+  }
+  baidengEvents.length = 0
+}
+
+/** Metehan: dört dalga halinde gelen, peşine takılınca kümelenen sürü. */
 const waves: Scenario = {
   assist: () => ladderScale(ladderStep()),
   contactDamage: () => COMBAT_CONFIG.damagePerEnemy * ladderScale(ladderStep()),
+
+  hazards(w, dt) {
+    if (!w.baideng) return 0
+    const damage = stepVolleys(w.baideng, w.enemies, w.player, w.playerVel, dt, baidengEvents)
+    presentBaideng(w)
+    return damage * ladderScale(ladderStep())
+  },
 
   moveEnemies(w, dt) {
     stepEnemies(
@@ -89,13 +157,20 @@ const waves: Scenario = {
       w.isRetreating,
       waveConfig(w.waveIndex).disciplineRecoveryMult,
     )
+    if (w.baideng) stepCommand(w.baideng, w.enemies, w.player, dt)
   },
 
-  siege: (w) => calcSiegeState(w.enemies),
+  siege: (w) => calcSiegeState(w.enemies, w.baideng ? siegeCorps(w.baideng) : undefined),
 
   fallFilter: () => undefined,
 
   afterStrike(w) {
+    if (w.baideng) {
+      // Baideng'de gövdenin artığı tek başına kaçmaz: çember kurulur.
+      afterBaidengStrike(w.baideng, w.enemies, baidengEvents)
+      presentBaideng(w)
+      return
+    }
     // Kırılan dalganın artığı dağılır: son bir-iki düşmanın peşinde ölmek yok.
     const routed = routSurvivors(w.enemies, w.waveIndex)
     if (routed === 0) return
@@ -106,22 +181,36 @@ const waves: Scenario = {
   },
 
   advance(w, dt) {
+    if (w.baideng) {
+      stepPeace(w.baideng, w.enemies, baidengEvents)
+      presentBaideng(w)
+    }
     // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
     const moreWaves = w.waveIndex < TOTAL_WAVES - 1
     if (countAlive(w) > 0 || !moreWaves) return
+    const next = w.waveIndex + 1
     if (w.waveBreak === 0) {
       // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
       w.score += waveClearBonus(w.waveIndex)
-      w.waveBreak = WAVE_BREAK
+      w.waveBreak = waveBreak(next)
       track({ type: 'wave_clear', wave: w.waveIndex, health: Math.round(w.playerHealth) })
+      if (waveConfig(next).rest) {
+        // Molada sahada kimse yok: can molanın başında dönse de sonu aynı.
+        w.restedFrom = w.playerHealth
+        w.playerHealth = restHealth(w.playerHealth, next)
+        announce(`Ordu soluklandı: +${Math.round(w.playerHealth - w.restedFrom)} can`)
+      }
     } else if (dt > 0) {
       w.waveBreak = Math.max(0, w.waveBreak - dt)
       if (w.waveBreak === 0) {
-        w.waveIndex++
-        // Yeni dalga oyuncunun yakasından, arkadan gelir (bkz. spawnWave).
-        w.enemies = spawnWave(w.waveIndex, w.player)
+        w.waveIndex = next
+        const cfg = waveConfig(next)
+        w.baideng = cfg.baideng ? createBaidengState(cfg.enemyCount) : null
+        // Yeni dalga oyuncunun yakasından, arkadan gelir; kıskaç müfrezesi
+        // gittiği yönde (bkz. spawnWave).
+        w.enemies = spawnWave(next, w.player, w.playerVel)
         play('wave')
-        w.events.push({ type: 'waveSpawn', wave: w.waveIndex })
+        w.events.push({ type: 'waveSpawn', wave: next })
       }
     }
   },
@@ -136,7 +225,7 @@ const waves: Scenario = {
   victoryBonus(w) {
     // Merdiven bu savaşın sonucuyla finishBattle'da ilerliyor, yani burada
     // hâlâ oynanan basamak. Yıldız puanı yok: can bonusu yarayı zaten sayıyor.
-    w.stars = wavesStars(w.playerHealth, ladderScale(ladderStep()))
+    w.stars = wavesStars(w.playerHealth, ladderScale(ladderStep()), w.restedFrom ?? undefined)
     // Son dalganın temizleme bonusu dalga geçişinde verilmiyor; burada.
     return waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
   },
@@ -213,6 +302,7 @@ const battle: Scenario = {
   // Komutanla ilk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
   assist: (w) => (isFirstBattle(w.commander) ? 0.5 : 1),
   contactDamage: (w) => BATTLE_CONFIG.contactDamage * (isFirstBattle(w.commander) ? 0.5 : 1),
+  hazards: () => 0,
 
   moveEnemies(w, dt) {
     if (w.battle) stepBattle(w.battle, w.enemies, w.player, dt)

@@ -24,7 +24,11 @@ const pose = (x: number, y: number, z: number): Pose => ({ pos: new Vector3(x, y
  */
 function film(first: CameraCue, cutAt: number, blend: boolean, skipAt = Infinity): Vector3[] {
   const tactical = pose(0, 17, 22)
-  const cine: Record<CameraCue, Pose> = { intro: pose(6, 5.5, 14), dusk: pose(0, 9, 24) }
+  const cine: Record<CameraCue, Pose> = {
+    intro: pose(6, 5.5, 14),
+    dusk: pose(0, 9, 24),
+    encircle: pose(0, 28, 22),
+  }
   const shot = createShotState(pose(0, 0, 0))
   const out = pose(0, 0, 0)
   const frames: Vector3[] = []

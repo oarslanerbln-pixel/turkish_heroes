@@ -7,6 +7,7 @@
 
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import { createBattle, type BattleState } from '../mechanics/corps'
+import type { BaidengState } from '../mechanics/baideng'
 import { battleLayout, type CommanderId } from '../mechanics/scenario'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
@@ -19,7 +20,7 @@ import type { WorldEvent } from './events'
 import { canEnter, type FlowMode } from './flow'
 
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
-export type CameraCue = 'intro' | 'dusk'
+export type CameraCue = 'intro' | 'dusk' | 'encircle'
 
 /**
  * Ok kamerası isteği (bkz. components/arrowShot.ts): oyuncunun bu birliğe
@@ -36,6 +37,10 @@ export interface World {
   commander: CommanderId
   /** Alp Arslan savaşının durumu; dalgalı senaryoda null. */
   battle: BattleState | null
+  /** Metehan'ın Baideng dalgası: Gaozu, yaylımlar, çember. Başka dalgada null. */
+  baideng: BaidengState | null
+  /** Baideng öncesi molaya girerkenki can (yıldızlar için); mola gelmediyse null. */
+  restedFrom: number | null
   /** Ordunun dizilişini veren tohum; savaş özetine yazılır. Dalgalı senaryo rastgelelik kullanmaz: null. */
   seed: number | null
   player: Vec2
@@ -163,6 +168,8 @@ function initialWorld(commander: CommanderId): World {
   return {
     commander,
     battle: battle?.battle ?? null,
+    baideng: null,
+    restedFrom: null,
     seed,
     // Ordu savaşlarında oyuncu ordunun önünde başlar (ordugah / geçidin kuzeyi);
     // ordu ufukta, -z'de.

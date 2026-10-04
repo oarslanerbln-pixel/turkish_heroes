@@ -39,6 +39,14 @@ export type WorldEvent =
   | { type: 'hurt'; amount: number }
   | { type: 'sunset' }
   | { type: 'waveSpawn'; wave: number }
+  /** Baideng: Han arbaletleri nişan aldı; halka BAIDENG.volleyTelegraph sn sonra iner. */
+  | { type: 'volleyAimed'; x: number; z: number }
+  /** Yaylım indi; hit oyuncu halkadaydı, felled halkada düşen Han atlısı sayısı. */
+  | { type: 'volleyLanded'; x: number; z: number; hit: boolean; felled: number }
+  /** Baideng: gövde kırıldı, dört renkli Hun çemberi Gaozu'nun çevresinde kuruluyor. */
+  | { type: 'encircle'; center: Vec2 }
+  /** Baideng: çember kapandı, muhafız kalmadı — Gaozu barış istedi. */
+  | { type: 'peace' }
 
 export interface StrikeVictim {
   id: number

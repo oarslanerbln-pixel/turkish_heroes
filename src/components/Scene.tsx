@@ -13,6 +13,8 @@ import { CorpsBanners } from './CorpsBanners'
 import { AlliedWings } from './AlliedWings'
 import { ChargeWarnings } from './ChargeWarnings'
 import { ArrowVolley } from './ArrowVolley'
+import { CrossbowVolleys } from './CrossbowVolleys'
+import { HunRing } from './HunRing'
 import { DustTrails } from './DustTrails'
 import { SteppeWind } from './SteppeWind'
 import { DayCycle } from './DayCycle'
@@ -161,6 +163,13 @@ export function Scene() {
               <AlliedWings />
               <ChargeWarnings />
               <ArrowVolley />
+            </>
+          )}
+          {/* Metehan'ın son dalgası Baideng: Han yaylımı ve dört renkli çember. */}
+          {commander === 'metehan' && (
+            <>
+              <CrossbowVolleys />
+              <HunRing />
             </>
           )}
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}

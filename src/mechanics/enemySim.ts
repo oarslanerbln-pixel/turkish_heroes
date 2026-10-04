@@ -95,7 +95,8 @@ export function stepEnemies(
   disciplineRecoveryMult = 1,
 ): void {
   for (const e of enemies) {
-    if (!e.alive) continue
+    // Baideng'in komuta grubu kendi kuralıyla yürür (baideng.ts stepCommand).
+    if (!e.alive || e.emperor || e.guard) continue
     if (e.routed) {
       stepRout(e, enemies, playerPos, deltaTime)
       continue
