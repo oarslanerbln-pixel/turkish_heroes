@@ -132,7 +132,7 @@ export function openingPose(path: OpeningPath, t: number, out: Pose): void {
 }
 
 /** Süren çekim: senaryonun işaretleri ya da ok kamerası (arrowShot.ts). */
-export type ShotCue = CameraCue | 'arrow'
+export type ShotCue = CameraCue | 'arrow' | 'volley'
 
 /** Kameranın konumu ve baktığı nokta. */
 export interface Pose {
