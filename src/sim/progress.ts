@@ -22,6 +22,7 @@ export type HintId =
   | 'stall'
   | 'fill'
   | 'ready'
+  | 'bait'
 
 interface Progress {
   /** Zafer kazanılan komutanlar. */

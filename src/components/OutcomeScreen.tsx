@@ -253,6 +253,7 @@ function Timeline({
             <span className="tl-key-charge">hamle</span>
             {dusk !== null && <span className="tl-key-dusk">gün batımı</span>}
             {marks.some((m) => m.kind === 'block') && <span className="tl-key-block">yol kesildi</span>}
+            {marks.some((m) => m.kind === 'ambush') && <span className="tl-key-ambush">pusu</span>}
           </>
         ) : (
           <span className="tl-key-wave">dalga sonu</span>

@@ -802,7 +802,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
        - Sorun: artçı gün batımında kaçınca imparator kollardan bağımsız olarak hemen açılıyordu (3★ ortancası 101 sn). Kollar yalnız artçıyı yıpratmaya yarıyordu. Gündüz hücum eden kol bunu daha iyi yaptığı için sabırsız tarif 30/30 aldı.
        - Kural: imparatoru kolların merkeze kapanması açar (TASARIM §2.2: yemle bir birliği kopar, kollarla kuşat, komutanı esir al).
          - Artçı kaçınca kolların hedefi merkez olur (`wingTarget`). Kaçış tek başına imparatoru açmaz.
-         - İmparator gün batımından sonraki `emperorWindow` (15 sn) içinde açılır. Şart: kollar merkezi en az `emperorPin` (0,6, iki kolun toplamı) şiddetle tutsun ve merkezin düzeni 0,75'in altında olsun.
+         - İmparator gün batımından sonraki `emperorWindow` (15 sn) içinde açılır. Şart: kollar merkezi en az `emperorPin` (0,6, iki kolun toplamı) şiddetle tutsun ve merkezin düzeni 0,75'in altında olsun. (Mantık 3'te pencere merkezin çarkına bağlandı, `emperorWindow` kalktı.)
          - Taze bir kol tek başına yeter, gündüz tükenen iki kol yetmez. Pencere kapanınca muhafız toparlanır; kollarını akşam dinlendiren geç kalır.
        - 30 tohumda kışkırtıcı botla 3★:
 
@@ -828,6 +828,27 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
          - Kolsuz 3★ artık yok. Kolsuz kışkırtıcı 8 tohumda gece hedefini de kaçırıyor; botun akşam vuruşu imparatoru beklemeye ayarlı.
        - Tarayıcıda (tohum 1071, gün batımına atlanarak): artçı kaçtı, kollar pusudayken imparator korundu. HÜCUM'dan ~5 sn sonra kollar merkezi tuttu ve "İmparator korumasız!" duyurusu çıktı.
        - Zincir: lint, tsc, 260 test, derleme, bütçe 361,8/385 kB, checks 44/44.
+     - **Mantık 3, sancak dönüşü (TASARIM §2.3), 6 Ekim 2026:**
+       - Sorun: imparator penceresi sabit 15 sn'ydi; HÜCUM'u gün batımında herhangi bir an vermek yetiyordu. NE ZAMAN ekseni bir zamanlama becerisi değildi.
+       - Kural: pencere merkezin çarkı kadar. İmparator, merkez dönerken (`status === 'turning'`) kollar onu `emperorPin` şiddetle tutar ve düzeni 0,75'in altındaysa açılır. Çark bitince `guardRallied` olayı: "Merkez döndü — muhafız toparlandı". `emperorWindow` kalktı.
+       - Erken salınan kol (gün batımından önce varan) dönmemiş, düzenli hatta çarpar: ilk darbe boşa gider (`wingMetLeft/Right`). Darbeyi yenilemek için emir yeniden verilir (PUSU → HÜCUM).
+       - Ölçüm, 30 tohum, kışkırtıcı bot, 3★: HÜCUM gün batımından 2 sn sonra 25; 3,5 sn sonra 16; 4 sn sonra 0. Yıpranmış merkezin çarkı ~6 sn, kolların merkeze varması ~2 sn. Ağır çekimle insan için ~3,5 gerçek sn.
+       - Karne: pencere kaçtıysa `closeWings` "sancak döndükten N sn sonra verdin" der (`lateDuskCharge`).
+     - **Mantık 2, yem bölük (TASARIM §2.2), 6 Ekim 2026:**
+       - Kaynak: Bryennios I.14. Ordugahın önünde görünüp kaçan Türk bölükleri Basilakes'i peşine çekti; Basilakes pusuya düştü ve esir alındı. Gerçekte bu çatışma savaştan bir gün önceydi; oyun onu savaş gününe taşır (oyun kuralı, TASARIM §8).
+       - Kural (`stepAmbush`, yalnız açık alan): hamle eden asker pusuda dinlenen kola (`canSpring`: yerinde, güç ≥ `readyStrength`, pususu bozulmamış) `ambushRadius` (5) yaklaşınca kol çıkar. Kolun `ambushCapture` (9) yakınında düzen dışındaki o birlik askerleri esir düşer. Kola maliyeti `ambushCost` 0,2 güç; birliğe `ambushShock` 0,1 düzen. Pusu kol başına bir kez tutar (`sprung`).
+       - Kanadın bölüğüyse komutanı da esir düşer (`leaderless`). Merkezde imparator, artçıda yedek olduğu için bu ikisinde komutan esiri yok. Komutansız kanat akşam dönüşü beceremez: çarkı `leaderlessTurn` (2) kat uzun sürer (`corpsBreaks`: "şimdi kuşat"). Kol onu bırakır ve merkeze kapanır; artçı kaçmasa da imparatora yol açılır.
+       - İlk tasarımda komutansız kanat akşam kaçıyordu. Kaçan askerler ne düşmüş ne teslim olmuş sayıldığı için yemcinin puanı kışkırtıcının altında kaldı (5711 / 5847). Uzun çark hasadı oyuncuya bırakır.
+       - Sunum:
+         - Esirler düşen sayılır ve puan getirir (`SCORE_PER_KILL`).
+         - Duyuru "Pusu! Sol kanadın N askeri kesildi", ardından "Komutanı esir — Sol kanat akşam dağınık dönecek". Ağır çekim 0,6 sn, kol sesi, titreşim.
+         - Komutansız kanadın düzen çubuğunda kol renginde baklava var. Karnenin zaman çizelgesinde pusu işareti (◆) ve açıklaması görünür.
+         - Telemetride `ambush` olayı, özette `ambushes`.
+         - İpucu `'bait'` ikinci hamlede (ilki `'charge'`): "Hamle edeni pusudaki kolun yanına çek". Brifingin 2. adımı da yönü söyler. 1★ karnesinde, pusu yoksa `bait` tavsiyesi verilir.
+         - Tarih notu `yem`.
+       - Ölçüm, 30 tohum, pusu + gün batımında hücum. Kışkırtıcı → yemci (`baiterBot`): 3★ 27 → 28; düşen 19,0 → 23,2; puan 5847 → 5807; can 95 → 97. Yemci 60 pusunun 53'ünde kanat komutanını esir aldı.
+       - Kışkırtıcı da kazara pusu tetikliyor (30 savaşta 22). Hamleden ordugaha doğru kaçış pusu yerlerinin önünden geçiyor. Bu sahte ricatın kendisi, bırakıldı.
+       - Yemcide artçı yine 30/30 kaçıyor: merkezi yıpratırken arkasındaki artçı da yıpranıyor. Artçı kaçmadan 3★ yolu kışkırtıcıda 2 savaşta görüldü.
      - **Geçitte z=−1 bot ölümü (5 Ekim 2026):** oyun kuralı değil, iki bot hatası.
        - Kesici bot kola yetişemeyince yığını bulunduğu yere düşürüyordu ("kol oraya varmak üzereyse beklemeden kes"). z=−1 isteyen bot z≈0'da hamleyi kışkırtıp kuzeye kaçıyor, yığını 17,9'da (çıkışta) düşürüyordu; "z=−4" isteyen de 16'da kesiyordu. Ölçülen kesme yeri istenen değildi.
        - Kaçış (`flee`) yalnız arena çemberine bakıyordu, geçit duvarına değil: boğazda hamleden yana kaçan bot duvarda (x=8,4) sıkışıp vuruluyordu.

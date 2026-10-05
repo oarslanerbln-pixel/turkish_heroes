@@ -78,6 +78,8 @@ export interface WingState {
   shocked: boolean
   /** Pusu yeri (sağ kol için; sol kol x'in tersinde). Savaş alanına göre. */
   home: Vec2
+  /** Pusu bir kez tutar: yem bölüğü kesildi, pusunun yeri artık biliniyor. */
+  sprung: boolean
 }
 
 /** @param home Pusu yeri (sağ kolunki); verilmezse Malazgirt ordugahının yanı. */
@@ -91,6 +93,7 @@ export function createWings(home: Vec2 = { x: WING_CONFIG.homeX, z: WING_CONFIG.
     target: -1,
     presence: 0,
     shocked: false,
+    sprung: false,
   }))
 }
 
@@ -144,6 +147,11 @@ export function moveWing(w: WingState, anchor: Vec2 | null, dt: number): void {
 export function isResting(w: WingState): boolean {
   if (w.order !== 'ambush') return false
   return Math.hypot(w.pos.x - w.home.x, w.pos.z - w.home.z) < WING_CONFIG.arriveNear
+}
+
+/** Pusu tutar mı: kol yerinde, dinlenmiş ve pususu henüz bozulmamış (bkz. corps.ts stepAmbush). */
+export function canSpring(w: WingState): boolean {
+  return !w.sprung && isResting(w) && w.strength >= WING_CONFIG.readyStrength
 }
 
 /**

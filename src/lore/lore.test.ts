@@ -6,7 +6,7 @@
 // olayların aynısını üretir, özet aynı applyEvent'le kurulur.
 
 import { describe, expect, it } from 'vitest'
-import { ambushWings, blockerBot, provokerBot, runBattle, withWings } from '../mechanics/battleBots'
+import { ambushWings, baiterBot, blockerBot, provokerBot, runBattle, withWings } from '../mechanics/battleBots'
 import { MIRYOKEFALON } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
 import { COMMANDERS, type CommanderId } from '../mechanics/scenario'
@@ -78,10 +78,12 @@ describe('tarih notları — her kart oyunda kazanılabilir', () => {
       runWaves(kiter(SKILLS.expert, seed), r.record, true, true, 1)
       collect(r.summary())
     }
-    for (const seed of [1, 2]) {
-      const r = recorder()
-      runBattle(withWings(provokerBot, ambushWings)(), seed, r.record)
-      collect(r.summary())
+    for (const bot of [provokerBot, baiterBot]) {
+      for (const seed of [1, 2]) {
+        const r = recorder()
+        runBattle(withWings(bot, ambushWings)(), seed, r.record)
+        collect(r.summary())
+      }
     }
     for (const seed of [1, 2]) {
       const r = recorder()

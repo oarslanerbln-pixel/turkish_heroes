@@ -161,7 +161,7 @@ describe('Alp Arslan — kurallar', () => {
     expect(soldier.discipline).toBeCloseTo(c.cohesion)
   })
 
-  it('artçı kaçınca kollar merkeze kapanır; imparatoru gün batımının hemen ardından onlar açar', () => {
+  it('artçı kaçınca kollar merkeze kapanır; imparatoru sancak dönerken, merkezin çarkı sürerken açarlar', () => {
     const atSunset = () => {
       const s = createBattle(1)
       s.battle.corps[REARGUARD].cohesion = 0.7
@@ -169,24 +169,31 @@ describe('Alp Arslan — kurallar', () => {
       s.battle.time = BATTLE_CONFIG.dayLength - DT / 2
       return s
     }
-    const window = BATTLE_CONFIG.emperorWindow
+    /** Merkez çarkını bitirene dek (pencere). */
+    const untilTurned = (s: ReturnType<typeof atSunset>) => {
+      run(s.battle, s.enemies, FAR, DT)
+      while (s.battle.corps[CENTER].status === 'turning') run(s.battle, s.enemies, FAR, DT)
+    }
 
-    // Kollar pusuda: merkezin arkası açılır ama imparator korunur.
+    // Kollar pusuda: merkezin arkası açılır ama imparator korunur; çark
+    // bitince muhafız toparlanır.
     const alone = atSunset()
-    run(alone.battle, alone.enemies, FAR, window + 1)
+    untilTurned(alone)
     expect(alone.battle.rearguardLeft).toBe(true)
     expect(alone.battle.emperorExposed).toBe(false)
+    expect(alone.battle.events).toContain('guardRallied')
 
     const closed = atSunset()
     for (const w of closed.battle.wings) orderWing(w, 'charge')
-    run(closed.battle, closed.enemies, FAR, window)
+    untilTurned(closed)
     expect(closed.battle.wings.every((w) => w.target === CENTER)).toBe(true)
     expect(closed.battle.emperorExposed).toBe(true)
+    expect(closed.battle.events).not.toContain('guardRallied')
     expect(closed.enemies.find((e) => e.emperor)!.guarded).toBe(false)
 
-    // Pencere kapandıktan sonra varan kollar geç kalır: muhafız toparlandı.
+    // Çark bittikten sonra varan kollar geç kalır: muhafız toparlandı.
     const late = atSunset()
-    run(late.battle, late.enemies, FAR, window)
+    untilTurned(late)
     for (const w of late.battle.wings) orderWing(w, 'charge')
     run(late.battle, late.enemies, FAR, 10)
     expect(late.battle.wings.every((w) => w.target === CENTER)).toBe(true)
@@ -198,7 +205,7 @@ describe('Alp Arslan — kurallar', () => {
       orderWing(w, 'charge')
       w.strength = WING_CONFIG.readyStrength
     }
-    run(tired.battle, tired.enemies, FAR, window)
+    untilTurned(tired)
     expect(tired.battle.emperorExposed).toBe(false)
   })
 

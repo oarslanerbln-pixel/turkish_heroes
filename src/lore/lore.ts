@@ -33,6 +33,7 @@ export type LoreId =
   | 'kataphrakt'
   | 'kanat'
   | 'aksam'
+  | 'yem'
   | 'esir'
   // II. Kılıçarslan — Miryokefalon 1176
   | 'gecit'
@@ -149,6 +150,15 @@ export const LORE: readonly LoreCard[] = [
     source: 'Mihail Attaleiates, Tarih',
     hint: 'Gün batımına kadar dayan',
     earn: (s) => s.commander === 'alp-arslan' && saw(s, 'sunset'),
+  },
+  {
+    id: 'yem',
+    commander: 'alp-arslan',
+    title: 'Yem akıncılar',
+    text: "Malazgirt'ten bir gün önce Türk akıncıları Bizans ordugahının önünde görünüp kaçtı. Peşlerine düşen Nikephoros Basilakes pusuya çekildi ve esir alındı. Oyun bu çatışmayı savaş gününe taşır.",
+    source: 'Nikephoros Bryennios, Tarih (I.14)',
+    hint: 'Hamle edeni pusudaki kola çek',
+    earn: (s) => s.ambushes.length > 0,
   },
   {
     id: 'esir',
