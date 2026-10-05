@@ -26,7 +26,6 @@ function run(b: BattleState, enemies: Enemy[], seconds: number): void {
   for (let t = 0; t < seconds; t += DT) stepBattle(b, enemies, FAR, DT)
 }
 
-/** Gün batımından bir kare önce: sonraki adım dönüşü başlatır. */
 /** Gün batımından `delay` sn sonra iki kola HÜCUM; öncesinde pusu. */
 const lateCharge =
   (delay: number): WingPolicy =>
@@ -41,6 +40,7 @@ const restAtDusk =
       ? ['charge', 'charge']
       : b.wings.map((w): WingOrder => (w.order === 'charge' || w.strength >= ready ? 'charge' : 'ambush'))
 
+/** Gün batımından bir kare önce: sonraki adım dönüşü başlatır. */
 function atSunset(seed = 1) {
   const s = createBattle(seed)
   s.battle.time = BATTLE_CONFIG.dayLength - DT / 2
