@@ -763,6 +763,24 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
      - Donma artık botlarda da var; mevcut 243 denge testi değişmeden geçti. Eşikler yine de 2.'de yeniden ölçülür.
      - Tarayıcıda (`?commander=alp-arslan&seed=1071`): klavye 6 birim/sn yürütür, sürü yürür, VUR 4 düşüş ve 400 puan verir, 2 kare hitstop ve 0,9 sn donma; konsol temiz. Zincir: lint, tsc, 246 test, derleme, bütçe 358,5/385 kB, 38/38 e2e.
   2. Yeniden ölçüm, sonra ayar. O1: kışkırtıcı + sabırsız 30 tohumda 3★ ≤%70, pusu 3★ oranı ≥ sabırsız. O2: önce ilk vuruşun neden hep ~99 sn olduğu ölçülür; sonra ilk vuruş ortancası ≤60 sn, 3★ penceresi ≥3 birim. O3: acemi bot tabanda ≥%20, uzman tam hasarda ≥%90 kazanır. O4 skor basamağa göre ölçeklenir; O6 belge ifadesi.
+     - **Ölçüm (5 Ekim 2026, donma botlarda, Mantık 1'den önce):**
+
+       | # | Hedef | Ölçülen | Durum |
+       |---|---|---|---|
+       | O1 | kışkırtıcı + sabırsız 3★ ≤%70; pusu ≥ sabırsız | sabırsız %100, pusu %83 | açık |
+       | O2 | ilk vuruş ortancası ≤60 sn; 3★ penceresi ≥3 birim | ~40 sn; 7 birim | tamam |
+       | O3 | acemi tabanda ≥%20; uzman tam hasarda ≥%90 | acemi 0/30 (0,5'te); uzman 28/30 | acemi açık |
+
+       - O2'nin eski ~99 sn'si donmasız botlardandı; donmayla birlikte hedef tuttu.
+       - Yan bulgular: kesmeyen bot geçitte yine 1★ kazanıyordu (kol z=19'da kalıyor, çıkış 22). z=−1'de kesen bot 8/8 ölüyor; bu ayrıca incelenecek.
+     - **Mantık 1, pasif oyun kazanmasın (TASARIM §6 adım 1; `7c8c65c`):**
+       - Malazgirt'te gece hedefi: gece çöktüğünde ordunun dörtte biri düşmüş olmalı (`BATTLE_CONFIG.nightGoal` 0,25 → 41'den 11). Pasif oyuncu 0 düşürür, taciz eden botlar 17 ve üstünü. Hedefsiz gece yenilgidir: `DefeatCause` `'night'`, sonuç ekranında "GERİ ÇEKİLDİN", karnede "Zafer: ordunun dörtte biri" hedefi.
+       - Geçitte taciz yavaşlatması düşük: `harassSlow` düzene göre (meydan 0,6, geçit 0,3). Yolu kesmeyen kol geçidi aşar ve oyuncu yenilir (`column.test`).
+       - Metehan'da duran atlı hedef olur (`stillPress`): hız 0,5'in altında 5 sn kalınca sürü 3 sn içinde mesafeyi kapatır, düzen bozulmadan. İpucu `'still'`. Boştaki bot 30 sn içinde yenilir (`metehan.test`).
+       - Tohum 1071, boşta Malazgirt (assist 0,5): yenilgi, `'night'`, t≈160 (`step.test`).
+       - E2E zafer çekimi artık boşta beklemiyor: çekim kipinde `?bot=harass` güvenli taciz botunu sürer (`battleBots` yalnızca bu kipte, ayrı parçada yüklenir).
+       - Yerelde lint, tsc, 248 test, derleme, bütçe 360,7/385 kB ve checks 41/41 geçti. `shots` CI'da (R7 ve Metehan 6 sn çekimleri değişir).
+     - Kalan: O1 ayarı, O3 (Mantık 6: merdiven tabanı ~0,25 ve ilerleme göçü), O4, z=−1 bot ölümü.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**
