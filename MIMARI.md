@@ -867,7 +867,7 @@ S4 doğrulandı: O1–O3 sayıları botlarda enerji donması olmayan, daha kolay
 | V4 | Yüksek | Siluet imzaları alt-piksel: atlı ~22 px, mızrak/yay/tuğ <1 px. İmparator yalnız 1,25× ve altın; Romanos ile Manuel aynı. | `riderGeometry.ts`, `EnemySwarm.tsx:25` |
 | V5 | Orta | Yüksek kademede çim okunabilirliği düşürüyor; otağ titreşimli koyu leke; menü panelleri yatay genişliğin ~%75'i. | ekran görüntüleri |
 | V6 | Orta | Ton eşleme yok: EffectComposer `NoToneMapping` kuruyor, ACES ayarı ölü. Renk derecelendirmenin önkoşulu. | `Scene.tsx:91-96` |
-| V7 | Düşük | Gölge çerçevesi orijine sabit (±35); kanyona özgü ışık dizisi yok. | `DayCycle.tsx:100-103, 147-166` |
+| V7 | Düşük | **Kısmen kapandı (Grafik 4).** Gölge çerçevesi artık güneşe göre sahayı sarıyor: aynı harita öğlende 1,24×, gün batımında 2,15× keskin. Kameraya bağlı dar çerçeve bırakıldı: telefon yatay oynanıyor, taktik kadraj sahanın neredeyse tamamını görüyor. Açık kalan: kanyona özgü ışık dizisi yok. | `sunShadow.ts`, `sunShadow.test.ts` |
 | V8 | Orta | Cinzel küçük harfleri noktasız küçük büyük harf: karışık harfli metinde i = ı. "→" yedek yazıya düşüyor. 7–10,5 px Cinzel metinler var. | woff harf tablosu, `hud.css` |
 | ~~K1~~ | Orta | **Kapandı (G1).** İleriye bakış 180° dönüşte oyuncuyu ekranda ~%25 yükseklik savuruyor. | `FollowCamera.tsx:19`, `hilalSystem.ts:41` |
 | ~~K2~~ | Orta | **Kapandı (G1).** 667×375'te düşman cephesi üst kenarda, HUD'un altında. | ekran görüntüsü, Malazgirt t≈6 |
