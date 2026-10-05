@@ -24,11 +24,14 @@ import {
   BATTLE_SIZE,
   CENTER,
   COLUMN_CONFIG,
+  MALAZGIRT,
   MIRYOKEFALON,
+  nightTarget,
   REARGUARD,
 } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
 import { TOTAL_WAVES, WAVES, waveConfig, wavesStarHealth } from '../mechanics/waves'
+import type { WingOrder } from '../mechanics/wings'
 import type { BattleSummary } from '../telemetry/summary'
 
 export type AdviceId =
@@ -50,6 +53,7 @@ export type AdviceId =
   | 'saveWings'
   | 'duskStrike'
   | 'breakRear'
+  | 'closeWings'
   | 'breakCenter'
   | 'aimEmperor'
   | 'mastery'
@@ -131,7 +135,10 @@ function at(s: BattleSummary, t: number): number {
 
 // ——— Metehan: dört dalga ———
 
-const WAVE_TOTAL = sum(WAVES.map((w) => w.enemyCount))
+/** Savaşın başladığı dalgadan sona dek düşman sayısı (Baideng'den başlayınca yalnız o). */
+function waveTotal(from: number): number {
+  return sum(WAVES.slice(from).map((w) => w.enemyCount))
+}
 
 function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
   // Baideng'de kendi yaylımının altında düşen Han atlısı da oyuncunun hanesine.
@@ -150,11 +157,9 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
   const timeline = { dusk: null, marks }
 
   if (s.outcome === 'victory') {
+    const won = s.startWave > 0 ? 'Baideng kuşatıldı' : `${TOTAL_WAVES} dalganın hepsi kuşatıldı`
     return {
-      headline:
-        s.health <= 15
-          ? `${TOTAL_WAVES} dalganın hepsi kuşatıldı — kıl payı, canın %${s.health}.`
-          : `${TOTAL_WAVES} dalganın hepsi kuşatıldı.`,
+      headline: s.health <= 15 ? `${won} — kıl payı, canın %${s.health}.` : `${won}.`,
       close: s.health <= 15,
       peak,
       advice: victoryAdvice(s, routed),
@@ -169,7 +174,7 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
     close: s.remaining <= Math.ceil(waveSize * CLOSE_WAVE_SHARE),
     peak,
     advice: waveAdvice(s),
-    goal: { label: 'Zafere', value: kills + routed, target: WAVE_TOTAL, unit: 'düşman' },
+    goal: { label: 'Zafere', value: kills + routed, target: waveTotal(s.startWave), unit: 'düşman' },
     timeline,
   }
 }
@@ -217,7 +222,7 @@ function victoryAdvice(s: BattleSummary, routed: number): Debrief['advice'] {
 
 /** Vuruşun hangi dalgada yapıldığı: temizlenme anlarına göre. */
 function waveAt(s: BattleSummary, t: number): number {
-  return s.waves.filter((w) => w.t < t).length
+  return s.startWave + s.waves.filter((w) => w.t < t).length
 }
 
 /**
@@ -299,6 +304,22 @@ function battleDebrief(s: BattleSummary): Debrief {
       value: Math.round(s.simTime),
       target: day ? cfg.dayLength : cfg.nightAt,
       unit: 'sn',
+    }
+    if (s.cause === 'night') {
+      const need = nightTarget(MALAZGIRT, BATTLE_SIZE)
+      return {
+        headline: `Gece çöktü, Bizans ordusu ayakta: ${fallen} asker düştü, ${need} gerekiyordu.`,
+        close: need - fallen <= CLOSE_STAR_GAP,
+        peak,
+        advice: s.events.some((e) => e.event === 'harass')
+          ? harvestAdvice(s, sunset)
+          : {
+              id: 'harass',
+              text: 'Kenarda beklemek zafer getirmez. Birliklerin ok menziline gir: düzenleri erir, akşam hilal onları biçer.',
+            },
+        goal: { label: 'Zafer: ordunun dörtte biri', value: fallen, target: need, unit: 'asker' },
+        timeline,
+      }
     }
     if (s.cause === 'camp') {
       return {
@@ -454,14 +475,37 @@ function emperorAdvice(s: BattleSummary, exposed: boolean, rearLeft: boolean): D
           : `Artçıyı gündüz yıprat: düzeni %${pct(cfg.rearguardThreshold)}'in altına inerse akşam kaçar, imparatorun arkası açılır.`,
     }
   }
+  // Artçı kaçtı: imparatoru kolların gün batımında merkeze kapanması açar.
+  const wings = s.dusk?.wings ?? []
+  if (wings.length > 0 && wings.reduce((a, x) => a + x, 0) < cfg.emperorPin) {
+    return {
+      id: 'saveWings',
+      text: `Artçı kaçtı ama kollar gün batımında yorgundu (güç %${pct(Math.max(...wings))}): merkeze kapanacak güç kalmadı. En az bir kolu pusuda sakla.`,
+    }
+  }
+  if (!chargedAtDusk(s)) {
+    return {
+      id: 'closeWings',
+      text: `Artçı kaçtı, merkezin arkası açıldı. Gün batınca ${cfg.emperorWindow} sn içinde kollara HÜCUM ver: merkeze kapanırlarsa imparator korumasız kalır.`,
+    }
+  }
   const center = cohesion[CENTER]
   return {
     id: 'breakCenter',
     text:
       center !== undefined
-        ? `Artçı kaçtı ama merkez dağılmadı (gün batımında %${pct(center)}). Merkezin düzeni %${pct(cfg.emperorThreshold)}'in altına inince imparator korumasız kalır.`
-        : `Artçı kaçtı; şimdi merkezi yıprat. Düzeni %${pct(cfg.emperorThreshold)}'in altına inince imparator korumasız kalır.`,
+        ? `Kollar merkeze kapandı ama merkez dağılmadı (gün batımında %${pct(center)}). Gündüz merkezi de yıprat: düzeni %${pct(cfg.emperorThreshold)}'in altındayken imparator korumasız kalır.`
+        : `Kollar merkeze kapandı ama merkez dağılmadı. Gündüz merkezi de yıprat: düzeni %${pct(cfg.emperorThreshold)}'in altındayken imparator korumasız kalır.`,
   }
+}
+
+/** İmparatorun penceresi kapanmadan (bkz. emperorWindow) bir kol hücumdaydı mı. */
+function chargedAtDusk(s: BattleSummary): boolean {
+  const sunset = s.events.find((e) => e.event === 'sunset')?.t
+  if (sunset === undefined) return false
+  const last: WingOrder[] = ['ambush', 'ambush']
+  for (const o of s.orders) if (o.t < sunset + BATTLE_CONFIG.emperorWindow) last[o.wing] = o.order
+  return last.includes('charge')
 }
 
 // ——— II. Kılıçarslan: Miryokefalon ———

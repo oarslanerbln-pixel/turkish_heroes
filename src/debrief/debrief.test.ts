@@ -9,8 +9,8 @@ import type { CommanderId } from '../mechanics/scenario'
 
 type Timed = [number, TelemetryEvent]
 
-function summary(commander: CommanderId, events: Timed[], assist = 1): BattleSummary {
-  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist, seed: null }, 'test', 0)
+function summary(commander: CommanderId, events: Timed[], assist = 1, startWave = 0): BattleSummary {
+  const s = startSummary({ type: 'battle_start', commander, attempt: 1, assist, seed: null, startWave }, 'test', 0)
   for (const [t, e] of events) applyEvent(s, { ...e, t })
   return s
 }
@@ -64,6 +64,21 @@ describe('savaş karnesi — Metehan', () => {
     expect(d.peak).toBe('En büyük hilalin: tek vuruşta 20 düşman (2. dalga)')
     expect(d.timeline.dusk).toBeNull()
     expect(d.timeline.marks.map((m) => m.kind).sort()).toEqual(['rout', 'strike', 'strike', 'wave'])
+  })
+
+  it("Baideng'den başlayan savaş: hedef yalnız Baideng ordusu, dalga numarası oradan", () => {
+    const defeat = debrief(
+      summary('metehan', [[12, strike(9, 33)], [30, end('defeat', { wave: 3, remaining: 20, health: 0 })]], 1, 3),
+      { best: 0 },
+    )
+    expect(defeat.headline).toBe('4. dalgada düştün — 20 düşman kalmıştı.')
+    expect(defeat.goal).toEqual({ label: 'Zafere', value: 9, target: 33, unit: 'düşman' })
+    expect(defeat.peak).toBe('En büyük hilalin: tek vuruşta 9 düşman (4. dalga)')
+
+    const victory = debrief(summary('metehan', [[80, end('victory', { wave: 3, health: 60, stars: 2 })]], 1, 3), {
+      best: 0,
+    })
+    expect(victory.headline).toBe('Baideng kuşatıldı.')
   })
 
   it('dalganın çoğu dururken düşmek "az kaldı" değildir', () => {
@@ -265,12 +280,32 @@ describe('savaş karnesi — Malazgirt', () => {
     expect(rear.advice.text).toContain('%86')
     expect(rear.goal).toMatchObject({ value: 0, target: 3 })
 
-    const center = run([
+    // Artçı kaçtı: sıradaki adım kolların merkeze kapanması.
+    const rearLeft: Timed[] = [
+      [dayLength, event('sunset')],
       [dayLength, dusk([0.6, 0.9, 0.6, 0.7])],
       [dayLength, event('rearguardLeaves')],
+    ]
+    const idle = run(rearLeft)
+    expect(idle.advice.id).toBe('closeWings')
+    expect(idle.goal).toMatchObject({ value: 1 })
+    const tooLate = run([
+      ...rearLeft,
+      [dayLength + BATTLE_CONFIG.emperorWindow + 1, { type: 'wing_order', wing: 0, order: 'charge' }],
     ])
+    expect(tooLate.advice.id).toBe('closeWings')
+
+    const tired = run([
+      [10, { type: 'wing_order', wing: 0, order: 'charge' }],
+      [dayLength, event('sunset')],
+      [dayLength, dusk([0.6, 0.9, 0.6, 0.7], [0.2, 0.25])],
+      [dayLength, event('rearguardLeaves')],
+    ])
+    expect(tired.advice.id).toBe('saveWings')
+    expect(tired.advice.text).toContain('%25')
+
+    const center = run([...rearLeft, [dayLength + 2, { type: 'wing_order', wing: 1, order: 'charge' }]])
     expect(center.advice.id).toBe('breakCenter')
-    expect(center.goal).toMatchObject({ value: 1 })
 
     const exposed = run([
       [dayLength, event('rearguardLeaves')],

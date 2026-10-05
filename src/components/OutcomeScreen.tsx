@@ -3,7 +3,8 @@ import { useGameStore } from '../store/gameStore'
 import { commanderInfo } from '../mechanics/scenario'
 import type { Debrief, TimelineMark } from '../debrief/debrief'
 import { LORE, type LoreCard } from '../lore/lore'
-import { earnedLore } from '../sim/progress'
+import { earnedLore, reachedBaideng } from '../sim/progress'
+import { BAIDENG_WAVE, retryWave } from '../mechanics/waves'
 import { Ornament } from './Ornament'
 import { Narrator } from './Narrator'
 import { StarIcon } from './icons'
@@ -27,6 +28,8 @@ function focusInPlace(el: HTMLButtonElement | null) {
  */
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
+  const restartAt = useGameStore((s) => s.restartAt)
+  const waveIndex = useGameStore((s) => s.waveIndex)
   const backToMenu = useGameStore((s) => s.backToMenu)
   const playCommander = useGameStore((s) => s.playCommander)
   const kills = useGameStore((s) => s.totalKills)
@@ -36,20 +39,31 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const battle = commander !== 'metehan'
   const stars = useGameStore((s) => s.stars)
   const captured = useGameStore((s) => s.emperorCaptured)
+  const cause = useGameStore((s) => s.defeatCause)
   const report = useGameStore((s) => s.debrief)
   const unlocked = useGameStore((s) => s.unlocked)
   const lore = useGameStore((s) => s.lore)
   const isVictory = outcome === 'victory'
+  // Gece hedefi tutmadan çöktü: ordu ayakta, oyuncu sahadan çekildi (bkz. corps.ts nightGoal).
+  const withdrew = !isVictory && cause === 'night'
   const isNewBest = score > 0 && score >= bestScore
   // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
   // bir sonraki yıldızın "az kaldı"sı için.
   const showClose = report?.close && (battle || !isVictory)
+  // Metehan'da Baideng'e bir kez varan oradan da başlar. YENİDEN Baideng'de
+  // biten savaşı oradan başlatır; öteki seçenek (BAŞTAN ya da BAİDENG'DEN) yanında.
+  const checkpoint = !battle && reachedBaideng()
+  const fromBaideng = !battle && retryWave(waveIndex) === BAIDENG_WAVE
 
   return (
     <div className="screen outcome">
       <div className="outcome-main">
-        <div className={isVictory ? 'result-title is-victory' : 'result-title is-defeat'}>
-          {isVictory ? 'ZAFER' : 'YENİLGİ'}
+        <div
+          className={
+            isVictory ? 'result-title is-victory' : `result-title is-defeat${withdrew ? ' is-long' : ''}`
+          }
+        >
+          {isVictory ? 'ZAFER' : withdrew ? 'GERİ ÇEKİLDİN' : 'YENİLGİ'}
         </div>
         <Ornament width={240} />
         {isVictory && <Stars count={stars} />}
@@ -104,8 +118,13 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
             onClick={restart}
             ref={unlocked ? undefined : focusInPlace}
           >
-            YENİDEN
+            {fromBaideng ? "BAİDENG'DEN" : 'YENİDEN'}
           </button>
+          {checkpoint && (
+            <button className="secondary-btn" onClick={() => restartAt(fromBaideng ? 0 : BAIDENG_WAVE)}>
+              {fromBaideng ? 'BAŞTAN' : "BAİDENG'DEN"}
+            </button>
+          )}
           <button className="secondary-btn" onClick={backToMenu}>
             KOMUTANLAR
           </button>

@@ -149,6 +149,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - `stepGame(world, input, dt)` adında, Suspense'in dışında duran tek bir sürücü; bileşenler yalnızca okuyup çizer.
   - Her model kendi Suspense'ine sarılsın; yükleme sırasında bugünkü prosedürel mesh görünsün.
 - Zaman: **`stepGame`: faz 26 (denge önkoşulu, S4); bölünmüş Suspense: faz 28 önkoşulu**
+- Durum: ilk yarı yapıldı (§8 2f.1): `sim/step.ts`, yönetmen Suspense'in dışında. Kalan: model başına Suspense.
 
 **S2 · Olaylar tipsiz, konumsuz, tek okuyuculu**
 - Kanıt: `scenarios.ts:300`, `hilalSystem.ts:338`, `ArrowVolley.tsx:40-62`
@@ -254,6 +255,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Etki: vuruştan sonraki 0,9 sn'lik enerji donması botlarda yok; denge, gerçeğinden daha kolay bir oyunda ayarlanıyor.
 - Öneri: S1'deki `stepGame`'i botlar da kullansın.
 - Zaman: **faz 26, denge ayarından önce** (§10 O1–O3 bu açıkla ölçüldü)
+- Durum: yapıldı (§8 2f.1). Botlar `stepGame`'i çağırır; donma botlarda da var.
 
 **S5 · Yapıştırıcı kod testsiz**
 - Testsiz parçalar:
@@ -695,7 +697,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - Paket bütçesi (`npm run budget`): gzip toplam 348 kB (three 180, render 70, react 54, index 43), bütçe 385 kB.
    - PR şablonu: `.github/pull_request_template.md`.
    - Ölçüm tuzakları: hedef adı `textContent`'ten alınınca ilerleme sayacı ("0 / 14") ada giriyor ve liste boşuna kırılıyordu; ad artık erişilebilir adın ya da görünen metnin ilk parçası. Mola paneli kayarak girerken ölçülen konumlar titriyordu; bekçi sonlu animasyonların bitmesini bekler.
-   - Bulgu (2f.1'e): tohum 1071'de hiç dokunmayan oyuncu Malazgirt'i t=160'ta kazanıyor ("Gece çöktü; ordugah korundu"). Faz 17 bot testi "kollar pasif oyuncuyu kurtarmaz" diyor: ya bot ile gerçek döngü ayrışıyor ya da bu tohum istisna; ayrımı 2f.1 yapar. Boşta Miryokefalon t=85'te yenilgi, Metehan'da savaş bitmiyor.
+   - Bulgu (2f.1'e): tohum 1071'de hiç dokunmayan oyuncu Malazgirt'i t=160'ta kazanıyor ("Gece çöktü; ordugah korundu"). Faz 17 bot testi "kollar pasif oyuncuyu kurtarmaz" diyor: ya bot ile gerçek döngü ayrışıyor ya da bu tohum istisna; ayrımı 2f.1 yapar. Boşta Miryokefalon t=85'te yenilgi, Metehan'da savaş bitmiyor. **Cevap (2f.1):** döngü değil, ilk savaşın yarı hasarı (assist 0,5).
 
 **2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.
 - **2a Yerleşim ve yazı:** sonuç düğmeleri sarılır, dikeyde "telefonu yatay çevir" örtüsü, sağ başparmak bölgesi (U3), A8 ≥44 px, U1 yazı tabanı ≥12 px, U2 panelsiz metne koyu zemin. Kabul: düzen bekçisi 3 görüşte yeşil; HUD'da en küçük yazı ≥12 px; R3/R5'te metin kontrastı ≥4,5:1.
@@ -757,9 +759,95 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - T13'ün ilk parçası: her brifing bir bağlam satırı ve Aydoğdu'nun satırıyla açılır; sonuç ekranında Aydoğdu'nun zafer ya da yenilgi satırı var.
     - `lore.test` yasak ifadeleri hikâye metinlerinde de arar. Düzen bekçisi iki satır sınırını ve yatay telefonda adımların görünmesini denetler.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
+  - **Yapıldı (5 Ekim 2026, TASARIM Mantık 5, `claude/adim-dongusu`):**
+    - Üç enerji ipucu, oyuncunun durumu açınca ve oyuncu başına bir kez (`teachEnergy`, `scenarios.ts`):
+      - `'stall'`: 15–60 sn arasında hiç düşüş yok ve hilal 15'in altında. Metin: düşman düzenli, uzaklaş.
+      - `'fill'`: hilal 30'u geçince. Metin: kümelendikçe hilal dolar.
+      - `'ready'`: vuruş hazır. Metin: VUR.
+    - Ölçüm (başlangıç basamağı): boştaki bot `'still'` 5 sn, `'stall'` 15 sn. Uzman bot `'fill'` 9,4 sn, `'ready'` 14,3 sn, ilk vuruş 14,5 sn. Acemi `'fill'` 9,9 sn, `'ready'` 14,9 sn. Kaçan oyuncu `'stall'`ı hiç görmez (`metehan.test`, `stepGame` ile tekrar).
+    - Harita kartı sıradaki yıldızın koşulunu gösterir (`CommanderInfo.stars`, `.brief-goal`). Örnek: "Zafer: Dört dalgayı aş". Üç yıldızda satır gizlenir.
 - **2f Denge (yalnız simülasyon):**
-  1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).
+  1. ~~S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).~~ **Yapıldı (5 Ekim 2026, `claude/adim-dongusu`):**
+     - `sim/step.ts` `stepGame(world, input, dt, fx)`: oyuncu → düşmanlar → temas → hilal yönü → vuruş/enerji → savaşın akışı → sonuç. Ses, titreşim, olay kaydı ve ipuçları `StepEffects` ile gelir: oyunda gerçek (`GAME_FX`), botlarda `SILENT_FX`.
+     - Yönetmen öncelik −1'de adımı yürütür; oyuncu ve sürü artık yalnız çizer. Yönetmen ve olay boşaltıcı Suspense'in dışında (S1'in ikinci yarısı, model başına Suspense, faz 28'de).
+     - `runBattle` ve `runWaves` aynı adımı çağırır; dalgalı savaşın eski kural düğmeleri (bozgun, uzakta doğma) `wavesScenario(rules)` parametresi. Hasar çarpanı `world.assist`'te: yönetmen savaş başında senaryodan yazar, botlar parametreden.
+     - Zafer puanı (yıldızlar dahil) adımın içinde; botlar oyunun puanını görür. Bot dosyalarındaki puan kopyası kalktı.
+     - `step.test.ts`: kaydedilen bot girdisi oyun döngüsünde aynı sonucu, süreyi, canı, puanı ve düşen sayısını verir. Vuruştan sonra 0,9 sn enerji dolmaz (kuşatmaya açıklık varken de); kuralı silen değişiklikte test kırmızı.
+     - Adım 1.8 bulgusunun cevabı: döngü ayrışmıyordu. Tarayıcıdaki ilk savaş yarı hasarla (assist 0,5) koşuyor, testler tam hasarla. Tohum 1071, boşta:
+
+       | Savaş | assist 0,5 | assist 1 |
+       |---|---|---|
+       | Malazgirt | zafer, t=160 (can 15,7, puan 579) | yenilgi, t=100,9 |
+       | Miryokefalon | yenilgi, t=84,6 | yenilgi, t=78,1 |
+
+       Oyun döngüsü ile pasif bot dört durumda da aynı. Metehan'da boşta oyuncu hiç hasar almaz (600 sn'de can 100); savaş bitmez.
+     - Donma artık botlarda da var; mevcut 243 denge testi değişmeden geçti. Eşikler yine de 2.'de yeniden ölçülür.
+     - Tarayıcıda (`?commander=alp-arslan&seed=1071`): klavye 6 birim/sn yürütür, sürü yürür, VUR 4 düşüş ve 400 puan verir, 2 kare hitstop ve 0,9 sn donma; konsol temiz. Zincir: lint, tsc, 246 test, derleme, bütçe 358,5/385 kB, 38/38 e2e.
   2. Yeniden ölçüm, sonra ayar. O1: kışkırtıcı + sabırsız 30 tohumda 3★ ≤%70, pusu 3★ oranı ≥ sabırsız. O2: önce ilk vuruşun neden hep ~99 sn olduğu ölçülür; sonra ilk vuruş ortancası ≤60 sn, 3★ penceresi ≥3 birim. O3: acemi bot tabanda ≥%20, uzman tam hasarda ≥%90 kazanır. O4 skor basamağa göre ölçeklenir; O6 belge ifadesi.
+     - **Ölçüm (5 Ekim 2026, donma botlarda, Mantık 1'den önce):**
+
+       | # | Hedef | Ölçülen | Durum |
+       |---|---|---|---|
+       | O1 | kışkırtıcı + sabırsız 3★ ≤%70; pusu ≥ sabırsız | sabırsız %100, pusu %83 | açık |
+       | O2 | ilk vuruş ortancası ≤60 sn; 3★ penceresi ≥3 birim | ~40 sn; 7 birim | tamam |
+       | O3 | acemi tabanda ≥%20; uzman tam hasarda ≥%90 | acemi 0/30 (0,5'te); uzman 28/30 | acemi açık |
+
+       - O2'nin eski ~99 sn'si donmasız botlardandı; donmayla birlikte hedef tuttu.
+       - Yan bulgular: kesmeyen bot geçitte yine 1★ kazanıyordu (kol z=19'da kalıyor, çıkış 22). z=−1'de kesen bot 8/8 ölüyor; bu ayrıca incelenecek.
+     - **Mantık 1, pasif oyun kazanmasın (TASARIM §6 adım 1; `7c8c65c`):**
+       - Malazgirt'te gece hedefi: gece çöktüğünde ordunun dörtte biri düşmüş olmalı (`BATTLE_CONFIG.nightGoal` 0,25 → 41'den 11). Pasif oyuncu 0 düşürür, taciz eden botlar 17 ve üstünü. Hedefsiz gece yenilgidir: `DefeatCause` `'night'`, sonuç ekranında "GERİ ÇEKİLDİN", karnede "Zafer: ordunun dörtte biri" hedefi.
+       - Geçitte taciz yavaşlatması düşük: `harassSlow` düzene göre (meydan 0,6, geçit 0,3). Yolu kesmeyen kol geçidi aşar ve oyuncu yenilir (`column.test`).
+       - Metehan'da duran atlı hedef olur (`stillPress`): hız 0,5'in altında 5 sn kalınca sürü 3 sn içinde mesafeyi kapatır, düzen bozulmadan. İpucu `'still'`. Boştaki bot 30 sn içinde yenilir (`metehan.test`).
+       - Tohum 1071, boşta Malazgirt (assist 0,5): yenilgi, `'night'`, t≈160 (`step.test`).
+       - E2E zafer çekimi artık boşta beklemiyor: çekim kipinde `?bot=harass` güvenli taciz botunu sürer (`battleBots` yalnızca bu kipte, ayrı parçada yüklenir).
+       - Yerelde lint, tsc, 248 test, derleme, bütçe 360,7/385 kB ve checks 41/41 geçti. `shots` CI'da (R7 ve Metehan 6 sn çekimleri değişir).
+     - **Mantık 6, adil zorluk (O3, O4):**
+       - Merdiven başlangıcın altına iki basamak iner: 0,35 ve 0,2 (`LADDER_BOTTOM` −2). Başlangıç yine basamak 0 ve yarı hasar, yani kayıttaki eski basamak aynı hasarı verir ve göç gerekmez. Eski sürüm eksi basamağı 0'a kıstırır.
+       - 30 tohumda acemi bot 0,25'te 4, 0,2'de 14 zafer alıyor; taban bu yüzden 0,2. Tabanda 60 tohumda 26 zafer (%43, O3 hedefi ≥%20). Merdivenle 20 acemi 3. dalgaya en geç 4., ilk zafere en geç 8. denemede ulaşıyor (`metehan.test`).
+       - Alp Arslan, Metehan'da 3. dalgaya ulaşınca da açılır (`CommanderInfo.unlockWave`, ilerlemede `wave`). Kilit metni: "Metehan ile 3. dalgaya ulaşınca açılır".
+       - O4: Metehan puanı basamakla ölçeklenir (`waveScore`): yarı hasar ×1, tam hasar ×2, taban ×0,4. Başlangıç ×1 olduğu için eski rekorlar bugünkü ölçekte kalır. Basamak oyuncuya gösterilmiyor.
+       - Baideng'den başlama (TASARIM Mantık 6'nın ilk maddesi), 5 Ekim 2026:
+         - Baideng'e bir kez varan oyuncu (`progress.wave`, `reachedBaideng`) savaşa oradan da başlar: tam can, mola yok (`restedFrom` null), enerji 0. Dünya `createWorld(…, { startWave })` ile kurulur; botların tek dalga ölçümü de aynı yoldan.
+         - YENİDEN (sonuçta ve molada) Baideng'e varılan savaşı oradan başlatır (`retryWave`); düğme "BAİDENG'DEN" der. Sonuç ekranında öteki seçenek yanında: BAŞTAN ya da BAİDENG'DEN. Menüden giriş hep baştan.
+         - Merdiven, dalga kaydı ve yıldızlar her savaştaki gibi. Yıldız mola payı olmadan, yalnız Baideng yarasından; tam koşuda da mola canı neredeyse doldurduğu için ölçü yakın. Skor önceki dalgaların bonusunu almaz, rekor şişmez.
+         - Telemetri: `battle_start.startWave` (yalnız 0 değilse), özette `startWave`. Karne hedefi yalnız Baideng ordusu (33), zafer başlığı "Baideng kuşatıldı".
+         - Düzen bekçisine "sonuç Baideng seçeneği" eklendi (üç görünüm, ihlalsiz).
+     - **Mantık 2, kışkırtmanın amacı (O1), 5 Ekim 2026:**
+       - Sorun: artçı gün batımında kaçınca imparator kollardan bağımsız olarak hemen açılıyordu (3★ ortancası 101 sn). Kollar yalnız artçıyı yıpratmaya yarıyordu. Gündüz hücum eden kol bunu daha iyi yaptığı için sabırsız tarif 30/30 aldı.
+       - Kural: imparatoru kolların merkeze kapanması açar (TASARIM §2.2: yemle bir birliği kopar, kollarla kuşat, komutanı esir al).
+         - Artçı kaçınca kolların hedefi merkez olur (`wingTarget`). Kaçış tek başına imparatoru açmaz.
+         - İmparator gün batımından sonraki `emperorWindow` (15 sn) içinde açılır. Şart: kollar merkezi en az `emperorPin` (0,6, iki kolun toplamı) şiddetle tutsun ve merkezin düzeni 0,75'in altında olsun.
+         - Taze bir kol tek başına yeter, gündüz tükenen iki kol yetmez. Pencere kapanınca muhafız toparlanır; kollarını akşam dinlendiren geç kalır.
+       - 30 tohumda kışkırtıcı botla 3★:
+
+         | Kollar | Önce | Sonra |
+         |---|---|---|
+         | sabırsız (hep hücum) | 30 | 0 |
+         | pusu, gün batımında hücum | 25 | 25 |
+         | gündüz taciz, akşam hücum | 30 | 0 |
+         | gündüz sabırsız, akşam dinlendirip hücum | — | 0 |
+         | pusu, hücum gün batımından 6 / 10 / 14 sn sonra | — | 25 / 24 / 0 |
+         | biri gündüz hücumda, öteki pusuda | — | 29 |
+         | kolsuz | 25 | 0 |
+
+       - Brifingin 3. adımı: "Gün batınca ordu döner; o an kollara HÜCUM ver. Gece çökene dek ordunun dörtte birini düşür." İmparator 3★ satırında duruyor.
+       - Karne, artçı kaçtıysa 2★'da sıradaki adımı söyler:
+         - kollar yorgunsa `saveWings`;
+         - pencerede hücum yoksa yeni `closeWings`;
+         - kollar kapandı ama merkez sağlamsa `breakCenter`.
+         - 1★ yolu değişmedi: kolsuz bot `useWings`, sabırsız bot `saveWings` alıyor (`debrief.bots.test`).
+       - Ayar paneline "İmparator penceresi (sn)" eklendi.
+       - Bilinenler:
+         - Tek kolu gündüz harcayıp ötekini saklayan 29/30 alıyor, saf pusudan iyi. Bu bir karar (hangi boynuz gündüz çalışsın); baskın tarif sayılmadı.
+         - Kolsuz 3★ artık yok. Kolsuz kışkırtıcı 8 tohumda gece hedefini de kaçırıyor; botun akşam vuruşu imparatoru beklemeye ayarlı.
+       - Tarayıcıda (tohum 1071, gün batımına atlanarak): artçı kaçtı, kollar pusudayken imparator korundu. HÜCUM'dan ~5 sn sonra kollar merkezi tuttu ve "İmparator korumasız!" duyurusu çıktı.
+       - Zincir: lint, tsc, 260 test, derleme, bütçe 361,8/385 kB, checks 44/44.
+     - **Geçitte z=−1 bot ölümü (5 Ekim 2026):** oyun kuralı değil, iki bot hatası.
+       - Kesici bot kola yetişemeyince yığını bulunduğu yere düşürüyordu ("kol oraya varmak üzereyse beklemeden kes"). z=−1 isteyen bot z≈0'da hamleyi kışkırtıp kuzeye kaçıyor, yığını 17,9'da (çıkışta) düşürüyordu; "z=−4" isteyen de 16'da kesiyordu. Ölçülen kesme yeri istenen değildi.
+       - Kaçış (`flee`) yalnız arena çemberine bakıyordu, geçit duvarına değil: boğazda hamleden yana kaçan bot duvarda (x=8,4) sıkışıp vuruluyordu.
+       - Düzeltme: bot `max(blockZ, baş + chargeTrigger + 0,5)`'te keser, yani en erken kesilebilen yerde, hamle menzilinin dışında; kaçış geçitte duvar payını da denetler.
+       - Sonuç (8 tohum): z=−4/−1/0 → yığın 2,5'te, 1★, can 100 (önce z=−1 8/8 yenilgi, t=37–50). z=2/5/8 ve kesmeyen bot değişmedi (1/3/3★, yenilgi); z=0 önce 0,8'de kesiyordu, şimdi 2,5'te (yine 1★). Eski tetikle duvar düzeltmesi tek başına ölümü yalnız geciktiriyordu (t=68–87): bot, geri dönen hamlecilerin arasından geçip zincirleme hamleyle kuzey sınırına sıkışıyordu.
+       - `column.test`: "kola yetişemeyen kesici başın önünde keser". Zincir: lint, tsc, 261 test, derleme, bütçe 361,8/385 kB. Bot yalnız testlerde ve çekim kipinde (Malazgirt) çalışır; oyun davranışı değişmedi.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**

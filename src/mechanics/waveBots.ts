@@ -1,53 +1,22 @@
 // Metehan'ın dalgalı savaşı için headless oyun döngüsü ve test botları.
 //
-// Döngü GameDirector'ın dalga kolunu birebir izler (oyuncu → sürü → yönetmen:
-// temas, yön, vuruş/enerji, dalga geçişi, sonuç). Metehan'ın dalgalarında
-// rastgelelik yok; dağılım oyuncudan gelir. Botlar bu yüzden insan gibi kusurlu:
-// tohumlu gürültüyle direksiyon hatası ve vuruşta tepki gecikmesi var — aynı
-// "beceri" tohumdan tohuma farklı sonuç verir, eşikler olasılıkla ölçülür.
-// Oyun kodu bu dosyayı içe aktarmaz.
+// Döngü oyunun adımını (sim/step.ts) sabit adımla çağırır: kurallar oyundakinin
+// aynısı (vuruş sonrası donma, Baideng yaylımları, dalga geçişi). Metehan'ın
+// dalgalarında rastgelelik yok; dağılım oyuncudan gelir. Botlar bu yüzden insan
+// gibi kusurlu: tohumlu gürültüyle direksiyon hatası ve vuruşta tepki gecikmesi
+// var — aynı "beceri" tohumdan tohuma farklı sonuç verir, eşikler olasılıkla
+// ölçülür. Oyun kodu bu dosyayı içe aktarmaz.
 
-import { calcContactDamage, COMBAT_CONFIG, countAttackers } from './combat'
-import { ENEMY_CONFIG, stepEnemies } from './enemySim'
-import {
-  approachAngle,
-  calcFacing,
-  calcSiegeState,
-  countInCrescent,
-  executeStrike,
-  HILAL_CONFIG,
-  isRetreatingFrom,
-  isStrikeReady,
-  stepEnergy,
-} from './hilalSystem'
+import { HILAL_CONFIG, isStrikeReady } from './hilalSystem'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
-import {
-  afterBaidengStrike,
-  BAIDENG,
-  createBaidengState,
-  siegeCorps,
-  stepCommand,
-  stepPeace,
-  stepVolleys,
-  type BaidengEvent,
-  type BaidengState,
-  type Volley,
-} from './baideng'
-import {
-  restHealth,
-  routSurvivors,
-  spawnWave,
-  TOTAL_WAVES,
-  waveBreak as breakBefore,
-  waveConfig,
-  wavesStars,
-} from './waves'
+import { BAIDENG, type Volley } from './baideng'
 import type { TelemetryEvent } from '../telemetry/summary'
+import { wavesScenario } from '../sim/scenarios'
+import { battleEnd, SILENT_FX, stepGame, type StepEffects, type StepInput } from '../sim/step'
+import { createWorld } from '../sim/world'
 
 export const WAVE_BOT_DT = 1 / 60
-/** Oyuncunun başlangıcı (world.ts ile aynı). */
-const PLAYER_START: Vec2 = { x: 0, z: 8 }
 /** Hiçbir bot bundan uzun oynamaz (sonsuz döngü sigortası). */
 const MAX_TIME = 600
 
@@ -91,6 +60,7 @@ export interface WaveRun {
  *   bot koşusunu oyuncunun özetine böyle çevirir). t: oyun süresi (sn).
  * @param rout false: bozgun kuralı olmadan (önce/sonra karşılaştırması için).
  * @param spawnAway false: dalgalar eskisi gibi hep aynı yerde doğar.
+ * @param damageScale Hasar çarpanı: zorluk merdiveninin basamağı (world.assist).
  * @param startWave Bu dalgadan, tam canla başlar (tek dalgayı ölçmek için).
  */
 export function runWaves(
@@ -101,160 +71,80 @@ export function runWaves(
   damageScale = 1,
   startWave = 0,
 ): WaveRun {
-  let enemies = spawnWave(startWave)
-  const player = { ...PLAYER_START }
-  const vel = { x: 0, z: 0 }
-  let health: number = COMBAT_CONFIG.playerMaxHealth
-  /** Molaya girerkenki can (yıldızlar için); mola yoksa undefined. */
-  let preRest: number | undefined
-  let energy = 0
-  let facing = Math.PI
-  let facingTarget = Math.PI
-  let retreating = false
-  let waveIndex = startWave
-  let waveBreak = 0
-  let strikeTimer = 0
+  const w = createWorld('metehan', { startWave })
+  w.assist = damageScale
+  const scenario = wavesScenario({ rout, spawnAway })
   let kills = 0
-  let time = 0
   const strikes: number[] = []
-  const first = waveConfig(startWave)
-  let baideng: BaidengState | null = first.baideng ? createBaidengState(first.enemyCount) : null
-  const baidengEvents: BaidengEvent[] = []
+  const fx: StepEffects = {
+    ...SILENT_FX,
+    track(e) {
+      if (e.type === 'strike') {
+        strikes.push(e.kills)
+        kills += e.kills
+      }
+      record?.(e, w.time)
+    },
+  }
+  const input: StepInput = { move: { x: 0, z: 0 }, strike: false }
   const view: WaveView = {
-    enemies,
-    player,
-    energy,
+    enemies: w.enemies,
+    player: w.player,
+    energy: 0,
     inCrescent: 0,
-    health,
-    waveIndex,
-    time,
+    health: w.playerHealth,
+    waveIndex: w.waveIndex,
+    time: 0,
     volleys: [],
     focus: null,
   }
-  const alive = () => enemies.reduce((n, e) => n + (e.alive ? 1 : 0), 0)
-  /** Yenilgide "kalan": savaşmaya devam eden (bozguna uğrayan sayılmaz). */
-  const fighting = () => enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0)
 
-  record?.({ type: 'battle_start', commander: 'metehan', attempt: 1, assist: damageScale, seed: null }, 0)
-
-  let result: 'victory' | 'defeat' | null = null
-  while (result === null && time < MAX_TIME) {
-    const dt = WAVE_BOT_DT
-    time += dt
-    view.enemies = enemies
-    view.energy = energy
-    view.health = health
-    view.waveIndex = waveIndex
-    view.time = time
-    view.volleys = baideng?.volleys ?? []
-    view.focus = baideng?.ring?.center ?? null
-    const action = bot(view)
-
-    // Oyuncu (öncelik 0): hız retreatSpeed'e sınırlı, arena içinde.
-    const px = player.x
-    const pz = player.z
-    const len = Math.hypot(action.move.x, action.move.z)
-    if (len > 0) {
-      const speed = Math.min(len, HILAL_CONFIG.retreatSpeed)
-      player.x += (action.move.x / len) * speed * dt
-      player.z += (action.move.z / len) * speed * dt
-      const r = Math.hypot(player.x, player.z)
-      if (r > ENEMY_CONFIG.arenaRadius) {
-        player.x *= ENEMY_CONFIG.arenaRadius / r
-        player.z *= ENEMY_CONFIG.arenaRadius / r
-      }
-    }
-    vel.x = (player.x - px) / dt
-    vel.z = (player.z - pz) / dt
-
-    // Sürü (öncelik 1): yönetmenin bir önceki karede bulduğu kaçış durumuyla.
-    stepEnemies(enemies, player, dt, retreating, waveConfig(waveIndex).disciplineRecoveryMult)
-    if (baideng) stepCommand(baideng, enemies, player, dt)
-
-    // Yönetmen (öncelik 2).
-    const siege = calcSiegeState(enemies, baideng ? siegeCorps(baideng) : undefined)
-    retreating = siege.centroid ? isRetreatingFrom(player, vel, siege.centroid) : false
-    const perEnemy = COMBAT_CONFIG.damagePerEnemy * damageScale
-    const volleyDamage = baideng ? stepVolleys(baideng, enemies, player, vel, dt, baidengEvents) : 0
-    const contact = calcContactDamage(countAttackers(enemies, player), dt, perEnemy)
-    health = Math.max(0, health - contact - volleyDamage * damageScale)
-    facingTarget = calcFacing(enemies, player, facingTarget, siege.centroid)
-    facing = approachAngle(facing, facingTarget, HILAL_CONFIG.facingTurnRate * dt)
-    view.inCrescent = countInCrescent(enemies, player, facing)
-
-    if (strikeTimer > 0) {
-      strikeTimer = Math.max(0, strikeTimer - dt)
-    } else if (action.strike && !isStrikeReady(energy)) {
-      record?.({ type: 'strike_refused', reason: 'notReady' }, time)
-      energy = stepEnergy(energy, siege.vulnerability, dt)
-    } else if (action.strike && view.inCrescent === 0) {
-      record?.({ type: 'strike_refused', reason: 'noTargets' }, time)
-    } else if (action.strike) {
-      const n = executeStrike(enemies, player, facing)
-      record?.({ type: 'strike', kills: n, alive: siege.aliveCount }, time)
-      strikes.push(n)
-      kills += n
-      energy = 0
-      strikeTimer = HILAL_CONFIG.strikeDuration
-      if (baideng) afterBaidengStrike(baideng, enemies, baidengEvents)
-      else {
-        const routed = rout ? routSurvivors(enemies, waveIndex) : 0
-        if (routed > 0) record?.({ type: 'rout', count: routed }, time)
-      }
-    } else {
-      energy = stepEnergy(energy, siege.vulnerability, dt)
-    }
-    if (baideng) stepPeace(baideng, enemies, baidengEvents)
-    for (const e of baidengEvents) {
-      if (e.type === 'encircle') record?.({ type: 'rout', count: e.routed }, time)
-      if (e.type === 'volleyLanded') record?.({ type: 'volley', hit: e.hit, felled: e.felled.length }, time)
-    }
-    baidengEvents.length = 0
-
-    // Dalga geçişi (scenarios.ts'teki waves.advance ile aynı).
-    const moreWaves = waveIndex < TOTAL_WAVES - 1
-    if (alive() === 0 && moreWaves) {
-      if (waveBreak === 0) {
-        waveBreak = breakBefore(waveIndex + 1)
-        record?.({ type: 'wave_clear', wave: waveIndex, health: Math.round(health) }, time)
-        if (waveConfig(waveIndex + 1).rest) {
-          preRest = health
-          health = restHealth(health, waveIndex + 1)
-        }
-      } else {
-        waveBreak = Math.max(0, waveBreak - dt)
-        if (waveBreak === 0) {
-          waveIndex++
-          const cfg = waveConfig(waveIndex)
-          baideng = cfg.baideng ? createBaidengState(cfg.enemyCount) : null
-          enemies = spawnWave(waveIndex, spawnAway ? player : undefined, vel)
-        }
-      }
-    }
-
-    const remaining = alive() + (moreWaves ? 1 : 0)
-    if (health <= 0) result = 'defeat'
-    else if (remaining === 0) result = 'victory'
-  }
-
-  const final = result ?? 'defeat'
-  const remaining = fighting()
-  const stars = final === 'victory' ? wavesStars(health, damageScale, preRest) : 0
   record?.(
     {
-      type: 'battle_end',
-      outcome: final,
-      cause: final === 'defeat' ? 'health' : null,
-      score: 0,
-      stars,
-      health: Math.round(health),
-      wave: waveIndex,
-      remaining,
-      simTime: time,
+      type: 'battle_start',
+      commander: 'metehan',
+      attempt: 1,
+      assist: damageScale,
+      seed: null,
+      ...(startWave > 0 && { startWave }),
     },
-    time,
+    0,
   )
-  return { result: final, health, kills, time, wave: waveIndex, remaining, strikes, stars }
+
+  while (w.outcome === 'playing' && w.time < MAX_TIME) {
+    view.enemies = w.enemies
+    view.energy = w.energy
+    view.inCrescent = w.inCrescent
+    view.health = w.playerHealth
+    view.waveIndex = w.waveIndex
+    view.time = w.time
+    view.volleys = w.baideng?.volleys ?? []
+    view.focus = w.baideng?.ring?.center ?? null
+    const action = bot(view)
+
+    // Botun hızı oyuncunun çubuğuna çevrilir (retreatSpeed = tam itiş).
+    input.move.x = action.move.x / HILAL_CONFIG.retreatSpeed
+    input.move.z = action.move.z / HILAL_CONFIG.retreatSpeed
+    input.strike = action.strike
+    stepGame(w, input, WAVE_BOT_DT, fx, scenario)
+    // Oyunda karenin sonunda boşalır (EventFlush).
+    w.events.length = 0
+  }
+
+  const end = battleEnd(w)
+  record?.(end, w.time)
+  // Süre sigortası atarsa yenilgi sayılır.
+  const result = w.outcome === 'victory' ? 'victory' : 'defeat'
+  return {
+    result,
+    health: w.playerHealth,
+    kills,
+    time: w.time,
+    wave: w.waveIndex,
+    remaining: end.remaining,
+    strikes,
+    stars: result === 'victory' ? w.stars : 0,
+  }
 }
 
 // ——— Botlar ———

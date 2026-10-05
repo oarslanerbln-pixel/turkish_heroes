@@ -1,4 +1,4 @@
-import { haptic, play } from '../audio/sfx'
+import type { StepEffects } from './step'
 import type { World } from './world'
 
 /**
@@ -18,7 +18,12 @@ export const HURT_CONFIG = {
 } as const
 
 /** @returns true: bu adımda yara tepkisi verildi. */
-export function stepHurt(w: World, damage: number, dt: number): boolean {
+export function stepHurt(
+  w: World,
+  damage: number,
+  dt: number,
+  fx: Pick<StepEffects, 'play' | 'haptic'>,
+): boolean {
   w.hurtCooldown = Math.max(0, w.hurtCooldown - dt)
   w.hurtTimer = Math.max(0, w.hurtTimer - dt)
   w.hurtPending += damage
@@ -30,8 +35,8 @@ export function stepHurt(w: World, damage: number, dt: number): boolean {
   w.hurtTimer = HURT_CONFIG.shake
   w.events.push({ type: 'hurt', amount })
   const intensity = Math.min(1, amount / HURT_CONFIG.fullAmount)
-  play('hurt', intensity)
+  fx.play('hurt', intensity)
   // Vuruşun 40 ms'sinden kısa: yara, oyuncunun kendi darbesinden hafif hissedilsin.
-  haptic(Math.round(18 + 14 * intensity))
+  fx.haptic(Math.round(18 + 14 * intensity))
   return true
 }

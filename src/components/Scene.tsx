@@ -128,6 +128,13 @@ export function Scene() {
           bırakıyordu (konsola hata da düşmüyordu). Offline çalışması gereken bir
           PWA'da harici varlığa bağımlılık zaten kabul edilemezdi.
         */}
+        {/*
+          Simülasyon (yönetmen, öncelik -1) ve olay temizliği (9) askı sınırının
+          dışında: bir görsel askıya alınınca useFrame aboneliği düşer, savaş
+          onunla birlikte durmasın.
+        */}
+        <GameDirector />
+        <EventFlush />
         <Suspense fallback={null}>
           {/* FPS paneli: geliştirmede ve ?perf ile — gerçek cihazda ölçmek için. */}
           {PERF_OVERLAY && <Stats className="perf-stats" />}
@@ -152,8 +159,6 @@ export function Scene() {
           {commander === 'kilicarslan' && <Blockade />}
           <MetehanPlaceholder />
           <EnemySwarm />
-          <GameDirector />
-          {/* Görseller yönetmenden sonra: o karenin yönünü/sayımını kullanırlar. */}
           <CrescentPreview />
           <StrikeEffect />
           <StrikeSparks />
@@ -177,7 +182,6 @@ export function Scene() {
           {/* Kamera oyuncuyu izler; OrbitControls kaldırıldı, ikisi çakışıyordu. */}
           <CameraDirector />
           <CameraShake />
-          <EventFlush />
           {/*
             Sırayı önceliklerle sabitlediğimiz için çizimi kendimiz tetikliyoruz
             (bkz. eski Renderer.tsx'in notu) — EffectComposer bunu renderPriority

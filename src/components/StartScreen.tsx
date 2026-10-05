@@ -1,9 +1,9 @@
 import { isCommanderAvailable, useGameStore } from '../store/gameStore'
 import { commanderInfo, type CommanderId } from '../mechanics/scenario'
 import { archiveCount } from '../lore/archive'
-import { earnedLore } from '../sim/progress'
+import { bestStars, earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
-import { LockIcon, ScrollIcon } from './icons'
+import { LockIcon, ScrollIcon, StarIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
 import { Narrator } from './Narrator'
 import { SeferMap } from './SeferMap'
@@ -72,6 +72,7 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
   const c = commanderInfo(id)
   const available = isCommanderAvailable(id)
   const lore = archiveCount(earnedLore(), id)
+  const stars = bestStars(id)
   const keys = touch
     ? 'Sol: joystick · Sağ: vuruş'
     : `WASD: hareket · Space: vuruş${c.keys ? ` · ${c.keys}` : ''}`
@@ -106,12 +107,22 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
       ) : (
         <div className="brief-locked">
           <LockIcon size={14} />
-          <span>{c.unlockedBy && `${commanderInfo(c.unlockedBy).name} ile zafer kazanınca açılır`}</span>
+          <span>
+            {c.unlockedBy &&
+              `${commanderInfo(c.unlockedBy).name} ile ${c.unlockWave ? `${c.unlockWave}. dalgaya ulaşınca` : 'zafer kazanınca'} açılır`}
+          </span>
         </div>
       )}
 
-      <div className="brief-foot">
-        <span>{keys}</span>
+      <div className={touch ? 'brief-foot is-touch' : 'brief-foot'}>
+        {/* Sıradaki yıldızın koşulu: tekrar oynayışın hedefi. İlk yıldız zaferin kendisi. */}
+        {available && stars < 3 && (
+          <span className="brief-goal">
+            <StarIcon size={11} />
+            {stars === 0 ? 'Zafer' : `${stars + 1}. yıldız`}: <b>{c.stars[stars]}</b>
+          </span>
+        )}
+        <span className="brief-keys">{keys}</span>
         {available && (
           <span className="brief-record">
             <span title="Tarih notları">

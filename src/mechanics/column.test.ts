@@ -130,10 +130,10 @@ describe('Miryokefalon — denge: NEREDE kestiğin belirler', () => {
     }
   })
 
-  it('yalnızca taciz eden hayatta kalır ama 1 yıldızda kalır', { timeout: 20000 }, () => {
+  it('yolu kesmeyen yalnız taciz eder: kol geçidi aşar', { timeout: 20000 }, () => {
     for (const r of sweep(blockerBot(null, 4), SEEDS, MIRYOKEFALON)) {
-      expect(r.result).toBe('victory')
-      expect(r.stars).toBe(1)
+      expect(r.result).toBe('defeat')
+      expect(r.reachedCamp).toBe(true)
       expect(Math.max(...r.peakJam)).toBe(0)
     }
   })
@@ -143,6 +143,14 @@ describe('Miryokefalon — denge: NEREDE kestiğin belirler', () => {
     expect(stars(2).every((s) => s === 1)).toBe(true)
     expect(stars(PASS.neckZ + 2).every((s) => s === 3)).toBe(true)
     expect(stars(PASS.neckZ + 8).every((s) => s <= 2)).toBe(true)
+  })
+
+  it('kola yetişemeyen kesici başın önünde keser, kaçtığı yerde değil', { timeout: 20000 }, () => {
+    // Eskiden z=−1 isteyen bot hamleden kaçıp çıkışta kesiyor, sonra boğazda ölüyordu.
+    for (const r of sweep(blockerBot(-1, 4), SEEDS, MIRYOKEFALON)) {
+      expect(r.result).toBe('victory')
+      expect(r.blockadeZ!).toBeLessThan(PASS.neckZ - 2)
+    }
   })
 
   it('simülasyon karesi 100 µs altında kalır', () => {

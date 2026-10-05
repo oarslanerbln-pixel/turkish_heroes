@@ -6,13 +6,13 @@
 // özet değerler throttle'lanarak aktarılır (bkz. GameDirector).
 
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
-import { createBattle, type BattleState } from '../mechanics/corps'
-import type { BaidengState } from '../mechanics/baideng'
+import { createBattle, type BattleLayout, type BattleState } from '../mechanics/corps'
+import { createBaidengState, type BaidengState } from '../mechanics/baideng'
 import { battleLayout, type CommanderId } from '../mechanics/scenario'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
-import { spawnWave } from '../mechanics/waves'
+import { spawnWave, waveConfig } from '../mechanics/waves'
 import { parseSeed } from '../mechanics/random'
 import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
@@ -43,9 +43,17 @@ export interface World {
   restedFrom: number | null
   /** Ordunun dizilişini veren tohum; savaş özetine yazılır. Dalgalı senaryo rastgelelik kullanmaz: null. */
   seed: number | null
+  /**
+   * Hasar çarpanı (1 = tam): Metehan'da zorluk merdiveni, ordu savaşlarında
+   * ilk savaşın yarı hasarı. Oyunda savaş başında senaryodan (Scenario.assist),
+   * botlarda koşudan gelir; kurallar yalnız bunu okur.
+   */
+  assist: number
   player: Vec2
   /** Gerçekleşen yer değiştirmeden türetilir, klavye niyetinden değil. */
   playerVel: Vec2
+  /** Oyuncunun kıpırdamadan geçirdiği süre (sn); Metehan'da sürü durana yüklenir. */
+  stillTime: number
   playerHealth: number
   /** Oyuncuya temas eden düşman sayısı — HUD ve hasar için. */
   attackers: number
@@ -158,28 +166,44 @@ export interface World {
 /** Oyun testinde ?seed= sabitse her savaş o tohumla başlar (karşılaştırma, hata ayıklama). */
 const FIXED_SEED = PLAYTEST && typeof window !== 'undefined' ? parseSeed(window.location.search) : null
 
-// Başlangıç değerleri tek yerde: resetWorld'ün bir alanı atlaması mümkün olmasın.
-function initialWorld(commander: CommanderId): World {
+export interface WorldOptions {
+  /** Ordunun tohumu; verilmezse oyun testinin ?seed='i, o da yoksa rastgele. */
+  seed?: number
+  /** Savaş alanı düzeni; verilmezse komutanınki (botlar düzeni değiştirip dener). */
+  layout?: BattleLayout
+  /** Metehan: savaş bu dalgadan, tam canla başlar (Baideng'den yeniden, botlar). */
+  startWave?: number
+}
+
+/**
+ * Yeni bir savaşın dünyası. Başlangıç değerleri tek yerde: resetWorld'ün bir
+ * alanı atlaması mümkün olmasın. Botlar kendi dünyalarını bununla kurar.
+ */
+export function createWorld(commander: CommanderId, opts: WorldOptions = {}): World {
   // Her savaş biraz farklı dizilişle başlasın; kurallar aynı.
-  const layout = battleLayout(commander)
-  const seed = layout ? (FIXED_SEED ?? Math.floor(Math.random() * 2 ** 31)) : null
+  const layout = opts.layout ?? battleLayout(commander)
+  const seed = layout ? (opts.seed ?? FIXED_SEED ?? Math.floor(Math.random() * 2 ** 31)) : null
   const battle = layout && seed !== null ? createBattle(seed, layout) : null
+  const startWave = battle ? 0 : (opts.startWave ?? 0)
+  const first = waveConfig(startWave)
 
   return {
     commander,
     battle: battle?.battle ?? null,
-    baideng: null,
+    baideng: first.baideng ? createBaidengState(first.enemyCount) : null,
     restedFrom: null,
     seed,
+    assist: 1,
     // Ordu savaşlarında oyuncu ordunun önünde başlar (ordugah / geçidin kuzeyi);
     // ordu ufukta, -z'de.
     player: layout ? { ...layout.playerStart } : { x: 0, z: 8 },
     playerVel: { x: 0, z: 0 },
+    stillTime: 0,
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
-    enemies: battle?.enemies ?? spawnWave(0),
+    enemies: battle?.enemies ?? spawnWave(startWave),
     time: 0,
-    waveIndex: 0,
+    waveIndex: startWave,
     score: 0,
     bestScore: loadBestScore(commander),
     energy: 0,
@@ -225,13 +249,19 @@ function initialWorld(commander: CommanderId): World {
 /**
  * Modül düzeyinde tek örnek. Referans sabit kalmalı — her yer bunu import ediyor.
  */
-export const world: World = initialWorld('metehan')
+export const world: World = createWorld('metehan')
 
-/** @param commander Verilmezse aynı komutanla yeniden başlar. */
-export function resetWorld(commander: CommanderId = world.commander): void {
-  // bestScore korunur: initialWorld() zaten localStorage'dan taze okuyor,
+/**
+ * @param commander Verilmezse aynı komutanla yeniden başlar.
+ * @param startWave Metehan'da savaşın başladığı dalga (bkz. retryWave).
+ */
+export function resetWorld(commander: CommanderId = world.commander, startWave = 0): void {
+  // bestScore korunur: createWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
-  Object.assign(world, initialWorld(commander), { mode: world.mode, generation: world.generation + 1 })
+  Object.assign(world, createWorld(commander, { startWave }), {
+    mode: world.mode,
+    generation: world.generation + 1,
+  })
 }
 
 /** Akışı korumalı geçişle değiştirir (bkz. flow.ts); geçiş tanımsızsa false. */
@@ -259,13 +289,13 @@ export function newBattleWatch(): () => boolean {
 export const ANNOUNCE_SECONDS = 2.2
 
 /** Tek satırlık duyuru; ekranda başka biri varsa sıraya girer. */
-export function announce(text: string): void {
-  if (world.announceTimer > 0) {
-    world.announceQueue.push(text)
+export function announce(w: World, text: string): void {
+  if (w.announceTimer > 0) {
+    w.announceQueue.push(text)
     return
   }
-  world.announcement = text
-  world.announceTimer = ANNOUNCE_SECONDS
+  w.announcement = text
+  w.announceTimer = ANNOUNCE_SECONDS
 }
 
 /** Duyuru süresini gerçek zamanla eritir, bitince sıradakine geçer. */

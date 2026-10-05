@@ -7,9 +7,10 @@ import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scena
 import { announce, enterMode, isPlaying, resetWorld, world, type CameraCue } from '../sim/world'
 import type { FlowMode } from '../sim/flow'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
-import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
+import { dropBlockade as dropBlockadeAt, type DefeatCause } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
-import { isUnlocked } from '../sim/progress'
+import { isUnlocked, reachedBaideng } from '../sim/progress'
+import { BAIDENG_WAVE, retryWave } from '../mechanics/waves'
 import {
   haptic,
   hapticsEnabled,
@@ -58,7 +59,7 @@ export interface HudSnapshot {
   corpsCohesion: number[] // birlik başına düzen; -1 = birlik yok
   wingOrders: WingOrder[] // Selçuklu kollarının emri (0 sol, 1 sağ); savaş yoksa boş
   wingStrength: number[] // kolların gücü 0–1
-  defeatCause: 'health' | 'camp'
+  defeatCause: DefeatCause
   emperorCaptured: boolean
   debrief: Debrief | null // savaş bitince karne; sürerken null
   unlocked: CommanderId | null // bu zaferle kilidi açılan komutan
@@ -124,7 +125,10 @@ interface GameState extends HudSnapshot {
   /** @param auto Uygulamadan çıkıldığı için (oyuncu kendisi durdurmadı). */
   pause: (auto: boolean) => void
   resume: () => void
+  /** Aynı savaş yeniden; Metehan'da Baideng'e varıldıysa oradan (bkz. retryWave). */
   restart: () => void
+  /** Metehan: savaş bu dalgadan, tam canla (0 ya da ulaşılmış Baideng). */
+  restartAt: (wave: number) => void
   /** Sonuç ekranından komutan seçimine dön. */
   backToMenu: () => void
   /** Sonuç ekranından doğrudan başka bir komutanın savaşına (kilit açılınca). */
@@ -312,7 +316,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const order = nextOrder(w.order)
     if (!orderWing(w, order)) {
       play('refuse')
-      announce(`${WING_NAMES[wing]} dinleniyor — atlar yorgun`)
+      announce(world, `${WING_NAMES[wing]} dinleniyor — atlar yorgun`)
       return
     }
     play('order')
@@ -326,7 +330,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!b?.layout.pass || !isPlaying()) return
     if (!dropBlockadeAt(b, world.player.z)) {
       play('refuse')
-      announce('Yol zaten kesildi — kaya yığını bir kez')
+      announce(world, 'Yol zaten kesildi — kaya yığını bir kez')
       return
     }
     track({ type: 'blockade', z: Math.round(b.blockade!.z * 10) / 10 })
@@ -347,16 +351,24 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   restart: () => {
+    get().restartAt(world.battle ? 0 : retryWave(world.waveIndex))
+  },
+
+  restartAt: (wave) => {
     if (world.mode === 'menu') return
+    // Baideng'den yalnızca Metehan'da ve oraya varılmışsa (bu savaşta ya da önce).
+    const checkpoint = !world.battle && wave === BAIDENG_WAVE && (reachedBaideng() || world.waveIndex >= wave)
+    if (wave !== 0 && !checkpoint) return
     // Moladan yeniden başlatılan savaş sonuçsuz kapanır (bitmişse etkisiz).
     endUnfinished('quit')
-    resetWorld()
+    resetWorld(world.commander, wave)
     enterMode('playing')
     // HUD'u hemen sıfırla: yönetmenin ilk sync'ini beklerken sonuç ekranı
     // bir kare daha görünmesin. bestScore INITIAL_HUD'daki durgun değer değil,
     // resetWorld'ün localStorage'dan taze okuduğu world.bestScore'dan alınır —
     // yoksa bu oturumda kırılan rekor bir sonraki turda 0'a dönerdi.
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, mode: world.mode })
+    // Dalga da: 1. dalganın başlığı bir kare görünüp Baideng'inkine dönmesin.
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, waveIndex: world.waveIndex, mode: world.mode })
   },
 
   playCommander: (id) => {

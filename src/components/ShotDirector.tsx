@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { world } from '../sim/world'
 import { useGameStore } from '../store/gameStore'
-import type { ShotMoment } from '../shot'
+import { SHOT_BOT, shotDriver, type ShotMoment } from '../shot'
 
 /** Bir çekimin en fazla süreceği simülasyon adımı (15 dk): ana ulaşılamazsa döngü biter. */
 const STEP_LIMIT = 15 * 60 * 60
@@ -24,10 +24,21 @@ export function ShotDirector({ moment }: { moment: ShotMoment }) {
   const advance = useThree((s) => s.advance)
   const gl = useThree((s) => s.gl)
   const started = useGameStore((s) => s.mode !== 'menu')
+  // Bot kodu yalnız istenince yüklenir (bkz. shot.ts SHOT_BOT); savaş adımları onu bekler.
+  const [botReady, setBotReady] = useState(!SHOT_BOT)
+
+  useEffect(() => {
+    if (!SHOT_BOT) return
+    void import('../mechanics/battleBots').then((m) => {
+      shotDriver.drive = m.botDriver(m.safeHarasser())
+      setBotReady(true)
+    })
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
     delete root.dataset.shot
+    if (started && !botReady) return
     if (started) {
       const reached = () => (moment === 'end' ? world.outcome !== 'playing' : world.time >= moment)
       // 'never' kipinde advance(t) deltayı t − clock.elapsedTime'dan alır: her adım tam 1/60.
@@ -54,7 +65,7 @@ export function ShotDirector({ moment }: { moment: ShotMoment }) {
     requestAnimationFrame(() => {
       root.dataset.shot = started ? 'battle' : 'menu'
     })
-  }, [started, moment, advance, gl])
+  }, [started, botReady, moment, advance, gl])
 
   return null
 }

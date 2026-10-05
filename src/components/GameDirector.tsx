@@ -1,18 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import {
-  approachAngle,
-  calcFacing,
-  countInCrescent,
-  executeStrike,
-  HILAL_CONFIG,
-  isRetreatingFrom,
-  isStrikeReady,
-  resolvePhase,
-  stepEnergy,
-} from '../mechanics/hilalSystem'
-import { calcContactDamage, countAttackers } from '../mechanics/combat'
-import type { Enemy } from '../mechanics/types'
+import { HILAL_CONFIG, isStrikeReady } from '../mechanics/hilalSystem'
+import type { Vec2 } from '../mechanics/types'
 import { useGameStore } from '../store/gameStore'
 import { enterMode, isPlaying, simDelta, stepAnnouncements, stepTime, world } from '../sim/world'
 import {
@@ -23,71 +12,81 @@ import {
   recordLore,
   recordStars,
   recordVictory,
+  recordWave,
+  takeHint,
 } from '../sim/progress'
 import { pickLore } from '../lore/lore'
-import { scenarioOf, SCORE_PER_KILL, type Scenario } from '../sim/scenarios'
+import { scenarioOf } from '../sim/scenarios'
 import { saveBestScore } from '../sim/score'
+import { battleEnd, stepGame, type StepEffects, type StepInput } from '../sim/step'
 import { haptic, play } from '../audio/sfx'
-import { stepHurt } from '../sim/hurt'
 import { duck, setBattleMusic } from '../audio/ambience'
 import { COMMANDERS } from '../mechanics/scenario'
+import { defeatCause } from '../mechanics/corps'
 import { debrief } from '../debrief/debrief'
-import type { Refusal, TelemetryEvent } from '../telemetry/summary'
 import { advanceClock, battleActive, nextAttempt, projectEnd, track } from '../telemetry/track'
+import { useKeyboard } from '../hooks/useKeyboard'
+import { useTouchControls } from '../hooks/useTouchControls'
+import { shotDriver } from '../shot'
 
-// Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
-// Yönetmen en son çalışır; oyuncu ve düşmanlar o kareyi çoktan işlemiştir.
-const DIRECTOR_PRIORITY = 2
+// Yönetmen karenin ilk işi: simülasyonu bir adım ilerletir (sim/step.ts),
+// sonra oyuncu, düşmanlar ve görseller (öncelik ≥ 0) o adımın dünyasını çizer.
+// Negatif öncelik elle çizimi açmaz; yalnız pozitifler sayılır.
+const DIRECTOR_PRIORITY = -1
 
 /** HUD'u 60Hz yerine ~12Hz güncelle — enerji çubuğu CSS ile yumuşatılıyor. */
 const HUD_SYNC_INTERVAL = 0.08
 
-/** Ret mesajının ekranda kalma süresi (saniye). */
-const REFUSAL_DURATION = 1.4
+/** Oyunun yan etkileri: ses, titreşim, olay kaydı, oyuncu başına bir kezlik ipuçları. */
+const GAME_FX: StepEffects = { play, haptic, duck, track, hint: takeHint }
 
-/** Vuruş anındaki donma süreleri (saniye). */
-const HITSTOP_SMALL = 0.04
-const HITSTOP_BIG = 0.07
+/** Her kare yeniden yazılır; kare başına nesne üretmesin. */
+const input: StepInput = { move: { x: 0, z: 0 }, strike: false }
 
-function refuse(reason: Refusal): void {
-  play('refuse')
-  track({ type: 'strike_refused', reason })
-  world.refusal = reason
-  world.refusalTimer = REFUSAL_DURATION
+/**
+ * Klavye dijitaldir: birim yön, çapraz hareket hızlı olmasın. Klavye boştaysa
+ * dokunmatik joystick (analog, 0–1); iki kaynak birbirini kendiliğinden ezer,
+ * ayrı bir "cihaz modu" seçimi gerekmez.
+ */
+function readMove(keys: ReadonlySet<string>, touch: Vec2, out: Vec2): void {
+  let dx = 0
+  let dz = 0
+  if (keys.has('KeyW') || keys.has('ArrowUp')) dz -= 1
+  if (keys.has('KeyS') || keys.has('ArrowDown')) dz += 1
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) dx -= 1
+  if (keys.has('KeyD') || keys.has('ArrowRight')) dx += 1
+  if (dx === 0 && dz === 0) {
+    out.x = touch.x
+    out.z = touch.z
+    return
+  }
+  const len = Math.hypot(dx, dz)
+  out.x = dx / len
+  out.z = dz / len
 }
 
 /**
- * Savaş bitti: puan, ilerleme (kilit, Metehan merdiveni), rekor, karne ve
- * olay kaydı. Karne kayıttan önce hesaplanır: gösterilen tavsiye de
- * battle_end'in içinde kayda geçsin ("tavsiye işe yarıyor mu" sorusu için).
+ * Savaş bitti: ilerleme (kilit, Metehan merdiveni), rekor, karne ve olay
+ * kaydı. Zafer puanı ve yıldızlar adımda yazıldı (stepGame). Karne kayıttan
+ * önce hesaplanır: gösterilen tavsiye de battle_end'in içinde kayda geçsin
+ * ("tavsiye işe yarıyor mu" sorusu için).
  */
-function finishBattle(scenario: Scenario): void {
+function finishBattle(): void {
   const victory = world.outcome === 'victory'
   const locked = COMMANDERS.filter((c) => !isUnlocked(c.id)).map((c) => c.id)
   if (victory) {
-    // victoryBonus yıldızları da yazar (world.stars); kayıt ondan sonra.
-    world.score += scenario.victoryBonus(world)
     recordVictory(world.commander)
     recordStars(world.commander, world.stars)
   }
   if (world.battle) recordBattleEnd(world.commander)
-  else recordLadder(victory)
+  else {
+    recordLadder(victory)
+    recordWave(world.waveIndex)
+  }
   world.unlocked = locked.find((id) => isUnlocked(id)) ?? null
   world.bestScore = saveBestScore(world.commander, world.score)
 
-  const end: Extract<TelemetryEvent, { type: 'battle_end' }> = {
-    type: 'battle_end',
-    outcome: victory ? 'victory' : 'defeat',
-    cause: victory ? null : world.battle?.reachedCamp ? 'camp' : 'health',
-    score: world.score,
-    stars: world.stars,
-    health: Math.round(world.playerHealth),
-    wave: world.waveIndex,
-    // Bozguna uğrayıp kaçmakta olan artık savaşmıyor.
-    remaining: world.enemies.reduce((n, e) => n + (e.alive && !e.routed ? 1 : 0), 0),
-    // Malazgirt'in saati gün çizgisininki: battle.time.
-    simTime: world.battle?.time ?? world.time,
-  }
+  const end = battleEnd(world)
   const summary = projectEnd(end)
   world.debrief = summary ? debrief(summary, { best: world.bestScore }) : null
   // Kart hemen kaydedilir: oyuncu sonuç ekranını beklemeden kapatsa da kazanılmış sayılır.
@@ -103,132 +102,48 @@ function finishBattle(scenario: Scenario): void {
 export function GameDirector() {
   const hudTimer = useRef(0)
   const syncHud = useGameStore((s) => s.syncHud)
+  const keys = useKeyboard()
+  const touch = useTouchControls()
 
   useFrame((_, delta) => {
+    // Sekme arka plandayken delta şişer ve karakter ışınlanır; donmada sıfır.
     const dt = simDelta(delta)
     const realDelta = Math.min(delta, 0.1)
     world.animTime += dt
     const scenario = scenarioOf(world)
-    const siege = scenario.siege(world)
 
     if (isPlaying()) {
       if (!battleActive()) {
+        // Hasar çarpanı savaş boyunca sabit: ilerleme sonuçta değişir.
+        world.assist = scenario.assist(world)
         track({
           type: 'battle_start',
           commander: world.commander,
           attempt: nextAttempt(world.commander),
-          assist: scenario.assist(world),
+          assist: world.assist,
           seed: world.seed,
+          ...(world.waveIndex > 0 && { startWave: world.waveIndex }),
         })
       }
-      world.time += dt
-      world.density = siege.density
-      world.vulnerability = siege.vulnerability
-      world.isRetreating = siege.centroid
-        ? isRetreatingFrom(world.player, world.playerVel, siege.centroid)
-        : false
-
-      world.attackers = countAttackers(world.enemies, world.player)
-      const damage =
-        calcContactDamage(world.attackers, dt, scenario.contactDamage(world)) + scenario.hazards(world, dt)
-      world.playerHealth = Math.max(0, world.playerHealth - damage)
-      // Kenar flaşı DOM'da: sayaç beklemeden artar, HUD eşitlemesini (12 Hz) beklemez.
-      if (stepHurt(world, damage, dt)) useGameStore.setState((s) => ({ hurtPulse: s.hurtPulse + 1 }))
-
-      // Hedef yön ayrık ve sıçrayabilir; yay ona sınırlı hızla döner.
-      // Histerezis hedef üzerinde çalışmalı, dönerken geçilen ara açılar üzerinde değil.
-      world.facingTarget = calcFacing(
-        world.enemies,
-        world.player,
-        world.facingTarget,
-        siege.centroid,
-      )
-      world.facing = approachAngle(
-        world.facing,
-        world.facingTarget,
-        HILAL_CONFIG.facingTurnRate * dt,
-      )
-      world.inCrescent = countInCrescent(
-        world.enemies,
-        world.player,
-        world.facing,
-        scenario.fallFilter(world),
-      )
-
-      world.refusalTimer = Math.max(0, world.refusalTimer - dt)
-
-      const wasReady = isStrikeReady(world.energy)
-      if (world.strikeTimer > 0) {
-        world.strikeTimer = Math.max(0, world.strikeTimer - dt)
-      } else if (world.strikeRequested && !isStrikeReady(world.energy)) {
-        refuse('notReady')
-        world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
-      } else if (world.strikeRequested && world.inCrescent === 0) {
-        // Boş havaya kapanan kuşatma anlamsız; dolu enerjiyi harcatma. Yayda
-        // asker var ama hiçbiri düşmeyecekse sebep başka: düzenleri sağlam.
-        const anyInArc = countInCrescent(world.enemies, world.player, world.facing) > 0
-        refuse(anyInArc ? 'steady' : 'noTargets')
-      } else if (world.strikeRequested) {
-        // Vuruş, enerji ilerletilmeden ÖNCE değerlendirilir: oyuncu HUD'da
-        // gördüğü enerjiye basıyor, bu karede hesaplanacak olana değil.
-        const aliveBefore = siege.aliveCount
-        const fallen: Enemy[] = []
-        const kills = executeStrike(
-          world.enemies,
-          world.player,
-          world.facing,
-          fallen,
-          scenario.fallFilter(world),
-        )
-        world.events.push({
-          type: 'strike',
-          origin: { x: world.player.x, z: world.player.z },
-          facing: world.facing,
-          victims: fallen.map((e) => ({ id: e.id, x: e.pos.x, z: e.pos.z })),
-        })
-        scenario.afterStrike(world)
-        track({ type: 'strike', kills, alive: aliveBefore })
-        // Kalabalığın büyük kısmını düşüren vuruş daha ağır hissettirsin.
-        const share = kills / Math.max(1, aliveBefore)
-        play('strike', share)
-        duck(share)
-        haptic(kills >= 5 ? [40, 30, 60] : 40)
-        // Hitstop: kuşatmanın kapandığı an kısa bir süre asılı kalır. Oyun hissi
-        // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
-        world.hitstop = kills >= 5 ? HITSTOP_BIG : HITSTOP_SMALL
-        world.totalKills += kills
-        world.score += kills * SCORE_PER_KILL
-        world.strikeOrigin.x = world.player.x
-        world.strikeOrigin.z = world.player.z
-        world.strikeFacing = world.facing
-        world.strikeTimer = HILAL_CONFIG.strikeDuration
-        world.energy = 0
-        world.refusal = 'none'
-        world.refusalTimer = 0
-      } else {
-        world.energy = stepEnergy(world.energy, siege.vulnerability, dt)
-      }
-
-      // Hilal kurulduğu an duyulsun: oyuncunun gözü düşmandayken de bilsin.
-      if (!wasReady && isStrikeReady(world.energy)) play('ready')
-
-      // Dalga geçişi / gün saati olayları — vuruştan sonra, güncel sayıyla.
-      scenario.advance(world, dt)
-
-      world.phase = resolvePhase({
-        vulnerability: siege.vulnerability,
-        isRetreating: world.isRetreating,
-        strikeTimer: world.strikeTimer,
-      })
-
+      readMove(keys.current, touch, input.move)
+      input.strike = world.strikeRequested
+      shotDriver.drive?.(world, input)
       const prevOutcome = world.outcome
-      world.outcome = scenario.outcome(world)
+      stepGame(world, input, dt, GAME_FX, scenario)
+
+      // Kenar flaşı DOM'da: sayaç beklemeden artar, HUD eşitlemesini (12 Hz) beklemez.
+      if (world.events.some((e) => e.type === 'hurt')) {
+        useGameStore.setState((s) => ({ hurtPulse: s.hurtPulse + 1 }))
+      }
       if (world.outcome !== 'playing' && prevOutcome === 'playing') {
         enterMode('outcome')
-        finishBattle(scenario)
+        finishBattle()
         // Sonuç bu karede eşitlensin: kare döngüsü sonuçta durur, karne beklemesin.
         hudTimer.current = HUD_SYNC_INTERVAL
       }
+    } else {
+      world.playerVel.x = 0
+      world.playerVel.z = 0
     }
 
     // Müzik savaşla başlar, sonuçta susar; kös hilal enerjisiyle hızlanır.
@@ -238,8 +153,7 @@ export function GameDirector() {
     // enerji dolar dolmaz kendiliğinden patlamasın.
     world.strikeRequested = false
 
-    // Yönetmen en son çalışan simülasyon adımı: donma ve hız bir sonraki
-    // karede oyuncu ve düşmanlar için de geçerli olur.
+    // Donma ve hız bu karenin görsellerinde (simDelta) ve sonraki adımda geçerli.
     if (world.mode !== 'paused') stepTime(realDelta)
     // Duyurular da gerçek zamanla: yavaşlayan dünyada uzamasınlar.
     if (isPlaying()) {
@@ -252,6 +166,7 @@ export function GameDirector() {
     if (hudTimer.current >= HUD_SYNC_INTERVAL) {
       hudTimer.current = 0
       const b = world.battle
+      const siege = scenario.siege(world)
       syncHud({
         phase: world.phase,
         outcome: world.outcome,
@@ -276,7 +191,7 @@ export function GameDirector() {
         corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
         wingOrders: b ? b.wings.map((w) => w.order) : [],
         wingStrength: b ? b.wings.map((w) => w.strength) : [],
-        defeatCause: b?.reachedCamp ? 'camp' : 'health',
+        defeatCause: defeatCause(b, world.playerHealth),
         emperorCaptured: b?.emperorCaptured ?? false,
         debrief: world.debrief,
         unlocked: world.unlocked,

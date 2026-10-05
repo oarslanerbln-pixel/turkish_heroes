@@ -9,6 +9,8 @@
 
 import { mulberry32, parseSeed } from './mechanics/random'
 import { PLAYTEST } from './playtest'
+import type { StepInput } from './sim/step'
+import type { World } from './sim/world'
 
 /** Savaş saatinin bir anı (sn) ya da 'end': savaş bitene kadar. */
 export type ShotMoment = number | 'end'
@@ -20,6 +22,16 @@ export function parseShot(search: string): ShotMoment | null {
 }
 
 export const SHOT = PLAYTEST && typeof window !== 'undefined' ? parseShot(window.location.search) : null
+
+/**
+ * ?bot=harass: çekimde oyuncuyu güvenli tacizci botu sürer. Boşta kalan oyuncu
+ * hiçbir savaşı kazanmıyor (TASARIM Mantık 1); zafer ekranının çekimi (R7)
+ * bir oyuncu ister.
+ */
+export const SHOT_BOT = SHOT !== null && new URLSearchParams(window.location.search).get('bot') === 'harass'
+
+/** Oyuncunun girdisini her kare yazan çekim botu (ShotDirector kurar); null: klavye ve dokunmatik. */
+export const shotDriver: { drive: ((w: World, input: StepInput) => void) | null } = { drive: null }
 
 /**
  * Sanat açıları (§10.8 R8, R9): oyun kamerası değil, model ve renk kararlarının

@@ -6,7 +6,7 @@
 // iletim track.ts'te.
 
 import type { Outcome } from '../mechanics/combat'
-import type { BattleEvent } from '../mechanics/corps'
+import type { BattleEvent, DefeatCause } from '../mechanics/corps'
 import type { CommanderId } from '../mechanics/scenario'
 import type { StrikeRefusal } from '../mechanics/types'
 import type { WingOrder } from '../mechanics/wings'
@@ -17,14 +17,21 @@ export type Refusal = Exclude<StrikeRefusal, 'none'>
  * yeniden başlattı ya da komutanlara döndüyse 'quit'.
  */
 export type EndOutcome = Exclude<Outcome, 'playing'> | 'abandoned' | 'quit'
-export type DefeatCause = 'health' | 'camp'
 
 export type TelemetryEvent =
   /**
    * attempt: bu cihazda o komutanla başlatılan kaçıncı savaş (1 tabanlı).
    * assist: temas hasarının çarpanı (1 = tam; Metehan'da zorluk merdiveni).
    */
-  | { type: 'battle_start'; commander: CommanderId; attempt: number; assist: number; seed: number | null }
+  | {
+      type: 'battle_start'
+      commander: CommanderId
+      attempt: number
+      assist: number
+      seed: number | null
+      /** Metehan: savaş bu dalgadan başladı (Baideng'den yeniden); yoksa 0. */
+      startWave?: number
+    }
   /** Metehan: dalga temizlendi. Sıradaki dalga mola sonrası başlar. */
   | { type: 'wave_clear'; wave: number; health: number }
   /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
@@ -86,6 +93,8 @@ export interface BattleSummary {
   score: number
   stars: number
   health: number
+  /** Savaşın başladığı dalga (0 tabanlı): Baideng'den yeniden başlayınca 0 değil. */
+  startWave: number
   /** Ulaşılan dalga (0 tabanlı); Malazgirt'te hep 0. */
   wave: number
   strikes: { t: number; kills: number; alive: number }[]
@@ -129,7 +138,8 @@ export function startSummary(
     score: 0,
     stars: 0,
     health: 100,
-    wave: 0,
+    startWave: e.startWave ?? 0,
+    wave: e.startWave ?? 0,
     strikes: [],
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],

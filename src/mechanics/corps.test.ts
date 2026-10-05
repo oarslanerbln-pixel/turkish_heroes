@@ -14,18 +14,30 @@ import {
   CENTER,
   CORPS,
   createBattle,
+  defeatCause,
   harassEffect,
+  MALAZGIRT,
   MODE_CHARGE,
   MODE_FORMATION,
   MODE_TELEGRAPH,
+  nightTarget,
   REARGUARD,
   resolveBattle,
   stepBattle,
   strikeBudget,
   type BattleState,
 } from './corps'
-import { greedyBot, passiveBot, provokerBot, safeHarasser, sweep } from './battleBots'
+import {
+  ambushWings,
+  greedyBot,
+  passiveBot,
+  provokerBot,
+  safeHarasser,
+  sweep,
+  withWings,
+} from './battleBots'
 import { calcFacing, countInCrescent, executeStrike } from './hilalSystem'
+import { orderWing, WING_CONFIG } from './wings'
 import type { Enemy, Vec2 } from './types'
 
 const DT = 1 / 60
@@ -149,21 +161,45 @@ describe('Alp Arslan — kurallar', () => {
     expect(soldier.discipline).toBeCloseTo(c.cohesion)
   })
 
-  it('imparator yalnızca artçı gittiyse ve merkez yıprandıysa korumasız kalır', () => {
-    const exposed = createBattle(1)
-    exposed.battle.corps[REARGUARD].cohesion = 0.7
-    exposed.battle.corps[CENTER].cohesion = 0.65
-    exposed.battle.time = BATTLE_CONFIG.dayLength - DT / 2
-    stepBattle(exposed.battle, exposed.enemies, FAR, DT)
-    expect(exposed.battle.emperorExposed).toBe(true)
-    expect(exposed.enemies.find((e) => e.emperor)!.guarded).toBe(false)
+  it('artçı kaçınca kollar merkeze kapanır; imparatoru gün batımının hemen ardından onlar açar', () => {
+    const atSunset = () => {
+      const s = createBattle(1)
+      s.battle.corps[REARGUARD].cohesion = 0.7
+      s.battle.corps[CENTER].cohesion = 0.65
+      s.battle.time = BATTLE_CONFIG.dayLength - DT / 2
+      return s
+    }
+    const window = BATTLE_CONFIG.emperorWindow
 
-    const guarded = createBattle(1)
-    guarded.battle.corps[REARGUARD].cohesion = 0.7
-    guarded.battle.corps[CENTER].cohesion = 0.9
-    guarded.battle.time = BATTLE_CONFIG.dayLength - DT / 2
-    stepBattle(guarded.battle, guarded.enemies, FAR, DT)
-    expect(guarded.battle.emperorExposed).toBe(false)
+    // Kollar pusuda: merkezin arkası açılır ama imparator korunur.
+    const alone = atSunset()
+    run(alone.battle, alone.enemies, FAR, window + 1)
+    expect(alone.battle.rearguardLeft).toBe(true)
+    expect(alone.battle.emperorExposed).toBe(false)
+
+    const closed = atSunset()
+    for (const w of closed.battle.wings) orderWing(w, 'charge')
+    run(closed.battle, closed.enemies, FAR, window)
+    expect(closed.battle.wings.every((w) => w.target === CENTER)).toBe(true)
+    expect(closed.battle.emperorExposed).toBe(true)
+    expect(closed.enemies.find((e) => e.emperor)!.guarded).toBe(false)
+
+    // Pencere kapandıktan sonra varan kollar geç kalır: muhafız toparlandı.
+    const late = atSunset()
+    run(late.battle, late.enemies, FAR, window)
+    for (const w of late.battle.wings) orderWing(w, 'charge')
+    run(late.battle, late.enemies, FAR, 10)
+    expect(late.battle.wings.every((w) => w.target === CENTER)).toBe(true)
+    expect(late.battle.emperorExposed).toBe(false)
+
+    // Gündüz tükenmiş iki kol merkezi tutamaz.
+    const tired = atSunset()
+    for (const w of tired.battle.wings) {
+      orderWing(w, 'charge')
+      w.strength = WING_CONFIG.readyStrength
+    }
+    run(tired.battle, tired.enemies, FAR, window)
+    expect(tired.battle.emperorExposed).toBe(false)
   })
 
   it('korunan imparator yayda olsa da düşmez; korumasız olan esir alınır', () => {
@@ -231,14 +267,25 @@ describe('Alp Arslan — kurallar', () => {
     expect(siege.aliveCount).toBe(BATTLE_SIZE)
   })
 
-  it('ordu gündüz ordugaha varırsa yenilgi, gece çökerse zafer', () => {
+  it('ordu gündüz ordugaha varırsa yenilgi; gece hedefle zafer, hedefsiz geri çekilme', () => {
     const camp = createBattle(1)
     camp.battle.corps.forEach((c) => (c.anchor.z = BATTLE_CONFIG.campZ + 0.1))
     stepBattle(camp.battle, camp.enemies, FAR, DT)
     expect(resolveBattle(camp.battle, camp.enemies, 100)).toBe('defeat')
+    expect(defeatCause(camp.battle, 100)).toBe('camp')
 
+    // Kenarda bekleyen oyuncu: gece çöktü ama ordu ayakta.
     const night = createBattle(1)
     night.battle.time = BATTLE_CONFIG.nightAt
+    expect(resolveBattle(night.battle, night.enemies, 100)).toBe('defeat')
+    expect(defeatCause(night.battle, 100)).toBe('night')
+    expect(defeatCause(night.battle, 0)).toBe('health')
+
+    const need = nightTarget(MALAZGIRT, night.enemies.length)
+    expect(need).toBe(Math.ceil(BATTLE_SIZE / 4))
+    night.enemies.slice(0, need - 1).forEach((e) => (e.alive = false))
+    expect(resolveBattle(night.battle, night.enemies, 100)).toBe('defeat')
+    night.enemies[need - 1].alive = false
     expect(resolveBattle(night.battle, night.enemies, 100)).toBe('victory')
     expect(resolveBattle(night.battle, night.enemies, 0)).toBe('defeat')
   })
@@ -282,16 +329,17 @@ describe('Alp Arslan — denge (bot ölçütleri)', () => {
     }
   })
 
-  it('kışkırtıcı tohumların en az yarısında imparatoru esir alır', { timeout: 20000 }, () => {
+  it('kolsuz kışkırtıcı artçıyı kaçırır ama imparatoru esir alamaz (bkz. wings.test.ts)', { timeout: 20000 }, () => {
     const runs = sweep(provokerBot, SEEDS)
-    const threeStars = runs.filter((r) => r.stars === 3).length
-    expect(threeStars).toBeGreaterThanOrEqual(SEEDS.length / 2)
+    expect(runs.filter((r) => r.rearguardLeft).length).toBeGreaterThanOrEqual(SEEDS.length / 2)
+    expect(runs.every((r) => r.stars < 3)).toBe(true)
   })
 
   it('hilali gündüz harcayan açgözlü bot kışkırtıcıdan az puan alır', { timeout: 20000 }, () => {
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-    const greedy = mean(sweep(greedyBot, SEEDS).map((r) => r.score))
-    const provoker = mean(sweep(provokerBot, SEEDS).map((r) => r.score))
+    // İkisi de kollarını akşama saklar: fark yalnızca hilalin ne zaman harcandığı.
+    const greedy = mean(sweep(withWings(greedyBot, ambushWings), SEEDS).map((r) => r.score))
+    const provoker = mean(sweep(withWings(provokerBot, ambushWings), SEEDS).map((r) => r.score))
     expect(greedy).toBeLessThan(provoker)
   })
 })

@@ -1,7 +1,7 @@
-// Senaryo uygulamaları: yönetmenin komutana göre değişen kısmı.
+// Senaryo uygulamaları: simülasyon adımının komutana göre değişen kısmı.
 //
-// Yönetmen (GameDirector) ortak döngüyü yürütür — temas, hilal yönü, enerji,
-// vuruş, hitstop, HUD. Senaryo yalnızca şunları söyler: düşman nasıl hareket
+// Adım (step.ts) ortak döngüyü yürütür — temas, hilal yönü, enerji, vuruş.
+// Senaryo yalnızca şunları söyler: düşman nasıl hareket
 // eder, kuşatılabilirlik nereden gelir, vuruştan sonra ne olur, savaş nasıl
 // akar ve ne zaman biter. Senaryolar birbirini bilmez; Metehan'ın dalga
 // mantığı Alp Arslan eklenirken değişmeden buraya taşındı.
@@ -32,7 +32,12 @@ import {
 } from '../mechanics/baideng'
 import { stepEnemies } from '../mechanics/enemySim'
 import { WING_CONFIG } from '../mechanics/wings'
-import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
+import {
+  calcSiegeState,
+  isStrikeReady,
+  type FallFilter,
+  type SiegeState,
+} from '../mechanics/hilalSystem'
 import type { CommanderId } from '../mechanics/scenario'
 import {
   ladderScale,
@@ -45,43 +50,55 @@ import {
   waveConfig,
   wavesStars,
 } from '../mechanics/waves'
-import { haptic, play } from '../audio/sfx'
 import { announce, type World } from './world'
-import { isFirstBattle, ladderStep, takeHint } from './progress'
-import { track } from '../telemetry/track'
+import { isFirstBattle, ladderStep } from './progress'
+import type { StepEffects } from './step'
 
 export interface Scenario {
   /**
-   * Temas hasarının çarpanı (1 = tam): Metehan'da zorluk merdiveni, Malazgirt'te
-   * ilk savaşın yarı hasarı. Olay takibi de kaydeder — zafer oranı buna göre okunur.
+   * Bu savaşın hasar çarpanı (1 = tam): Metehan'da zorluk merdiveni, Malazgirt'te
+   * ilk savaşın yarı hasarı. Oyuncunun ilerlemesini okur; yönetmen savaş başında
+   * bir kez world.assist'e yazar. Olay takibi de kaydeder — zafer oranı buna göre okunur.
    */
   assist(w: World): number
-  /** Temas eden düşman başına saniyelik hasar. */
+  /** Temas eden düşman başına saniyelik hasar (world.assist uygulanmış). */
   contactDamage(w: World): number
   /**
    * Temastan başka gelen hasar, çarpanı uygulanmış (Baideng'in arbalet
-   * yaylımları). Yönetmen temas hasarıyla toplayıp yaraya işler.
+   * yaylımları). Adım temas hasarıyla toplayıp yaraya işler.
    */
-  hazards(w: World, dt: number): number
-  /** Düşmanları bir kare ilerletir (EnemySwarm, öncelik 1). */
+  hazards(w: World, dt: number, fx: StepEffects): number
+  /** Düşmanları bir adım ilerletir. */
   moveEnemies(w: World, dt: number): void
   /** Hilal enerjisini besleyen kuşatılabilirlik. */
   siege(w: World): SiegeState
   /** Yaydakilerden hangisi düşebilir; her sayım/vuruş için yeni. Yoksa hepsi. */
   fallFilter(w: World): FallFilter | undefined
   /** Vuruş düşmanları düşürdükten hemen sonra. */
-  afterStrike(w: World): void
+  afterStrike(w: World, fx: StepEffects): void
   /** Savaşın akışı: dalga geçişleri, gün saati olayları. */
-  advance(w: World, dt: number): void
+  advance(w: World, dt: number, fx: StepEffects): void
   outcome(w: World): Outcome
   /** Zaferde eklenen puan; yıldızlı senaryo w.stars'ı burada yazar. */
   victoryBonus(w: World): number
+  /** Taban puanı bu savaşın zorluğuna çevirir; bkz. waveScore. */
+  points(w: World, base: number): number
 }
 
 /** Düşürülen (ya da teslim olan) düşman başına puan. */
 export const SCORE_PER_KILL = 100
 /** Zaferde kalan can başına bonus — temiz oynamayı ödüllendirir. */
 const HEALTH_BONUS_PER_POINT = 5
+
+/**
+ * Metehan puanı oynanan merdiven basamağıyla ölçeklenir (O4): yarı hasarda
+ * (başlangıç) ×1, tam hasarda ×2, tabanda ×0,4. Ölçeklenmeyen puanda kolay
+ * basamaktaki koşu daha çok dalga ve can bonusu toplar, rekoru zor
+ * basamağınkini geçerdi. Başlangıç ×1: eski rekorlar bugünkü ölçekte kalır.
+ */
+function waveScore(w: World, base: number): number {
+  return Math.round((base * w.assist) / ladderScale(0))
+}
 
 function countAlive(w: World): number {
   let n = 0
@@ -100,36 +117,36 @@ const ENCIRCLE_SLOWMO = 0.9
  * Yaylımın altında düşen Han atlısı oyuncunun hanesine yazılır: onları
  * oraya o çekti.
  */
-function presentBaideng(w: World): void {
+function presentBaideng(w: World, fx: StepEffects): void {
   for (const e of baidengEvents) {
     switch (e.type) {
       case 'volleyAimed':
-        if (takeHint('volley')) announce('Kırmızı halka: Han arbaletleri — halkadan çık')
-        play('volley')
+        if (fx.hint('volley')) announce(w, 'Kırmızı halka: Han arbaletleri — halkadan çık')
+        fx.play('volley')
         w.events.push(e)
         break
       case 'volleyLanded': {
         const felled = e.felled.length
         if (felled > 0 && w.baideng?.felled === felled) {
-          announce('Han atlıları kendi oklarının altında kaldı!')
+          announce(w, 'Han atlıları kendi oklarının altında kaldı!')
         }
         w.totalKills += felled
-        w.score += felled * SCORE_PER_KILL
-        track({ type: 'volley', hit: e.hit, felled })
+        w.score += waveScore(w, felled * SCORE_PER_KILL)
+        fx.track({ type: 'volley', hit: e.hit, felled })
         w.events.push({ type: 'volleyLanded', x: e.x, z: e.z, hit: e.hit, felled })
         break
       }
       case 'encircle':
-        announce('Dört yandan Hun atlıları — Gaozu kuşatılıyor!')
-        play('horn')
+        announce(w, 'Dört yandan Hun atlıları — Gaozu kuşatılıyor!')
+        fx.play('horn')
         w.slowmo = ENCIRCLE_SLOWMO
         w.cameraCue = 'encircle'
-        track({ type: 'rout', count: e.routed })
+        fx.track({ type: 'rout', count: e.routed })
         w.events.push({ type: 'rout', count: e.routed })
         w.events.push({ type: 'encircle', center: e.center })
         break
       case 'peace':
-        announce('Han barış istedi — Baideng, MÖ 200')
+        announce(w, 'Han barış istedi — Baideng, MÖ 200')
         w.events.push(e)
         break
     }
@@ -137,98 +154,163 @@ function presentBaideng(w: World): void {
   baidengEvents.length = 0
 }
 
+/**
+ * Durana yüklenme (TASARIM Mantık 1): bu hızın altındaki oyuncu duruyor
+ * sayılır; STILL_GRACE sn sonra sürünün koruduğu mesafe STILL_RAMP sn içinde
+ * sıfıra iner. Bekleyen oyuncu da savaşı bitirir: yenilerek. Nişan almak
+ * için durmak (1–2 sn) cezasız.
+ */
+const STILL_SPEED = 0.5
+const STILL_GRACE = 5
+const STILL_RAMP = 3
+const STILL_HINT = 'Duran atlı hedeftir — çekil, peşine tak'
+
+export function stillPress(stillTime: number): number {
+  return Math.min(1, Math.max(0, (stillTime - STILL_GRACE) / STILL_RAMP))
+}
+
+/**
+ * Hilalin nasıl dolduğu ilk dakikada öğretilir (TASARIM Mantık 5, O5/O7):
+ * her ipucu sırası gelince bir kez. Dolduramayan oyuncu "dolmuyor"u duyar;
+ * dolduran, dolarken neden dolduğunu; kuran, ne yapacağını.
+ */
+/** Uzman bot hilali ~9 sn'de doldurmaya başlıyor; 15 sn'de hâlâ boşsa takılmıştır. */
+const STALL_HINT_AT = 15
+const STALL_HINT_UNTIL = 60
+/** Enerjinin "dolmuyor" sayıldığı üst sınır (eşik 100). */
+const STALL_ENERGY = 15
+const FILL_HINT_ENERGY = 30
+const STALL_HINT = 'Hilal dolmuyor: düşman düzenli — uzaklaş, peşine düşsün'
+const FILL_HINT = 'Peşine düşenin düzeni bozuldu — kümelendikçe hilal dolar'
+const READY_HINT = 'Hilal kuruldu — VUR, yaydakiler düşer'
+
+function teachEnergy(w: World, fx: StepEffects): void {
+  if (countAlive(w) === 0) return
+  const ready = isStrikeReady(w.energy)
+  if (
+    w.totalKills === 0 &&
+    w.time >= STALL_HINT_AT &&
+    w.time < STALL_HINT_UNTIL &&
+    w.energy < STALL_ENERGY &&
+    fx.hint('stall')
+  ) {
+    announce(w, STALL_HINT)
+  }
+  if (!ready && w.energy >= FILL_HINT_ENERGY && fx.hint('fill')) announce(w, FILL_HINT)
+  if (ready && w.strikeTimer === 0 && fx.hint('ready')) announce(w, READY_HINT)
+}
+
+/** Metehan'ın dalga kuralları; kapatmak yalnız önce/sonra ölçümü için (bkz. waveBots). */
+export interface WaveRules {
+  /** Kırılan dalganın artığı dağılır. */
+  rout: boolean
+  /** Yeni dalga oyuncunun yakasından doğar; false: hep aynı yerde. */
+  spawnAway: boolean
+}
+
 /** Metehan: dört dalga halinde gelen, peşine takılınca kümelenen sürü. */
-const waves: Scenario = {
-  assist: () => ladderScale(ladderStep()),
-  contactDamage: () => COMBAT_CONFIG.damagePerEnemy * ladderScale(ladderStep()),
+export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }): Scenario {
+  return {
+    assist: () => ladderScale(ladderStep()),
+    contactDamage: (w) => COMBAT_CONFIG.damagePerEnemy * w.assist,
 
-  hazards(w, dt) {
-    if (!w.baideng) return 0
-    const damage = stepVolleys(w.baideng, w.enemies, w.player, w.playerVel, dt, baidengEvents)
-    presentBaideng(w)
-    return damage * ladderScale(ladderStep())
-  },
+    hazards(w, dt, fx) {
+      if (!w.baideng) return 0
+      const damage = stepVolleys(w.baideng, w.enemies, w.player, w.playerVel, dt, baidengEvents)
+      presentBaideng(w, fx)
+      return damage * w.assist
+    },
 
-  moveEnemies(w, dt) {
-    stepEnemies(
-      w.enemies,
-      w.player,
-      dt,
-      w.isRetreating,
-      waveConfig(w.waveIndex).disciplineRecoveryMult,
-    )
-    if (w.baideng) stepCommand(w.baideng, w.enemies, w.player, dt)
-  },
+    moveEnemies(w, dt) {
+      const still = Math.hypot(w.playerVel.x, w.playerVel.z) < STILL_SPEED
+      w.stillTime = still ? w.stillTime + dt : 0
+      stepEnemies(
+        w.enemies,
+        w.player,
+        dt,
+        w.isRetreating,
+        waveConfig(w.waveIndex).disciplineRecoveryMult,
+        stillPress(w.stillTime),
+      )
+      if (w.baideng) stepCommand(w.baideng, w.enemies, w.player, dt)
+    },
 
-  siege: (w) => calcSiegeState(w.enemies, w.baideng ? siegeCorps(w.baideng) : undefined),
+    siege: (w) => calcSiegeState(w.enemies, w.baideng ? siegeCorps(w.baideng) : undefined),
 
-  fallFilter: () => undefined,
+    fallFilter: () => undefined,
 
-  afterStrike(w) {
-    if (w.baideng) {
-      // Baideng'de gövdenin artığı tek başına kaçmaz: çember kurulur.
-      afterBaidengStrike(w.baideng, w.enemies, baidengEvents)
-      presentBaideng(w)
-      return
-    }
-    // Kırılan dalganın artığı dağılır: son bir-iki düşmanın peşinde ölmek yok.
-    const routed = routSurvivors(w.enemies, w.waveIndex)
-    if (routed === 0) return
-    announce(routed === 1 ? 'Bozgun! Son düşman kaçıyor' : `Bozgun! Kalan ${routed} düşman kaçıyor`)
-    play('rout')
-    track({ type: 'rout', count: routed })
-    w.events.push({ type: 'rout', count: routed })
-  },
-
-  advance(w, dt) {
-    if (w.baideng) {
-      stepPeace(w.baideng, w.enemies, baidengEvents)
-      presentBaideng(w)
-    }
-    // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
-    const moreWaves = w.waveIndex < TOTAL_WAVES - 1
-    if (countAlive(w) > 0 || !moreWaves) return
-    const next = w.waveIndex + 1
-    if (w.waveBreak === 0) {
-      // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
-      w.score += waveClearBonus(w.waveIndex)
-      w.waveBreak = waveBreak(next)
-      track({ type: 'wave_clear', wave: w.waveIndex, health: Math.round(w.playerHealth) })
-      if (waveConfig(next).rest) {
-        // Molada sahada kimse yok: can molanın başında dönse de sonu aynı.
-        w.restedFrom = w.playerHealth
-        w.playerHealth = restHealth(w.playerHealth, next)
-        announce(`Ordu soluklandı: +${Math.round(w.playerHealth - w.restedFrom)} can`)
+    afterStrike(w, fx) {
+      if (w.baideng) {
+        // Baideng'de gövdenin artığı tek başına kaçmaz: çember kurulur.
+        afterBaidengStrike(w.baideng, w.enemies, baidengEvents)
+        presentBaideng(w, fx)
+        return
       }
-    } else if (dt > 0) {
-      w.waveBreak = Math.max(0, w.waveBreak - dt)
+      // Kırılan dalganın artığı dağılır: son bir-iki düşmanın peşinde ölmek yok.
+      const routed = rules.rout ? routSurvivors(w.enemies, w.waveIndex) : 0
+      if (routed === 0) return
+      announce(w, routed === 1 ? 'Bozgun! Son düşman kaçıyor' : `Bozgun! Kalan ${routed} düşman kaçıyor`)
+      fx.play('rout')
+      fx.track({ type: 'rout', count: routed })
+      w.events.push({ type: 'rout', count: routed })
+    },
+
+    advance(w, dt, fx) {
+      if (w.baideng) {
+        stepPeace(w.baideng, w.enemies, baidengEvents)
+        presentBaideng(w, fx)
+      }
+      if (stillPress(w.stillTime) > 0 && countAlive(w) > 0 && fx.hint('still')) announce(w, STILL_HINT)
+      teachEnergy(w, fx)
+      // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
+      const moreWaves = w.waveIndex < TOTAL_WAVES - 1
+      if (countAlive(w) > 0 || !moreWaves) return
+      const next = w.waveIndex + 1
       if (w.waveBreak === 0) {
-        w.waveIndex = next
-        const cfg = waveConfig(next)
-        w.baideng = cfg.baideng ? createBaidengState(cfg.enemyCount) : null
-        // Yeni dalga oyuncunun yakasından, arkadan gelir; kıskaç müfrezesi
-        // gittiği yönde (bkz. spawnWave).
-        w.enemies = spawnWave(next, w.player, w.playerVel)
-        play('wave')
-        w.events.push({ type: 'waveSpawn', wave: next })
+        // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
+        w.score += waveScore(w, waveClearBonus(w.waveIndex))
+        w.waveBreak = waveBreak(next)
+        fx.track({ type: 'wave_clear', wave: w.waveIndex, health: Math.round(w.playerHealth) })
+        if (waveConfig(next).rest) {
+          // Molada sahada kimse yok: can molanın başında dönse de sonu aynı.
+          w.restedFrom = w.playerHealth
+          w.playerHealth = restHealth(w.playerHealth, next)
+          announce(w, `Ordu soluklandı: +${Math.round(w.playerHealth - w.restedFrom)} can`)
+        }
+      } else if (dt > 0) {
+        w.waveBreak = Math.max(0, w.waveBreak - dt)
+        if (w.waveBreak === 0) {
+          w.waveIndex = next
+          const cfg = waveConfig(next)
+          w.baideng = cfg.baideng ? createBaidengState(cfg.enemyCount) : null
+          // Yeni dalga oyuncunun yakasından, arkadan gelir; kıskaç müfrezesi
+          // gittiği yönde (bkz. spawnWave).
+          w.enemies = spawnWave(next, rules.spawnAway ? w.player : undefined, w.playerVel)
+          // Molada beklemek durmak sayılmaz: yeni dalga da önce mesafe korur.
+          w.stillTime = 0
+          fx.play('wave')
+          w.events.push({ type: 'waveSpawn', wave: next })
+        }
       }
-    }
-  },
+    },
 
-  outcome(w) {
-    // Dalga molasında sahada kimse yok ama savaş bitmedi: sıradaki dalga
-    // da "kalan düşman" sayılır, yoksa mola anında zafer ilan edilirdi.
-    const remaining = countAlive(w) + (w.waveIndex < TOTAL_WAVES - 1 ? 1 : 0)
-    return resolveOutcome(w.playerHealth, remaining)
-  },
+    outcome(w) {
+      // Dalga molasında sahada kimse yok ama savaş bitmedi: sıradaki dalga
+      // da "kalan düşman" sayılır, yoksa mola anında zafer ilan edilirdi.
+      const remaining = countAlive(w) + (w.waveIndex < TOTAL_WAVES - 1 ? 1 : 0)
+      return resolveOutcome(w.playerHealth, remaining)
+    },
 
-  victoryBonus(w) {
-    // Merdiven bu savaşın sonucuyla finishBattle'da ilerliyor, yani burada
-    // hâlâ oynanan basamak. Yıldız puanı yok: can bonusu yarayı zaten sayıyor.
-    w.stars = wavesStars(w.playerHealth, ladderScale(ladderStep()), w.restedFrom ?? undefined)
-    // Son dalganın temizleme bonusu dalga geçişinde verilmiyor; burada.
-    return waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
-  },
+    victoryBonus(w) {
+      // Yıldızlar oynanan basamağa göre (world.assist). Yıldız puanı yok: can
+      // bonusu yarayı zaten sayıyor.
+      w.stars = wavesStars(w.playerHealth, w.assist, w.restedFrom ?? undefined)
+      // Son dalganın temizleme bonusu dalga geçişinde verilmiyor; burada.
+      return waveScore(w, waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT))
+    },
+
+    points: waveScore,
+  }
 }
 
 /** Yıldız başına puan. */
@@ -301,7 +383,7 @@ const ARROW_CUE_WAIT = 2.5
 const battle: Scenario = {
   // Komutanla ilk savaşta hamle hasarı yarıya iner: ilk ödül cezadan önce gelsin.
   assist: (w) => (isFirstBattle(w.commander) ? 0.5 : 1),
-  contactDamage: (w) => BATTLE_CONFIG.contactDamage * (isFirstBattle(w.commander) ? 0.5 : 1),
+  contactDamage: (w) => BATTLE_CONFIG.contactDamage * w.assist,
   hazards: () => 0,
 
   moveEnemies(w, dt) {
@@ -316,7 +398,7 @@ const battle: Scenario = {
     if (w.battle) afterStrike(w.battle, w.enemies)
   },
 
-  advance(w) {
+  advance(w, _dt, fx) {
     const b = w.battle
     if (!b) return
     // Geçit: kol boğaza yaklaşırken yol hâlâ açıksa, bir kez.
@@ -324,81 +406,81 @@ const battle: Scenario = {
       b.layout.pass &&
       !b.blockadeUsed &&
       b.frontZ > PASS.neckZ - BLOCKADE_HINT_DISTANCE &&
-      takeHint('blockade')
+      fx.hint('blockade')
     ) {
-      announce(BLOCKADE_HINT)
+      announce(w, BLOCKADE_HINT)
     }
     // Oyuncu kolları kendi keşfettiyse tanıtım gereksiz.
     if (
       b.time >= WINGS_HINT_AT &&
       b.time < b.layout.dayLength &&
       b.wings.every((x) => x.order === 'ambush') &&
-      takeHint('wings')
+      fx.hint('wings')
     ) {
-      announce(WINGS_HINT)
+      announce(w, WINGS_HINT)
     }
     for (const event of b.events) {
-      track({ type: 'battle_event', event })
+      fx.track({ type: 'battle_event', event })
       switch (event) {
         case 'harass':
           // İpucu oyuncu başına bir kez: ikinci savaşta artık biliyor.
-          if (takeHint('harass')) announce(EVENT_TEXT.harass)
+          if (fx.hint('harass')) announce(w, EVENT_TEXT.harass)
           w.arrowCue = { corps: null, wait: ARROW_CUE_WAIT }
           break
         case 'charge':
-          play('charge')
-          haptic(30)
+          fx.play('charge')
+          fx.haptic(30)
           // İlk hamle: ağır çekim + ipucu. Oyuncu ne olduğunu görsün, kaçabilsin.
-          if (takeHint('charge')) {
-            announce(EVENT_TEXT.charge)
+          if (fx.hint('charge')) {
+            announce(w, EVENT_TEXT.charge)
             w.slowmo = FIRST_CHARGE_SLOWMO
           }
           break
         case 'sunset':
-          track({
+          fx.track({
             type: 'dusk',
             cohesion: b.corps.map((c) => round2(c.cohesion)),
             wings: b.wings.map((x) => round2(x.strength)),
             health: Math.round(w.playerHealth),
           })
-          play('dusk')
+          fx.play('dusk')
           // Dönüş savaşın kilit anı: her seferinde kısa bir ağır çekimle başlar.
           w.slowmo = SUNSET_SLOWMO
           w.events.push({ type: 'sunset' })
           w.cameraCue = 'dusk'
-          announce(takeHint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
+          announce(w, fx.hint('dusk') ? DUSK_HINT : EVENT_TEXT.sunset)
           if (
             b.wings.some((x) => x.order === 'ambush' && x.strength >= WING_CONFIG.readyStrength) &&
-            takeHint('wingsDusk')
+            fx.hint('wingsDusk')
           ) {
-            announce(WINGS_DUSK_HINT)
+            announce(w, WINGS_DUSK_HINT)
           }
           break
         case 'wingShockLeft':
         case 'wingShockRight':
-          play('wingCharge')
-          haptic(40)
-          announce(eventText(b, event))
+          fx.play('wingCharge')
+          fx.haptic(40)
+          announce(w, eventText(b, event))
           break
         case 'emperorExposed':
-          play('horn')
-          announce(eventText(b, event))
+          fx.play('horn')
+          announce(w, eventText(b, event))
           w.arrowCue = { corps: CENTER, wait: ARROW_CUE_WAIT }
           break
         case 'blockade':
-          play('rockslide')
-          haptic([30, 20, 60])
-          announce(EVENT_TEXT.blockade)
+          fx.play('rockslide')
+          fx.haptic([30, 20, 60])
+          announce(w, EVENT_TEXT.blockade)
           break
         case 'jam':
           // Sıkışma geçidin hasat anı (Malazgirt'teki dönüş gibi): ağır çekimle okunsun.
-          play('dusk')
+          fx.play('dusk')
           w.slowmo = JAM_SLOWMO
-          takeHint('jam')
-          announce(EVENT_TEXT.jam)
+          fx.hint('jam')
+          announce(w, EVENT_TEXT.jam)
           break
         default:
-          announce(eventText(b, event))
+          announce(w, eventText(b, event))
       }
     }
     b.events.length = 0
@@ -421,10 +503,12 @@ const battle: Scenario = {
       Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
     )
   },
+
+  points: (_, base) => base,
 }
 
 const SCENARIOS: Record<CommanderId, Scenario> = {
-  metehan: waves,
+  metehan: wavesScenario(),
   'alp-arslan': battle,
   kilicarslan: battle,
 }
