@@ -534,6 +534,76 @@
   letter-spacing: 0.08em;
 }
 
+/* ---- Savaş açılışı: sinema şeritleri ve tarih kartı (MIMARI.md §8) ---- */
+.hud-controls {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+
+/* Gizli arayüz dokunuş almaz: dokunuş sahneye gider, çekimi geçer. */
+.hud.is-cinematic .hud-controls {
+  opacity: 0;
+  visibility: hidden;
+  transition-duration: 0.2s;
+}
+
+.letterbox {
+  position: absolute;
+  inset: 0;
+}
+
+.letterbox-bar {
+  --off: -100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10vh;
+  background: var(--ink);
+  transform: translateY(var(--off));
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.letterbox-bar + .letterbox-bar {
+  --off: 100%;
+  top: auto;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: calc(16px + var(--safe-right));
+}
+
+/* Giriş animasyonla (şerit savaşla birlikte mount olur), çıkış geçişle. */
+.letterbox.is-on .letterbox-bar {
+  transform: none;
+  animation: letterbox-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.letterbox-skip {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ivory-soft);
+}
+
+/* Tarih kartı: alt üçte birde; ordu ufukta, kadrajın ortasında kalır. */
+.wave-banner.is-opening {
+  top: auto;
+  bottom: calc(10vh + 2%);
+  animation-duration: 4.6s;
+  transition: filter 0.3s ease;
+}
+
+.wave-banner.is-opening h2 {
+  font-size: clamp(24px, 4.6vw, 40px);
+}
+
+/* Çekim atlandı: kart yerinde söner. Opaklığı animasyon tuttuğu için filtreyle. */
+.hud:not(.is-cinematic) .wave-banner.is-opening {
+  filter: opacity(0);
+}
+
 /* ---- Üst orta: gün çizgisi (Alp Arslan) ---- */
 .day-line {
   position: absolute;
@@ -2385,6 +2455,10 @@
   0% { opacity: 0; transform: translate(-50%, 12px); }
   15%, 70% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+@keyframes letterbox-in {
+  from { transform: translateY(var(--off)); }
 }
 
 @keyframes banner-fade {

@@ -1,4 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Savaş açılışı (MIMARI.md §8): şeritler iner, savaş arayüzü bekler; bir tuş
+ * çekimi atlar. İlk karenin derlemesi uzarsa erken basış düşebilir: yinele.
+ */
+async function skipOpening(page: Page, hint: string) {
+  await expect(page.getByText(hint)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Mola' })).toBeHidden()
+  await expect(async () => {
+    await page.keyboard.press('Shift')
+    await expect(page.getByRole('button', { name: 'Mola' })).toBeVisible({ timeout: 1_000 })
+  }).toPass()
+}
 
 // Duman testi (risk P7): uygulama açılır, savaşa girilir, birkaç saniye
 // oynanır, molaya girilip çıkılır. Konsolda hata, sayfada yakalanmamış
@@ -14,7 +27,7 @@ test('savaşa girilir, oynanır, konsol temiz', async ({ page }) => {
 
   await page.goto('/')
   await page.getByRole('button', { name: 'SAVAŞA GİR' }).click()
-  await expect(page.getByRole('button', { name: 'Mola' })).toBeVisible()
+  await skipOpening(page, 'Geçmek için bir tuşa bas')
 
   // Sahne akıyor: iki an arasında görüntü değişir. Sayfa görüntüsü canvas'a
   // kırpılır: eleman görüntüsü iki kare boyunca kararlılık bekler, CI'da bu
@@ -42,7 +55,7 @@ test.describe('dikey telefon', () => {
     await page.addInitScript(() => localStorage.setItem('hilal_muted', '1'))
     await page.goto('/')
     await page.getByRole('button', { name: 'SAVAŞA GİR' }).click()
-    await expect(page.getByRole('button', { name: 'Mola' })).toBeVisible()
+    await skipOpening(page, 'Geçmek için dokun')
 
     await page.setViewportSize({ width: 375, height: 667 })
     await expect(page.getByRole('alert').filter({ hasText: 'TELEFONU YATAY ÇEVİR' })).toBeVisible()

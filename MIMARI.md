@@ -764,7 +764,14 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
      - Durum (4 Ekim 2026): yapıldı. K1 ~%25 → ~%8 (`tacticalCamera.test.ts`). K2: R3'te HUD altındaki cephe Malazgirt %2,9 → 0, Miryokefalon %8,3 → 0; ordunun HUD altındaki payı %26 → %7 / %20 (`art.spec.ts` kadraj). K3: geçiş testi `cameraShots.test.ts`, yönlü sarsıntı `shake.test.ts`. Eğim 45° → 38°; 36° cepheyi daha açıyordu ama R5'te kahraman |ΔL| 0,12'ye düşüyordu.
   2. ~~Ok kamerası~~
      - Durum (4 Ekim 2026): yapıldı (`arrowShot.ts`). Tetik savaş başına en çok iki: oyuncunun ilk tacizi ve imparatorun açığa çıkışı (merkeze giden ilk ok); ok 2,5 sn içinde kalkmazsa istek düşer. Kamera 0,6 sn'de oka iner, ok ağır çekimde uçarken arkasından yana ~80° döner, saplanınca yükselip vuruş yerine bakar (kıvılcım), 0,7 sn bekler ve 1,1 sn'de taktiğe döner; toplam ~4,5 sn. Süren çekimi kesmez, hareketi azaltta kapalı. Yeni bir dokunuş ya da tuş her çekimi atlar (`skipShot`): açılış ve gün batımı dahil. Referans anlarına (R3 6 sn, R5 104 sn) düşmez: hareketsiz oyuncuda ilk taciz Malazgirt'te 50–70, Miryokefalon'da 20–40 sn arası.
-  3. Savaş açılış çekimi, letterbox ve atlama
+  3. ~~Savaş açılış çekimi, letterbox ve atlama~~
+     - Durum (4 Ekim 2026): yapıldı (`planOpening`, `openingPose`). Bir savaşa oturumda ilk girişte 5 sn sürer:
+       - Uçuş menü karesinden ordugahın üstünden cephe karşısına 2,6 sn sürer. Kamera öncünün 14 birim önünde, 4 birim yükseklikte durur. Yana açılış cephenin genişliğiyle büyür; geçitte kamera eksende kalır, yamaca yaslanmaz.
+       - Kısa bir bekleyişten sonra kamera 1,9 sn'de taktik kadraja yükselir.
+       - Şeritler iner ve savaş arayüzü gizlenir. Joystick görünmez ama dokunulur; başparmak yerine gidince aynı dokunuşla yürüyüş başlar.
+       - Afiş alt üçte birde tarih kartı olur. Dokunuş ya da tuş çekimi atlar; kart yerinde söner.
+       - Aynı savaşa tekrar girişte eski kısa giriş çekimi oynar. YENİDEN'de çekim yok, hareketi azaltta kapalı.
+       - R3 (6 sn) taktik kadrajda. Hareketsiz oyuncu yara almaz: Metehan'ın 1. dalgasında kontrol döndüğünde en yakın atlı 10 birimde.
   4. Ağır çekim sesi
   5. Renk derecelendirme (yüksek kademe; görsel temeldeki ton eşlemeye bağlı)
 - Her çekimin kabulü: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı, sık tekrarlamaz. His ve zamanlamada son söz senin.

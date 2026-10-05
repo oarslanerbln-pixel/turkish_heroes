@@ -13,6 +13,9 @@ const DEAD_ZONE = 6 // px — ufak titremeyi/yanlışlıkla dokunmayı yok say
 export function TouchJoystick() {
   const [show] = useState(isTouchDevice)
   const active = useGameStore((s) => s.mode === 'playing')
+  // Açılış çekiminde görünmez ama dokunulur: başparmak yerine gidince çekim
+  // atlanır ve aynı dokunuşla yürüyüş başlar (girdi kilitlenmez).
+  const cinematic = useGameStore((s) => s.cinematic)
   const originRef = useRef<{ x: number; y: number } | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })
@@ -88,6 +91,8 @@ export function TouchJoystick() {
         border: '1px solid rgba(241, 209, 122, 0.35)',
         touchAction: 'none',
         pointerEvents: 'auto',
+        opacity: cinematic ? 0 : 1,
+        transition: `opacity ${cinematic ? 0.2 : 0.6}s ease`,
       }}
     >
       <div
