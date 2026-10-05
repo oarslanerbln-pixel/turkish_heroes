@@ -55,7 +55,7 @@ Temel işler ayrı, "görünmez" bir faza konmuyor; onlara ihtiyaç duyan faza b
 2   GameDirector         kurallar ve olaylar → ses, duyuru, ağır çekim, kamera işareti
                          b.events (kural kaydı) burada silinir; world.events'e sunum olayları itilir
                          sonunda stepTime: donma, ağır çekim süresi, hız rampası
-3   görseller            AlliedWings, ArrowVolley …
+3   görseller            AlliedWings, ArrowVolley, HilalVolley (vuruş olayını o karede okur) …
 4   StrikeSparks         vuruş ve ok kamerasındaki saplanma olaylarını okur
 5   CameraDirector       taktik kadraj + açılış ve alacakaranlık çekimi, çekimler arası geçiş
 6   CameraShake          sarsıntı
@@ -897,6 +897,13 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
        - R3 (6 sn) taktik kadrajda. Hareketsiz oyuncu yara almaz: Metehan'ın 1. dalgasında kontrol döndüğünde en yakın atlı 10 birimde.
   4. Ağır çekim sesi
   5. Renk derecelendirme (yüksek kademe; görsel temeldeki ton eşlemeye bağlı)
+- Ek, kullanıcı isteği: ~~Hilal yaylımı (Metehan)~~
+  - Durum (5 Ekim 2026): yapıldı (`volleyPlan.ts`, `HilalVolley.tsx`).
+    - VUR'da Mete'nin atlı okçuları (kademeye göre 14 / 10 / 7) hilalin dış ucunun 3 birim ardında yay olur ve bırakır. Her düşene bir ok; okçu başına en az iki ok, artanı ıska.
+    - Kural değişmedi: düşen simülasyonda vuruş anında ölü. Yalnız devriliş okun saplandığı ana (0,7–0,75 sn) ertelenir; düşen o ana dek yavaşlayarak koşar, okun indiği yerde devrilir.
+    - Kamera yalnız önemli yaylımda iner: savaşın ilk vuruşu ve dalgayı bitiren vuruş. Okçu sırasının üstünden bırakışı gösterir, ağır çekimde (0,3) okun ardından yana döner, isabette 0,7 sn bekler, 1,1 sn'de taktiğe döner; toplam ~4 sn.
+    - Şeritler iner, arayüz bekler; atlama ipucu yazılmaz. Hareket tuşları (WASD, oklar) çekimi atlamaz, başka tuş ya da dokunuş atlar. Hareketi azaltta kapalı.
+    - Yaylımda düşenin cesedi 0,65 sn'de gömülür (normalde 1,1): dalgayı bitiren yaylımdan sonra yeni dalga 1,5 sn'de doğuyor. Molayı 2 sn'ye uzatmak Metehan denge ölçütlerini bozuyordu; görsel için dengeye dokunulmadı.
 - Her çekimin kabulü: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı, sık tekrarlamaz. His ve zamanlamada son söz senin.
 
 **4. Faz 28 — Modeller.**

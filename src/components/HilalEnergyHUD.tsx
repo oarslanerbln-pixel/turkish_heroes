@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { useGameStore } from '../store/gameStore'
+import { useGameStore, type Cinematic } from '../store/gameStore'
 import { TOTAL_WAVES } from '../mechanics/waves'
 import { BATTLE_CONFIG, COLUMN_CONFIG } from '../mechanics/corps'
 import { WING_CONFIG, type WingOrder } from '../mechanics/wings'
@@ -102,14 +102,14 @@ export function HilalEnergyHUD() {
         {battle && live && <DayLine pass={pass} />}
         {battle && live && <WingButtons touch={touch} pass={pass} />}
       </div>
-      {live && <Letterbox touch={touch} on={cinematic} />}
+      {live && <Letterbox touch={touch} kind={cinematic} />}
       {live && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {live &&
         (battle ? (
-          <BattleBanner pass={pass} opening={cinematic} />
+          <BattleBanner pass={pass} opening={cinematic === 'opening'} />
         ) : (
-          <WaveBanner key={waveIndex} index={waveIndex} opening={cinematic} />
+          <WaveBanner key={waveIndex} index={waveIndex} opening={cinematic === 'opening'} />
         ))}
       {paused && <PauseScreen touch={touch} />}
       {!live && outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
@@ -401,16 +401,20 @@ function Announcement() {
 }
 
 /**
- * Sinema şeritleri: savaş açılışında üstten ve alttan kayarak iner (MIMARI.md
- * §8). DOM'da çizilir, sahnenin efekt zincirine dokunmaz (G3). Alt şeritte
- * atlama ipucu: herhangi bir dokunuş ya da tuş çekimi geçer, girdi kilitlenmez.
+ * Sinema şeritleri: savaş açılışında ve hilal yaylımında üstten ve alttan
+ * kayarak iner (MIMARI.md §8). DOM'da çizilir, sahnenin efekt zincirine
+ * dokunmaz (G3). Alt şeritte atlama ipucu: herhangi bir dokunuş ya da tuş
+ * çekimi geçer, girdi kilitlenmez. Yaylım kısa ve sık: ipucu yazılmaz.
  */
-function Letterbox({ touch, on }: { touch: boolean; on: boolean }) {
+function Letterbox({ touch, kind }: { touch: boolean; kind: Cinematic | null }) {
+  // Şeritler çekilirken de son çekimin ipucu durur: yaylımın ardından yazı belirmesin.
+  const [last, setLast] = useState(kind)
+  if (kind !== null && kind !== last) setLast(kind)
   return (
-    <div className={`letterbox${on ? ' is-on' : ''}`} aria-hidden="true">
+    <div className={`letterbox${kind ? ' is-on' : ''}`} aria-hidden="true">
       <div className="letterbox-bar" />
       <div className="letterbox-bar">
-        <span className="letterbox-skip">{touch ? 'Geçmek için dokun' : 'Geçmek için bir tuşa bas'}</span>
+        {last !== 'volley' && <span className="letterbox-skip">{touch ? 'Geçmek için dokun' : 'Geçmek için bir tuşa bas'}</span>}
       </div>
     </div>
   )

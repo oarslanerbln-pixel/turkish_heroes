@@ -49,7 +49,7 @@ function film(first: CameraCue, cutAt: number, blend: boolean, skipAt = Infinity
     if (Math.abs(t - skipAt) < dt / 2) skipShot(shot, out)
     out.pos.copy(tactical.pos)
     out.look.copy(tactical.look)
-    if (shot.cue && shot.cue !== 'arrow') {
+    if (shot.cue && shot.cue !== 'arrow' && shot.cue !== 'volley') {
       shot.t += dt
       const w = shotWeight(shot.cue, shot.t)
       out.pos.lerp(cine[shot.cue].pos, w)

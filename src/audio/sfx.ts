@@ -20,6 +20,7 @@ export type Sfx =
   | 'dusk'
   | 'horn'
   | 'volley'
+  | 'volleyHit'
   | 'order'
   | 'wingCharge'
   | 'rout'
@@ -215,6 +216,11 @@ export function play(sfx: Sfx, intensity = 1): void {
       } else {
         noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
       }
+      break
+    case 'volleyHit':
+      // Yaylım saplandı: zırha inen oklar ve devrilen gövdeler.
+      sample('plate', t, 0.2 + 0.4 * intensity)
+      drum(t + 0.03, 120, 48, 0.4, 0.5 + 0.3 * intensity)
       break
     case 'dusk':
       // Gün batımı: üç ağır kös vuruşu.

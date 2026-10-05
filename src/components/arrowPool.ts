@@ -41,9 +41,12 @@ export function arrowVisible(a: Arrow): boolean {
   return a.age < ARROW_FLIGHT + a.stick
 }
 
-/** Okun havadaki konumu ve hız vektörü (uçuş yönü; birim değil). */
-export function arrowPose(a: Arrow, pos: Vector3, vel: Vector3): void {
-  const t = Math.min(1, a.age / ARROW_FLIGHT)
+/**
+ * Okun havadaki konumu ve hız vektörü (uçuş yönü; birim değil). `flight`
+ * uçuş süresi; yaşı eksi ok (henüz yayda) kalkış yerinde durur.
+ */
+export function arrowPose(a: Arrow, pos: Vector3, vel: Vector3, flight = ARROW_FLIGHT): void {
+  const t = Math.min(1, Math.max(0, a.age / flight))
   // Atış zemininden hedef zeminine (0) iner.
   pos.set(
     a.sx + (a.tx - a.sx) * t,
@@ -51,9 +54,5 @@ export function arrowPose(a: Arrow, pos: Vector3, vel: Vector3): void {
     a.sz + (a.tz - a.sz) * t,
   )
   // Yay teğeti: ok uçuş yönüne baksın, tepede yatay, sonda aşağı.
-  vel.set(
-    (a.tx - a.sx) / ARROW_FLIGHT,
-    (-a.sy + 4 * ARC * (1 - 2 * t) - 1.2) / ARROW_FLIGHT,
-    (a.tz - a.sz) / ARROW_FLIGHT,
-  )
+  vel.set((a.tx - a.sx) / flight, (-a.sy + 4 * ARC * (1 - 2 * t) - 1.2) / flight, (a.tz - a.sz) / flight)
 }

@@ -4,6 +4,7 @@ import { AdditiveBlending, BoxGeometry, InstancedMesh, MeshBasicMaterial, Object
 import { useQuality } from '../perf/quality'
 import type { QualityTier } from '../perf/quality'
 import { newBattleWatch, simDelta, world } from '../sim/world'
+import { strikeByVolley } from './volleyPlan'
 
 // Yönetmenden (2) sonra: o karenin vuruş olayından düşenlerin konumunu okur.
 // Ok yağmurundan (3) sonra: izlenen okun saplanma olayını da.
@@ -79,7 +80,9 @@ export function StrikeSparks() {
       }
     }
     for (const ev of world.events) {
-      if (ev.type === 'strike') for (const k of ev.victims) burst(k.x, k.z, perKill, 1)
+      // Metehan'da düşenler okla düşer: kıvılcım vuruşta değil, ok saplanınca.
+      if (ev.type === 'strike' && !strikeByVolley(world)) for (const k of ev.victims) burst(k.x, k.z, perKill, 1)
+      else if (ev.type === 'volleyHit') burst(ev.x, ev.z, perKill, 1)
       else if (ev.type === 'arrowLanded') burst(ev.x, ev.z, Math.round(perKill * ARROW_SHARE), ARROW_SPEED)
     }
 

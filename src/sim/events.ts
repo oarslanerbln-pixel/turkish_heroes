@@ -31,6 +31,8 @@ export type WorldEvent =
    * olsaydı ok yağmuru gürültüye dönerdi.
    */
   | { type: 'arrowLanded'; x: number; z: number }
+  /** Hilal yaylımının oku bir düşene saplandı (Metehan; bkz. volleyPlan). */
+  | { type: 'volleyHit'; x: number; z: number }
   /** Bir birlik hamleye kalktı; pos hamle edenlerin ortası. */
   | { type: 'charge'; corps: number; pos: Vec2 }
   /** Kırılan dalganın artığı kaçıyor. */
