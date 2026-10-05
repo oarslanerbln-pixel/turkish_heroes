@@ -4,6 +4,13 @@ import { Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three'
 import { ringClosed, ringRadius } from '../mechanics/baideng'
 import { world } from '../sim/world'
 import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
+import { applyUnitShading } from './world/unitShading'
+import {
+  CONTACT_SHADOW_ORDER,
+  contactShadowGeometry,
+  contactShadowMaterial,
+  placeContactShadow,
+} from './world/contactShadow'
 
 // Baideng'in dört renkli çemberi (Shiji 110): Mete'nin atlıları batıda ak,
 // doğuda boz, kuzeyde kara, güneyde kızıl atlarla Gaozu'yu dört yandan sardı.
@@ -39,14 +46,21 @@ function coatAt(angle: number): Color {
 export function HunRing() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
+  const blobRef = useRef<InstancedMesh>(null)
   const horse = useMemo(() => buildHorseGeometry('tint'), [])
   const rider = useMemo(() => buildRiderGeometry('ally'), [])
-  const horseMaterial = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), [])
-  const riderMaterial = useMemo(
-    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }),
-    [],
-  )
+  const horseMaterial = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })
+    applyUnitShading(m)
+    return m
+  }, [])
+  const riderMaterial = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 })
+    applyUnitShading(m)
+    return m
+  }, [])
   const dummy = useMemo(() => new Object3D(), [])
+  const blob = useMemo(() => new Object3D(), [])
 
   // Don yerden bağımsız: her atlının açısı sabit, rengi bir kez yazılır.
   useLayoutEffect(() => {
@@ -63,11 +77,13 @@ export function HunRing() {
   useFrame(() => {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
-    if (!horseMesh || !riderMesh) return
+    const blobMesh = blobRef.current
+    if (!horseMesh || !riderMesh || !blobMesh) return
     const ring = world.baideng?.ring
     if (!ring) {
       horseMesh.count = 0
       riderMesh.count = 0
+      blobMesh.count = 0
       return
     }
     const radius = ringRadius(ring)
@@ -87,13 +103,17 @@ export function HunRing() {
         dummy.updateMatrix()
         horseMesh.setMatrixAt(n, dummy.matrix)
         riderMesh.setMatrixAt(n, dummy.matrix)
+        placeContactShadow(blob, x, 0, z, dummy.rotation.y)
+        blobMesh.setMatrixAt(n, blob.matrix)
         n++
       }
     }
     horseMesh.count = n
     riderMesh.count = n
+    blobMesh.count = n
     horseMesh.instanceMatrix.needsUpdate = true
     riderMesh.instanceMatrix.needsUpdate = true
+    blobMesh.instanceMatrix.needsUpdate = true
   }, VISUAL_PRIORITY)
 
   return (
@@ -109,6 +129,12 @@ export function HunRing() {
         args={[rider, riderMaterial, PER_RANK * RANKS]}
         castShadow
         frustumCulled={false}
+      />
+      <instancedMesh
+        ref={blobRef}
+        args={[contactShadowGeometry(), contactShadowMaterial(), PER_RANK * RANKS]}
+        frustumCulled={false}
+        renderOrder={CONTACT_SHADOW_ORDER}
       />
     </>
   )

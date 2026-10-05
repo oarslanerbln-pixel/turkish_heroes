@@ -6,6 +6,8 @@ import { world } from '../sim/world'
 import { useQuality, QUALITY } from '../perf/quality'
 import { SkyDome } from './world/SkyDome'
 import { createSkyUniforms } from './world/skyUniforms'
+import { fitSunShadow, LIGHT_DISTANCE, SHADOW_FAR, type SunShadowFrame } from './world/sunShadow'
+import { rimLight } from './world/unitShading'
 
 // Sahnenin ışığı ve havası; Alp Arslan savaşında gün saatine göre değişir.
 //
@@ -27,6 +29,8 @@ interface Keyframe {
   ground: Color
   hemi: number
   ambient: number
+  /** Atlıların güneş yönündeki kenar ışığı (unitShading.ts). */
+  rim: number
 }
 
 const NOON: Keyframe = {
@@ -40,6 +44,8 @@ const NOON: Keyframe = {
   ground: new Color('#4b3622'),
   hemi: 0.6,
   ambient: 0.25,
+  // Öğlende atlılar zaten aydınlık; kutu yanları griye dönmesin diye hafif.
+  rim: 0.1,
 }
 
 // Alçak güneş Bizans ordusunun ardında batar: uzun gölgeler oyuncuya doğru
@@ -55,6 +61,8 @@ const SUNSET: Keyframe = {
   ground: new Color('#3b2418'),
   hemi: 0.8,
   ambient: 0.22,
+  // Ordu güneşe karşı: kenar ışığı onu kızıl ufuktan ve gölgeli zeminden ayırır.
+  rim: 0.9,
 }
 
 // Ay ışığı: soğuk, zayıf; siluetler seçilsin diye tamamen karanlık değil.
@@ -70,6 +78,7 @@ const NIGHT: Keyframe = {
   ground: new Color('#1a1a24'),
   hemi: 0.4,
   ambient: 0.2,
+  rim: 0.4,
 }
 
 /** Gün batımı geçişi, dayLength'ten bu kadar önce başlar (sn). */
@@ -90,6 +99,9 @@ export function DayCycle() {
   const ambientRef = useRef<AmbientLight>(null)
   const lastTime = useRef(-1)
   const sky = useMemo(createSkyUniforms, [])
+  /** Güneşe doğru birim vektör; ışık gölge çerçevesinin ortasından bu yönde durur. */
+  const sunDir = useMemo(() => NOON.sunPos.clone().normalize(), [])
+  const frame = useMemo<SunShadowFrame>(() => ({ center: new Vector3(), halfWidth: 0, halfHeight: 0 }), [])
 
   useFrame(() => {
     const time = world.battle?.time ?? 0
@@ -111,7 +123,21 @@ export function DayCycle() {
 
     sun.color.copy(NOON.sun).lerp(SUNSET.sun, toSunset).lerp(NIGHT.sun, toNight)
     sun.intensity = mix(mix(NOON.sunIntensity, SUNSET.sunIntensity, toSunset), NIGHT.sunIntensity, toNight)
-    sun.position.copy(NOON.sunPos).lerp(SUNSET.sunPos, toSunset).lerp(NIGHT.sunPos, toNight)
+    sunDir.copy(NOON.sunPos).lerp(SUNSET.sunPos, toSunset).lerp(NIGHT.sunPos, toNight).normalize()
+    fitSunShadow(sunDir, frame)
+    sun.target.position.copy(frame.center)
+    sun.target.updateMatrixWorld()
+    sun.position.copy(frame.center).addScaledVector(sunDir, LIGHT_DISTANCE)
+    const shadowCamera = sun.shadow.camera
+    shadowCamera.left = -frame.halfWidth
+    shadowCamera.right = frame.halfWidth
+    shadowCamera.top = frame.halfHeight
+    shadowCamera.bottom = -frame.halfHeight
+    shadowCamera.updateProjectionMatrix()
+    rimLight.uRimDir.value.copy(sunDir)
+    rimLight.uRimColor.value
+      .copy(sun.color)
+      .multiplyScalar(mix(mix(NOON.rim, SUNSET.rim, toSunset), NIGHT.rim, toNight))
 
     hemi.color.copy(NOON.sky).lerp(SUNSET.sky, toSunset).lerp(NIGHT.sky, toNight)
     hemi.groundColor.copy(NOON.ground).lerp(SUNSET.ground, toSunset).lerp(NIGHT.ground, toNight)
@@ -155,11 +181,8 @@ export function DayCycle() {
         color={NOON.sun}
         castShadow
         shadow-mapSize={[preset.shadowMapSize, preset.shadowMapSize]}
-        shadow-camera-left={-35}
-        shadow-camera-right={35}
-        shadow-camera-top={35}
-        shadow-camera-bottom={-35}
-        shadow-camera-far={80}
+        // Çerçeve gün saatiyle güneşe göre sahaya oturur (sunShadow.ts).
+        shadow-camera-far={SHADOW_FAR}
         // Düz gölgeli (flatShading) arazide gölge lekesi olmasın.
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
