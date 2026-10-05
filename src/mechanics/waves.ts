@@ -59,6 +59,18 @@ export const WAVES: readonly WaveConfig[] = [
 
 export const TOTAL_WAVES = WAVES.length
 
+/** Baideng'in dalgası: bir kez ulaşan oyuncu savaşa oradan başlayabilir. */
+export const BAIDENG_WAVE = WAVES.findIndex((w) => w.baideng)
+
+/**
+ * YENİDEN'in başlattığı dalga. Baideng'e varılan savaş oradan yeniden başlar:
+ * finalde düşen oyuncu üç dalgayı yeniden oynamasın (TASARIM, Mantık 6).
+ * Baştan başlamak menüden ya da sonuç ekranının BAŞTAN düğmesinden.
+ */
+export function retryWave(reached: number): number {
+  return reached >= BAIDENG_WAVE ? BAIDENG_WAVE : 0
+}
+
 /** Metehan'ın en kalabalık dalgası; örnekleme kapasitesi scenario.ts'te (ENEMY_CAPACITY). */
 export const MAX_WAVE_ENEMIES = Math.max(...WAVES.map((w) => w.enemyCount))
 

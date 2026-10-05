@@ -10,8 +10,7 @@
 import { HILAL_CONFIG, isStrikeReady } from './hilalSystem'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
-import { BAIDENG, createBaidengState, type Volley } from './baideng'
-import { spawnWave, waveConfig } from './waves'
+import { BAIDENG, type Volley } from './baideng'
 import type { TelemetryEvent } from '../telemetry/summary'
 import { wavesScenario } from '../sim/scenarios'
 import { battleEnd, SILENT_FX, stepGame, type StepEffects, type StepInput } from '../sim/step'
@@ -72,14 +71,8 @@ export function runWaves(
   damageScale = 1,
   startWave = 0,
 ): WaveRun {
-  const w = createWorld('metehan')
+  const w = createWorld('metehan', { startWave })
   w.assist = damageScale
-  if (startWave > 0) {
-    const first = waveConfig(startWave)
-    w.waveIndex = startWave
-    w.enemies = spawnWave(startWave)
-    w.baideng = first.baideng ? createBaidengState(first.enemyCount) : null
-  }
   const scenario = wavesScenario({ rout, spawnAway })
   let kills = 0
   const strikes: number[] = []
@@ -106,7 +99,17 @@ export function runWaves(
     focus: null,
   }
 
-  record?.({ type: 'battle_start', commander: 'metehan', attempt: 1, assist: damageScale, seed: null }, 0)
+  record?.(
+    {
+      type: 'battle_start',
+      commander: 'metehan',
+      attempt: 1,
+      assist: damageScale,
+      seed: null,
+      ...(startWave > 0 && { startWave }),
+    },
+    0,
+  )
 
   while (w.outcome === 'playing' && w.time < MAX_TIME) {
     view.enemies = w.enemies

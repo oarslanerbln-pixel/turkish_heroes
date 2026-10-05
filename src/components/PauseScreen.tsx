@@ -1,5 +1,6 @@
 import { useGameStore } from '../store/gameStore'
 import { commanderInfo } from '../mechanics/scenario'
+import { BAIDENG_WAVE, retryWave } from '../mechanics/waves'
 import { Ornament } from './Ornament'
 import { CrescentIcon } from './icons'
 
@@ -11,7 +12,10 @@ export function PauseScreen({ touch }: { touch: boolean }) {
   const resume = useGameStore((s) => s.resume)
   const restart = useGameStore((s) => s.restart)
   const backToMenu = useGameStore((s) => s.backToMenu)
-  const info = commanderInfo(useGameStore((s) => s.commander))
+  const commander = useGameStore((s) => s.commander)
+  const info = commanderInfo(commander)
+  // Baideng'de yeniden başlamak üç dalgayı geri getirmez: düğme nereye döndüğünü söylesin.
+  const fromBaideng = useGameStore((s) => commander === 'metehan' && retryWave(s.waveIndex) === BAIDENG_WAVE)
 
   return (
     <div className="screen is-pause">
@@ -36,7 +40,7 @@ export function PauseScreen({ touch }: { touch: boolean }) {
         </button>
         <div className="result-actions">
           <button className="secondary-btn" onClick={restart}>
-            YENİDEN BAŞLA
+            {fromBaideng ? "BAİDENG'DEN BAŞLA" : 'YENİDEN BAŞLA'}
           </button>
           <button className="secondary-btn" onClick={backToMenu}>
             KOMUTANLAR

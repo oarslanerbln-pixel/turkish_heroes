@@ -792,7 +792,12 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
        - 30 tohumda acemi bot 0,25'te 4, 0,2'de 14 zafer alıyor; taban bu yüzden 0,2. Tabanda 60 tohumda 26 zafer (%43, O3 hedefi ≥%20). Merdivenle 20 acemi 3. dalgaya en geç 4., ilk zafere en geç 8. denemede ulaşıyor (`metehan.test`).
        - Alp Arslan, Metehan'da 3. dalgaya ulaşınca da açılır (`CommanderInfo.unlockWave`, ilerlemede `wave`). Kilit metni: "Metehan ile 3. dalgaya ulaşınca açılır".
        - O4: Metehan puanı basamakla ölçeklenir (`waveScore`): yarı hasar ×1, tam hasar ×2, taban ×0,4. Başlangıç ×1 olduğu için eski rekorlar bugünkü ölçekte kalır. Basamak oyuncuya gösterilmiyor.
-       - Açık: Baideng'e bir kez ulaşanın oradan başlaması (TASARIM Mantık 6'nın ilk maddesi).
+       - Baideng'den başlama (TASARIM Mantık 6'nın ilk maddesi), 5 Ekim 2026:
+         - Baideng'e bir kez varan oyuncu (`progress.wave`, `reachedBaideng`) savaşa oradan da başlar: tam can, mola yok (`restedFrom` null), enerji 0. Dünya `createWorld(…, { startWave })` ile kurulur; botların tek dalga ölçümü de aynı yoldan.
+         - YENİDEN (sonuçta ve molada) Baideng'e varılan savaşı oradan başlatır (`retryWave`); düğme "BAİDENG'DEN" der. Sonuç ekranında öteki seçenek yanında: BAŞTAN ya da BAİDENG'DEN. Menüden giriş hep baştan.
+         - Merdiven, dalga kaydı ve yıldızlar her savaştaki gibi. Yıldız mola payı olmadan, yalnız Baideng yarasından; tam koşuda da mola canı neredeyse doldurduğu için ölçü yakın. Skor önceki dalgaların bonusunu almaz, rekor şişmez.
+         - Telemetri: `battle_start.startWave` (yalnız 0 değilse), özette `startWave`. Karne hedefi yalnız Baideng ordusu (33), zafer başlığı "Baideng kuşatıldı".
+         - Düzen bekçisine "sonuç Baideng seçeneği" eklendi (üç görünüm, ihlalsiz).
      - Kalan: O1 ayarı, z=−1 bot ölümü.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 

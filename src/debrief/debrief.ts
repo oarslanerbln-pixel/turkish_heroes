@@ -133,7 +133,10 @@ function at(s: BattleSummary, t: number): number {
 
 // ——— Metehan: dört dalga ———
 
-const WAVE_TOTAL = sum(WAVES.map((w) => w.enemyCount))
+/** Savaşın başladığı dalgadan sona dek düşman sayısı (Baideng'den başlayınca yalnız o). */
+function waveTotal(from: number): number {
+  return sum(WAVES.slice(from).map((w) => w.enemyCount))
+}
 
 function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
   // Baideng'de kendi yaylımının altında düşen Han atlısı da oyuncunun hanesine.
@@ -152,11 +155,9 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
   const timeline = { dusk: null, marks }
 
   if (s.outcome === 'victory') {
+    const won = s.startWave > 0 ? 'Baideng kuşatıldı' : `${TOTAL_WAVES} dalganın hepsi kuşatıldı`
     return {
-      headline:
-        s.health <= 15
-          ? `${TOTAL_WAVES} dalganın hepsi kuşatıldı — kıl payı, canın %${s.health}.`
-          : `${TOTAL_WAVES} dalganın hepsi kuşatıldı.`,
+      headline: s.health <= 15 ? `${won} — kıl payı, canın %${s.health}.` : `${won}.`,
       close: s.health <= 15,
       peak,
       advice: victoryAdvice(s, routed),
@@ -171,7 +172,7 @@ function waveDebrief(s: BattleSummary, ctx: DebriefContext): Debrief {
     close: s.remaining <= Math.ceil(waveSize * CLOSE_WAVE_SHARE),
     peak,
     advice: waveAdvice(s),
-    goal: { label: 'Zafere', value: kills + routed, target: WAVE_TOTAL, unit: 'düşman' },
+    goal: { label: 'Zafere', value: kills + routed, target: waveTotal(s.startWave), unit: 'düşman' },
     timeline,
   }
 }
@@ -219,7 +220,7 @@ function victoryAdvice(s: BattleSummary, routed: number): Debrief['advice'] {
 
 /** Vuruşun hangi dalgada yapıldığı: temizlenme anlarına göre. */
 function waveAt(s: BattleSummary, t: number): number {
-  return s.waves.filter((w) => w.t < t).length
+  return s.startWave + s.waves.filter((w) => w.t < t).length
 }
 
 /**

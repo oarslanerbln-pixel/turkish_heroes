@@ -4,7 +4,7 @@
 
 import type { LoreId } from '../lore/lore'
 import { commanderInfo, type CommanderId } from '../mechanics/scenario'
-import { LADDER_TOP, nextLadderStep } from '../mechanics/waves'
+import { BAIDENG_WAVE, LADDER_TOP, nextLadderStep } from '../mechanics/waves'
 import { loadBestScore } from './score'
 
 const STORAGE_KEY = 'hilal_progress'
@@ -151,6 +151,11 @@ export function recordLadder(victory: boolean): void {
 /** Metehan'da ulaşılan en ileri dalga (0'dan). */
 export function furthestWave(): number {
   return progress.wave
+}
+
+/** Metehan'da Baideng'e bir kez ulaşıldı mı: savaş oradan başlatılabilir. */
+export function reachedBaideng(): boolean {
+  return progress.wave >= BAIDENG_WAVE
 }
 
 /** Metehan savaşı bitti: ulaşılan dalga rekorsa yazılır. */

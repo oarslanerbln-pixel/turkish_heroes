@@ -3,7 +3,8 @@ import { useGameStore } from '../store/gameStore'
 import { commanderInfo } from '../mechanics/scenario'
 import type { Debrief, TimelineMark } from '../debrief/debrief'
 import { LORE, type LoreCard } from '../lore/lore'
-import { earnedLore } from '../sim/progress'
+import { earnedLore, reachedBaideng } from '../sim/progress'
+import { BAIDENG_WAVE, retryWave } from '../mechanics/waves'
 import { Ornament } from './Ornament'
 import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
@@ -26,6 +27,8 @@ function focusInPlace(el: HTMLButtonElement | null) {
  */
 export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const restart = useGameStore((s) => s.restart)
+  const restartAt = useGameStore((s) => s.restartAt)
+  const waveIndex = useGameStore((s) => s.waveIndex)
   const backToMenu = useGameStore((s) => s.backToMenu)
   const playCommander = useGameStore((s) => s.playCommander)
   const kills = useGameStore((s) => s.totalKills)
@@ -46,6 +49,10 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
   // bir sonraki yıldızın "az kaldı"sı için.
   const showClose = report?.close && (battle || !isVictory)
+  // Metehan'da Baideng'e bir kez varan oradan da başlar. YENİDEN Baideng'de
+  // biten savaşı oradan başlatır; öteki seçenek (BAŞTAN ya da BAİDENG'DEN) yanında.
+  const checkpoint = !battle && reachedBaideng()
+  const fromBaideng = !battle && retryWave(waveIndex) === BAIDENG_WAVE
 
   return (
     <div className="screen outcome">
@@ -109,8 +116,13 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
             onClick={restart}
             ref={unlocked ? undefined : focusInPlace}
           >
-            YENİDEN
+            {fromBaideng ? "BAİDENG'DEN" : 'YENİDEN'}
           </button>
+          {checkpoint && (
+            <button className="secondary-btn" onClick={() => restartAt(fromBaideng ? 0 : BAIDENG_WAVE)}>
+              {fromBaideng ? 'BAŞTAN' : "BAİDENG'DEN"}
+            </button>
+          )}
           <button className="secondary-btn" onClick={backToMenu}>
             KOMUTANLAR
           </button>

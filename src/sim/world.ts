@@ -7,12 +7,12 @@
 
 import { COMBAT_CONFIG, type Outcome } from '../mechanics/combat'
 import { createBattle, type BattleLayout, type BattleState } from '../mechanics/corps'
-import type { BaidengState } from '../mechanics/baideng'
+import { createBaidengState, type BaidengState } from '../mechanics/baideng'
 import { battleLayout, type CommanderId } from '../mechanics/scenario'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
-import { spawnWave } from '../mechanics/waves'
+import { spawnWave, waveConfig } from '../mechanics/waves'
 import { parseSeed } from '../mechanics/random'
 import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
@@ -171,6 +171,8 @@ export interface WorldOptions {
   seed?: number
   /** Savaş alanı düzeni; verilmezse komutanınki (botlar düzeni değiştirip dener). */
   layout?: BattleLayout
+  /** Metehan: savaş bu dalgadan, tam canla başlar (Baideng'den yeniden, botlar). */
+  startWave?: number
 }
 
 /**
@@ -182,11 +184,13 @@ export function createWorld(commander: CommanderId, opts: WorldOptions = {}): Wo
   const layout = opts.layout ?? battleLayout(commander)
   const seed = layout ? (opts.seed ?? FIXED_SEED ?? Math.floor(Math.random() * 2 ** 31)) : null
   const battle = layout && seed !== null ? createBattle(seed, layout) : null
+  const startWave = battle ? 0 : (opts.startWave ?? 0)
+  const first = waveConfig(startWave)
 
   return {
     commander,
     battle: battle?.battle ?? null,
-    baideng: null,
+    baideng: first.baideng ? createBaidengState(first.enemyCount) : null,
     restedFrom: null,
     seed,
     assist: 1,
@@ -197,9 +201,9 @@ export function createWorld(commander: CommanderId, opts: WorldOptions = {}): Wo
     stillTime: 0,
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
-    enemies: battle?.enemies ?? spawnWave(0),
+    enemies: battle?.enemies ?? spawnWave(startWave),
     time: 0,
-    waveIndex: 0,
+    waveIndex: startWave,
     score: 0,
     bestScore: loadBestScore(commander),
     energy: 0,
@@ -247,11 +251,17 @@ export function createWorld(commander: CommanderId, opts: WorldOptions = {}): Wo
  */
 export const world: World = createWorld('metehan')
 
-/** @param commander Verilmezse aynı komutanla yeniden başlar. */
-export function resetWorld(commander: CommanderId = world.commander): void {
+/**
+ * @param commander Verilmezse aynı komutanla yeniden başlar.
+ * @param startWave Metehan'da savaşın başladığı dalga (bkz. retryWave).
+ */
+export function resetWorld(commander: CommanderId = world.commander, startWave = 0): void {
   // bestScore korunur: createWorld() zaten localStorage'dan taze okuyor,
   // dolayısıyla bir önceki oturumda kırılan rekor otomatik yansır.
-  Object.assign(world, createWorld(commander), { mode: world.mode, generation: world.generation + 1 })
+  Object.assign(world, createWorld(commander, { startWave }), {
+    mode: world.mode,
+    generation: world.generation + 1,
+  })
 }
 
 /** Akışı korumalı geçişle değiştirir (bkz. flow.ts); geçiş tanımsızsa false. */

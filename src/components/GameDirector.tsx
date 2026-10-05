@@ -122,6 +122,7 @@ export function GameDirector() {
           attempt: nextAttempt(world.commander),
           assist: world.assist,
           seed: world.seed,
+          ...(world.waveIndex > 0 && { startWave: world.waveIndex }),
         })
       }
       readMove(keys.current, touch, input.move)

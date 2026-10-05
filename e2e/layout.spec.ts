@@ -58,6 +58,13 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
     await playToMoment(page)
     await page.getByText('YENİLGİ', { exact: true }).waitFor()
   },
+  // Baideng'e bir kez varan oyuncunun yenilgisi: üç eylem düğmesi (TASARIM Mantık 6).
+  'sonuç Baideng seçeneği': async (page) => {
+    await page.addInitScript(() => localStorage.setItem('hilal_progress', JSON.stringify({ wave: 3 })))
+    await openShot(page, { commander: 'metehan', moment: 'end', quality: 'low' })
+    await playToMoment(page)
+    await page.getByRole('button', { name: "BAİDENG'DEN" }).waitFor()
+  },
 }
 
 /**
