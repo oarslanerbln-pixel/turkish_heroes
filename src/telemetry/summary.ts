@@ -6,7 +6,7 @@
 // iletim track.ts'te.
 
 import type { Outcome } from '../mechanics/combat'
-import type { BattleEvent } from '../mechanics/corps'
+import type { BattleEvent, DefeatCause } from '../mechanics/corps'
 import type { CommanderId } from '../mechanics/scenario'
 import type { StrikeRefusal } from '../mechanics/types'
 import type { WingOrder } from '../mechanics/wings'
@@ -17,7 +17,6 @@ export type Refusal = Exclude<StrikeRefusal, 'none'>
  * yeniden başlattı ya da komutanlara döndüyse 'quit'.
  */
 export type EndOutcome = Exclude<Outcome, 'playing'> | 'abandoned' | 'quit'
-export type DefeatCause = 'health' | 'camp'
 
 export type TelemetryEvent =
   /**

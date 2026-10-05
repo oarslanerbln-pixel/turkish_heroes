@@ -26,6 +26,7 @@ import {
   wavesStars,
 } from './waves'
 import type { Enemy, Vec2 } from './types'
+import { stillPress } from '../sim/scenarios'
 
 const DT = 1 / 60
 
@@ -187,6 +188,25 @@ describe('Metehan — kurallar', () => {
           expect(wavesStars(need - 1, scale, preRest)).toBeLessThan(n)
         }
       }
+    }
+  })
+
+  it('duran oyuncuya yüklenme: 5 sn hoşgörü, 3 sn içinde tam', () => {
+    expect(stillPress(0)).toBe(0)
+    expect(stillPress(5)).toBe(0)
+    expect(stillPress(6.5)).toBeCloseTo(0.5)
+    expect(stillPress(8)).toBe(1)
+    expect(stillPress(60)).toBe(1)
+  })
+
+  it('boşta bekleyen oyuncu kazanamaz: sürü durana yüklenir', () => {
+    // TASARIM Mantık 1: önceden düzenli sürü 9 adımda durur, boşta oyuncu hiç yara almazdı.
+    const idle: WaveBot = () => ({ move: { x: 0, z: 0 }, strike: false })
+    for (const scale of [DAMAGE_LADDER[0], 1]) {
+      const r = runWaves(idle, undefined, true, true, scale)
+      expect(r.result).toBe('defeat')
+      expect(r.health).toBeLessThanOrEqual(0)
+      expect(r.time).toBeLessThan(30)
     }
   })
 })

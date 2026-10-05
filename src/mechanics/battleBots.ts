@@ -3,7 +3,8 @@
 // Döngü oyunun adımını (sim/step.ts) sabit adımla çağırır: bot oyuncunun
 // gördüğünü görür, oyuncunun girdisini verir; kurallar oyundakinin aynısı
 // (vuruş sonrası donma dahil). Denge testleri ve tarama betikleri bunu
-// kullanır. Oyun kodu bu dosyayı içe aktarmaz.
+// kullanır. Oyun bu dosyayı yalnız çekim kipinde, ?bot= ile yükler (bkz.
+// ShotDirector).
 
 import {
   BATTLE_CONFIG,
@@ -24,7 +25,7 @@ import type { Enemy, Vec2 } from './types'
 import { orderWing, type WingOrder } from './wings'
 import type { TelemetryEvent } from '../telemetry/summary'
 import { battleEnd, SILENT_FX, stepGame, type StepEffects, type StepInput } from '../sim/step'
-import { createWorld } from '../sim/world'
+import { createWorld, type World } from '../sim/world'
 
 export const BOT_DT = 1 / 60
 /** Oyuncunun başlangıcı: ordugahın önü. */
@@ -140,10 +141,7 @@ export function runBattle(
       record?.({ type: 'blockade', z: Math.round(blockZ * 10) / 10 }, battle.time)
     }
 
-    // Botun hızı oyuncunun çubuğuna çevrilir (retreatSpeed = tam itiş).
-    input.move.x = action.move.x / HILAL_CONFIG.retreatSpeed
-    input.move.z = action.move.z / HILAL_CONFIG.retreatSpeed
-    input.strike = action.strike
+    toInput(action, input)
     stepGame(w, input, BOT_DT, fx)
     battle.corps.forEach((c, ci) => (peakJam[ci] = Math.max(peakJam[ci], c.jam)))
     // Oyunda karenin sonunda boşalır (EventFlush).
@@ -168,6 +166,35 @@ export function runBattle(
     duskWingStrength,
     blockadeZ: blockZ,
     peakJam,
+  }
+}
+
+/** Botun kararı oyuncunun girdisine: hız çubuğa çevrilir (retreatSpeed = tam itiş). */
+function toInput(action: BotAction, input: StepInput): void {
+  input.move.x = action.move.x / HILAL_CONFIG.retreatSpeed
+  input.move.z = action.move.z / HILAL_CONFIG.retreatSpeed
+  input.strike = action.strike
+}
+
+/**
+ * Botu oyunun kendi döngüsüne bağlar (çekim kipi, bkz. shot.ts SHOT_BOT): her
+ * kare oyuncunun girdisini bot yazar. Yalnız hareket ve vuruş; kol emri ve
+ * YOLU KES çekimde verilmez. Ordu savaşı değilse girdiye dokunmaz.
+ */
+export function botDriver(makeBot: () => Bot): (w: World, input: StepInput) => void {
+  let bot: Bot | null = null
+  let view: BotView | null = null
+  return (w, input) => {
+    if (!w.battle) return
+    if (!bot || !view || view.battle !== w.battle) {
+      bot = makeBot()
+      view = { battle: w.battle, enemies: w.enemies, player: w.player, energy: 0, facing: 0, inCrescent: 0, health: 0 }
+    }
+    view.energy = w.energy
+    view.facing = w.facing
+    view.inCrescent = w.inCrescent
+    view.health = w.playerHealth
+    toInput(bot(view), input)
   }
 }
 

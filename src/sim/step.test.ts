@@ -64,8 +64,19 @@ describe('bot ile oyun döngüsü (MIMARI.md S1, S4)', () => {
         expect(run.score).toBe(w.score)
       }
     }
-    const firstBattle = runBattle(passiveBot(), 1071, undefined, MALAZGIRT, 0.5)
-    expect(firstBattle.result).toBe('victory')
+    // TASARIM Mantık 1'den beri boşta Malazgirt'in gecesi zafer değil, geri çekilme.
+    let cause: string | null = null
+    const firstBattle = runBattle(
+      passiveBot(),
+      1071,
+      (e) => {
+        if (e.type === 'battle_end') cause = e.cause
+      },
+      MALAZGIRT,
+      0.5,
+    )
+    expect(firstBattle.result).toBe('defeat')
+    expect(cause).toBe('night')
     expect(firstBattle.time).toBeCloseTo(160, 5)
     expect(runBattle(passiveBot(), 1071, undefined, MIRYOKEFALON, 0.5).result).toBe('defeat')
   })

@@ -86,6 +86,8 @@ export function createEnemies(count: number = ENEMY_CONFIG.count): Enemy[] {
  * @param isPlayerRetreating Oyuncu kümeden uzaklaşıyorsa disiplin hızla düşer.
  * @param disciplineRecoveryMult Dalga eskalasyonu için: baskı bırakılınca
  *   disiplinin toparlanma hızına çarpan. Varsayılan 1 (tek dalgalı eski davranış).
+ * @param press 0–1. Duran oyuncuya yüklenme: korunan mesafe bu oranda kısalır,
+ *   düzen bozulmadan. 1'de sürü tam üstüne yürür.
  */
 export function stepEnemies(
   enemies: Enemy[],
@@ -93,6 +95,7 @@ export function stepEnemies(
   deltaTime: number,
   isPlayerRetreating: boolean,
   disciplineRecoveryMult = 1,
+  press = 0,
 ): void {
   for (const e of enemies) {
     // Baideng'in komuta grubu kendi kuralıyla yürür (baideng.ts stepCommand).
@@ -105,7 +108,7 @@ export function stepEnemies(
     stepDiscipline(e, isPlayerRetreating, deltaTime, disciplineRecoveryMult)
 
     const speed = lerp(ENEMY_CONFIG.chaseSpeed, ENEMY_CONFIG.baseSpeed, e.discipline)
-    const standoff = ENEMY_CONFIG.standoffDistance * e.discipline
+    const standoff = ENEMY_CONFIG.standoffDistance * e.discipline * (1 - press)
     steerToward(e, enemies, playerPos, speed, standoff, deltaTime)
   }
 }

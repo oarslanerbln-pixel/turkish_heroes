@@ -14,10 +14,13 @@ import {
   CENTER,
   CORPS,
   createBattle,
+  defeatCause,
   harassEffect,
+  MALAZGIRT,
   MODE_CHARGE,
   MODE_FORMATION,
   MODE_TELEGRAPH,
+  nightTarget,
   REARGUARD,
   resolveBattle,
   stepBattle,
@@ -231,14 +234,25 @@ describe('Alp Arslan — kurallar', () => {
     expect(siege.aliveCount).toBe(BATTLE_SIZE)
   })
 
-  it('ordu gündüz ordugaha varırsa yenilgi, gece çökerse zafer', () => {
+  it('ordu gündüz ordugaha varırsa yenilgi; gece hedefle zafer, hedefsiz geri çekilme', () => {
     const camp = createBattle(1)
     camp.battle.corps.forEach((c) => (c.anchor.z = BATTLE_CONFIG.campZ + 0.1))
     stepBattle(camp.battle, camp.enemies, FAR, DT)
     expect(resolveBattle(camp.battle, camp.enemies, 100)).toBe('defeat')
+    expect(defeatCause(camp.battle, 100)).toBe('camp')
 
+    // Kenarda bekleyen oyuncu: gece çöktü ama ordu ayakta.
     const night = createBattle(1)
     night.battle.time = BATTLE_CONFIG.nightAt
+    expect(resolveBattle(night.battle, night.enemies, 100)).toBe('defeat')
+    expect(defeatCause(night.battle, 100)).toBe('night')
+    expect(defeatCause(night.battle, 0)).toBe('health')
+
+    const need = nightTarget(MALAZGIRT, night.enemies.length)
+    expect(need).toBe(Math.ceil(BATTLE_SIZE / 4))
+    night.enemies.slice(0, need - 1).forEach((e) => (e.alive = false))
+    expect(resolveBattle(night.battle, night.enemies, 100)).toBe('defeat')
+    night.enemies[need - 1].alive = false
     expect(resolveBattle(night.battle, night.enemies, 100)).toBe('victory')
     expect(resolveBattle(night.battle, night.enemies, 0)).toBe('defeat')
   })

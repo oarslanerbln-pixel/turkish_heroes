@@ -39,12 +39,19 @@ const SCREENS: Record<string, (page: Page) => Promise<void>> = {
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'DEVAM' }).waitFor()
   },
-  // Tohum 1071'de boşta kalan oyuncu Malazgirt'i kazanır (t=160), Miryokefalon'u
-  // kaybeder (t=85). Metehan'da boşta savaş bitmez.
+  // Boşta kalan oyuncu hiçbir savaşı kazanmaz (TASARIM Mantık 1). Tohum 1071'de
+  // güvenli tacizci botu Malazgirt'i kazanır (t=160, 1 yıldız); boşta Malazgirt
+  // gece geri çekilmeyle (t=160), Miryokefalon yenilgiyle biter.
   'sonuç zafer': async (page) => {
-    await openShot(page, { commander: 'alp-arslan', moment: 'end', quality: 'low' })
+    await openShot(page, { commander: 'alp-arslan', moment: 'end', quality: 'low', bot: 'harass' })
     await playToMoment(page)
     await page.getByText('ZAFER', { exact: true }).waitFor()
+  },
+  // En uzun başlık: dikey telefonda tek satıra sığmalı.
+  'sonuç geri çekilme': async (page) => {
+    await openShot(page, { commander: 'alp-arslan', moment: 'end', quality: 'low' })
+    await playToMoment(page)
+    await page.getByText('GERİ ÇEKİLDİN', { exact: true }).waitFor()
   },
   'sonuç yenilgi': async (page) => {
     await openShot(page, { commander: 'kilicarslan', moment: 'end', quality: 'low' })

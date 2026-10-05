@@ -130,10 +130,10 @@ describe('Miryokefalon — denge: NEREDE kestiğin belirler', () => {
     }
   })
 
-  it('yalnızca taciz eden hayatta kalır ama 1 yıldızda kalır', { timeout: 20000 }, () => {
+  it('yolu kesmeyen yalnız taciz eder: kol geçidi aşar', { timeout: 20000 }, () => {
     for (const r of sweep(blockerBot(null, 4), SEEDS, MIRYOKEFALON)) {
-      expect(r.result).toBe('victory')
-      expect(r.stars).toBe(1)
+      expect(r.result).toBe('defeat')
+      expect(r.reachedCamp).toBe(true)
       expect(Math.max(...r.peakJam)).toBe(0)
     }
   })

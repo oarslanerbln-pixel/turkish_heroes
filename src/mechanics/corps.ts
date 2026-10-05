@@ -40,6 +40,12 @@ export const BATTLE_CONFIG = {
   dayLength: 100,
   /** Gece çöker, savaş biter (sn). */
   nightAt: 160,
+  /**
+   * Gece zaferi için düşürülmesi gereken ordu payı. Ordugahı korumak tek
+   * başına zafer değil: kenarda bekleyen oyuncu geri çekilmiş sayılır.
+   * Taciz eden oyuncu bota göre en az 17 düşürüyor, hiç dokunmayan 0.
+   */
+  nightGoal: 0.25,
 
   /** Ordunun merkezinin başlangıç z'si. */
   armyStartZ: -14,
@@ -170,6 +176,11 @@ export const COLUMN_CONFIG = {
   shockJam: 0.5,
   /** Gece çöker, savaş biter (sn). */
   nightAt: 150,
+  /**
+   * Geçitte taciz kolu daha az yavaşlatır (açık alanda BATTLE_CONFIG.harassSlow):
+   * yolu kesilmeyen kol oklar altında da geçidi aşmalı, kesmek tek yol olsun.
+   */
+  harassSlow: 0.3,
 }
 
 /**
@@ -187,6 +198,10 @@ export interface BattleLayout {
   dayLength: number
   /** Gece çöker, savaş biter (sn). */
   nightAt: number
+  /** Gece zaferi için düşürülmesi gereken ordu payı (0: gecenin gelmesi yeter). */
+  nightGoal: number
+  /** Ok altındaki birliğin yavaşlaması: ilerleyiş × (1 − harassSlow × taciz). */
+  harassSlow: number
   /** Gündüz düzen tabanı. */
   dayFloor: number
   /** Gündüz vuruşundan sonra her birliğin toparlanması. */
@@ -217,6 +232,12 @@ export const MALAZGIRT: BattleLayout = {
   },
   get nightAt() {
     return BATTLE_CONFIG.nightAt
+  },
+  get nightGoal() {
+    return BATTLE_CONFIG.nightGoal
+  },
+  get harassSlow() {
+    return BATTLE_CONFIG.harassSlow
   },
   get dayFloor() {
     return BATTLE_CONFIG.dayFloor
@@ -255,6 +276,11 @@ export const MIRYOKEFALON: BattleLayout = {
   dayLength: Infinity,
   get nightAt() {
     return COLUMN_CONFIG.nightAt
+  },
+  // Geçitte gecenin hedefi kolu durdurmak: geçidi aşamayan kol yenilmiştir.
+  nightGoal: 0,
+  get harassSlow() {
+    return COLUMN_CONFIG.harassSlow
   },
   get dayFloor() {
     return COLUMN_CONFIG.floor
@@ -537,7 +563,7 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
     if (c.alive === 0) continue
     stepCohesion(b, c, dt)
     stepProvocation(b, c, ci, enemies, player, dt)
-    stepAnchor(c, dt)
+    stepAnchor(c, b.layout.harassSlow, dt)
   }
 
   if (!b.emperorExposed && emperorOpen(b)) {
@@ -789,7 +815,7 @@ function launchCharge(b: BattleState, ci: number, enemies: readonly Enemy[], pla
   b.charges.push({ corps: ci, pos })
 }
 
-function stepAnchor(c: CorpsState, dt: number): void {
+function stepAnchor(c: CorpsState, harassSlow: number, dt: number): void {
   // Hücumdaki kol birliği yerinde tutar: ne ilerleyebilir ne çekilebilir.
   const free = 1 - c.pinned
   switch (c.status) {
@@ -798,7 +824,7 @@ function stepAnchor(c: CorpsState, dt: number): void {
       if (c.anchor.z < c.limit) {
         c.anchor.z = Math.min(
           c.limit,
-          c.anchor.z + marchSpeed(c) * (1 - BATTLE_CONFIG.harassSlow * c.harass) * free * dt,
+          c.anchor.z + marchSpeed(c) * (1 - harassSlow * c.harass) * free * dt,
         )
       }
       break
@@ -993,9 +1019,13 @@ function measureCorpsAlive(b: BattleState, enemies: readonly Enemy[]): void {
 
 export type BattleResult = 'playing' | 'victory' | 'defeat'
 
+/** Yenilginin sebebi: can bitti, ordu hedefe vardı ya da gece hedef tutmadan çöktü. */
+export type DefeatCause = 'health' | 'camp' | 'night'
+
 /**
- * Savaşın sonucu. Yenilgi: can biter ya da ordu gündüz ordugaha varır.
- * Zafer: imparator esir alındı, gece çöktü ya da sahada kimse kalmadı.
+ * Savaşın sonucu. Yenilgi: can biter, ordu gündüz ordugaha varır ya da gece
+ * gece hedefi tutmadan çöker (oyuncu geri çekilir). Zafer: imparator esir
+ * alındı, gece hedefle çöktü ya da sahada kimse kalmadı.
  */
 export function resolveBattle(
   b: BattleState,
@@ -1003,9 +1033,24 @@ export function resolveBattle(
   health: number,
 ): BattleResult {
   if (health <= 0 || b.reachedCamp) return 'defeat'
-  if (b.emperorCaptured || b.time >= b.layout.nightAt) return 'victory'
+  if (b.emperorCaptured) return 'victory'
   if (!enemies.some((e) => e.alive)) return 'victory'
+  if (b.time >= b.layout.nightAt) {
+    return countFallen(enemies) >= nightTarget(b.layout, enemies.length) ? 'victory' : 'defeat'
+  }
   return 'playing'
+}
+
+/** Gece zaferi için düşürülmesi gereken asker sayısı. */
+export function nightTarget(layout: BattleLayout, armySize: number): number {
+  return Math.ceil(armySize * layout.nightGoal)
+}
+
+/** Yenilgi sebebi; resolveBattle'ın sırasıyla (ordugah, can, gece). */
+export function defeatCause(b: BattleState | null, health: number): DefeatCause {
+  if (b?.reachedCamp) return 'camp'
+  if (health <= 0 || !b || b.time < b.layout.nightAt) return 'health'
+  return 'night'
 }
 
 /** Düşürülen asker sayısı — kaçanlar sayılmaz. */
@@ -1028,8 +1073,9 @@ export function countSurrendered(b: BattleState, enemies: readonly Enemy[]): num
 }
 
 /**
- * Yıldızlar: 1 = hayatta kal, ordu ordugaha varmasın; 2 = ordunun en az
- * yarısını düşür; 3 = imparatoru esir al. Yalnızca zaferde anlamlı.
+ * Yıldızlar: 1 = geceye dek hayatta kal, gece hedefini tuttur, ordu hedefe
+ * varmasın; 2 = ordunun en az yarısını düşür; 3 = imparatoru esir al.
+ * Yalnızca zaferde anlamlı.
  */
 export function battleStars(b: BattleState, enemies: readonly Enemy[]): number {
   if (b.emperorCaptured) return 3

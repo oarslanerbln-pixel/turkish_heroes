@@ -19,6 +19,7 @@ interface RefShot {
   /** Yoksa menü çekimi: SAVAŞA GİR'e basılmaz. */
   moment?: Shot['moment']
   pose?: Shot['pose']
+  bot?: Shot['bot']
   views: (keyof typeof VIEWS)[]
 }
 
@@ -29,8 +30,9 @@ const SHOTS: RefShot[] = [
   { id: 'R3-taktik-malazgirt', commander: 'alp-arslan', moment: 6, views: ['yatay'] },
   { id: 'R3-taktik-miryokefalon', commander: 'kilicarslan', moment: 6, views: ['yatay'] },
   { id: 'R5-gun-batimi', commander: 'alp-arslan', moment: 104, views: ['yatay'] },
-  // Tohum 1071'de boşta kalan oyuncu Malazgirt'i kazanır, Miryokefalon'u kaybeder.
-  { id: 'R7-zafer', commander: 'alp-arslan', moment: 'end', views: ['yatay', 'dikey'] },
+  // Boşta kalan oyuncu hiçbir savaşı kazanmaz (TASARIM Mantık 1): zaferi tohum
+  // 1071'de güvenli tacizci botu alır (Malazgirt, 1 yıldız). Boşta Miryokefalon yenilgi.
+  { id: 'R7-zafer', commander: 'alp-arslan', moment: 'end', bot: 'harass', views: ['yatay', 'dikey'] },
   { id: 'R7-yenilgi', commander: 'kilicarslan', moment: 'end', views: ['yatay', 'dikey'] },
   // Sanat açıları: oyun kamerası değil; model ve renk kararları bunlarla yargılanır.
   { id: 'R8-yer-metehan', commander: 'metehan', moment: 6, pose: 'ground', views: ['yatay'] },
@@ -49,7 +51,13 @@ for (const shot of SHOTS) {
       const name = `${shot.id}-${view}-${quality}`
       test(name, async ({ page }) => {
         await page.setViewportSize(VIEWS[view])
-        await openShot(page, { commander: shot.commander, moment: shot.moment ?? 0, quality, pose: shot.pose })
+        await openShot(page, {
+          commander: shot.commander,
+          moment: shot.moment ?? 0,
+          quality,
+          pose: shot.pose,
+          bot: shot.bot,
+        })
         if (shot.moment !== undefined) await playToMoment(page)
         await test.info().attach(name, { body: await page.screenshot(), contentType: 'image/png' })
         await expect(page).toHaveScreenshot(`${name}.png`)

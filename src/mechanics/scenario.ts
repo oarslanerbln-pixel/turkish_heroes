@@ -55,7 +55,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
       { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },
-      { title: '3 · Akşamı bekle', text: 'Gün batınca ordu döner. Çözülen hattı kuşat, imparatoru esir al.' },
+      { title: '3 · Akşamı bekle', text: 'Gün batınca ordu döner. Gece çökene dek ordunun dörtte birini düşür ya da imparatoru esir al.' },
     ],
   },
   {

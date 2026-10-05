@@ -52,6 +52,8 @@ export interface World {
   player: Vec2
   /** Gerçekleşen yer değiştirmeden türetilir, klavye niyetinden değil. */
   playerVel: Vec2
+  /** Oyuncunun kıpırdamadan geçirdiği süre (sn); Metehan'da sürü durana yüklenir. */
+  stillTime: number
   playerHealth: number
   /** Oyuncuya temas eden düşman sayısı — HUD ve hasar için. */
   attackers: number
@@ -192,6 +194,7 @@ export function createWorld(commander: CommanderId, opts: WorldOptions = {}): Wo
     // ordu ufukta, -z'de.
     player: layout ? { ...layout.playerStart } : { x: 0, z: 8 },
     playerVel: { x: 0, z: 0 },
+    stillTime: 0,
     playerHealth: COMBAT_CONFIG.playerMaxHealth,
     attackers: 0,
     enemies: battle?.enemies ?? spawnWave(0),

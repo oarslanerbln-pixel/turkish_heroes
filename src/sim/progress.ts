@@ -9,7 +9,16 @@ import { loadBestScore } from './score'
 
 const STORAGE_KEY = 'hilal_progress'
 
-export type HintId = 'harass' | 'charge' | 'dusk' | 'wings' | 'wingsDusk' | 'blockade' | 'jam' | 'volley'
+export type HintId =
+  | 'harass'
+  | 'charge'
+  | 'dusk'
+  | 'wings'
+  | 'wingsDusk'
+  | 'blockade'
+  | 'jam'
+  | 'volley'
+  | 'still'
 
 interface Progress {
   /** Zafer kazanılan komutanlar. */

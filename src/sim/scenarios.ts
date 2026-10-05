@@ -137,6 +137,21 @@ function presentBaideng(w: World, fx: StepEffects): void {
   baidengEvents.length = 0
 }
 
+/**
+ * Durana yüklenme (TASARIM Mantık 1): bu hızın altındaki oyuncu duruyor
+ * sayılır; STILL_GRACE sn sonra sürünün koruduğu mesafe STILL_RAMP sn içinde
+ * sıfıra iner. Bekleyen oyuncu da savaşı bitirir: yenilerek. Nişan almak
+ * için durmak (1–2 sn) cezasız.
+ */
+const STILL_SPEED = 0.5
+const STILL_GRACE = 5
+const STILL_RAMP = 3
+const STILL_HINT = 'Duran atlı hedeftir — çekil, peşine tak'
+
+export function stillPress(stillTime: number): number {
+  return Math.min(1, Math.max(0, (stillTime - STILL_GRACE) / STILL_RAMP))
+}
+
 /** Metehan'ın dalga kuralları; kapatmak yalnız önce/sonra ölçümü için (bkz. waveBots). */
 export interface WaveRules {
   /** Kırılan dalganın artığı dağılır. */
@@ -159,12 +174,15 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
     },
 
     moveEnemies(w, dt) {
+      const still = Math.hypot(w.playerVel.x, w.playerVel.z) < STILL_SPEED
+      w.stillTime = still ? w.stillTime + dt : 0
       stepEnemies(
         w.enemies,
         w.player,
         dt,
         w.isRetreating,
         waveConfig(w.waveIndex).disciplineRecoveryMult,
+        stillPress(w.stillTime),
       )
       if (w.baideng) stepCommand(w.baideng, w.enemies, w.player, dt)
     },
@@ -194,6 +212,7 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
         stepPeace(w.baideng, w.enemies, baidengEvents)
         presentBaideng(w, fx)
       }
+      if (stillPress(w.stillTime) > 0 && countAlive(w) > 0 && fx.hint('still')) announce(w, STILL_HINT)
       // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
       const moreWaves = w.waveIndex < TOTAL_WAVES - 1
       if (countAlive(w) > 0 || !moreWaves) return
@@ -218,6 +237,8 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
           // Yeni dalga oyuncunun yakasından, arkadan gelir; kıskaç müfrezesi
           // gittiği yönde (bkz. spawnWave).
           w.enemies = spawnWave(next, rules.spawnAway ? w.player : undefined, w.playerVel)
+          // Molada beklemek durmak sayılmaz: yeni dalga da önce mesafe korur.
+          w.stillTime = 0
           fx.play('wave')
           w.events.push({ type: 'waveSpawn', wave: next })
         }

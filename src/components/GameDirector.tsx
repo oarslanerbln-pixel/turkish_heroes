@@ -21,10 +21,12 @@ import { battleEnd, stepGame, type StepEffects, type StepInput } from '../sim/st
 import { haptic, play } from '../audio/sfx'
 import { duck, setBattleMusic } from '../audio/ambience'
 import { COMMANDERS } from '../mechanics/scenario'
+import { defeatCause } from '../mechanics/corps'
 import { debrief } from '../debrief/debrief'
 import { advanceClock, battleActive, nextAttempt, projectEnd, track } from '../telemetry/track'
 import { useKeyboard } from '../hooks/useKeyboard'
 import { useTouchControls } from '../hooks/useTouchControls'
+import { shotDriver } from '../shot'
 
 // Yönetmen karenin ilk işi: simülasyonu bir adım ilerletir (sim/step.ts),
 // sonra oyuncu, düşmanlar ve görseller (öncelik ≥ 0) o adımın dünyasını çizer.
@@ -120,6 +122,7 @@ export function GameDirector() {
       }
       readMove(keys.current, touch, input.move)
       input.strike = world.strikeRequested
+      shotDriver.drive?.(world, input)
       const prevOutcome = world.outcome
       stepGame(world, input, dt, GAME_FX, scenario)
 
@@ -183,7 +186,7 @@ export function GameDirector() {
         corpsCohesion: b ? b.corps.map((c) => (c.alive > 0 ? c.cohesion : -1)) : [],
         wingOrders: b ? b.wings.map((w) => w.order) : [],
         wingStrength: b ? b.wings.map((w) => w.strength) : [],
-        defeatCause: b?.reachedCamp ? 'camp' : 'health',
+        defeatCause: defeatCause(b, world.playerHealth),
         emperorCaptured: b?.emperorCaptured ?? false,
         debrief: world.debrief,
         unlocked: world.unlocked,

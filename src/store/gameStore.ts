@@ -7,7 +7,7 @@ import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scena
 import { announce, enterMode, isPlaying, resetWorld, world } from '../sim/world'
 import type { FlowMode } from '../sim/flow'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
-import { dropBlockade as dropBlockadeAt } from '../mechanics/corps'
+import { dropBlockade as dropBlockadeAt, type DefeatCause } from '../mechanics/corps'
 import { loadBestScore } from '../sim/score'
 import { isUnlocked } from '../sim/progress'
 import {
@@ -54,7 +54,7 @@ export interface HudSnapshot {
   corpsCohesion: number[] // birlik başına düzen; -1 = birlik yok
   wingOrders: WingOrder[] // Selçuklu kollarının emri (0 sol, 1 sağ); savaş yoksa boş
   wingStrength: number[] // kolların gücü 0–1
-  defeatCause: 'health' | 'camp'
+  defeatCause: DefeatCause
   emperorCaptured: boolean
   debrief: Debrief | null // savaş bitince karne; sürerken null
   unlocked: CommanderId | null // bu zaferle kilidi açılan komutan

@@ -35,10 +35,13 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   const battle = commander !== 'metehan'
   const stars = useGameStore((s) => s.stars)
   const captured = useGameStore((s) => s.emperorCaptured)
+  const cause = useGameStore((s) => s.defeatCause)
   const report = useGameStore((s) => s.debrief)
   const unlocked = useGameStore((s) => s.unlocked)
   const lore = useGameStore((s) => s.lore)
   const isVictory = outcome === 'victory'
+  // Gece hedefi tutmadan çöktü: ordu ayakta, oyuncu sahadan çekildi (bkz. corps.ts nightGoal).
+  const withdrew = !isVictory && cause === 'night'
   const isNewBest = score > 0 && score >= bestScore
   // Metehan zaferinde "kıl payı" başlıkta söyleniyor; rozet yenilginin ve
   // bir sonraki yıldızın "az kaldı"sı için.
@@ -47,8 +50,12 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
   return (
     <div className="screen outcome">
       <div className="outcome-main">
-        <div className={isVictory ? 'result-title is-victory' : 'result-title is-defeat'}>
-          {isVictory ? 'ZAFER' : 'YENİLGİ'}
+        <div
+          className={
+            isVictory ? 'result-title is-victory' : `result-title is-defeat${withdrew ? ' is-long' : ''}`
+          }
+        >
+          {isVictory ? 'ZAFER' : withdrew ? 'GERİ ÇEKİLDİN' : 'YENİLGİ'}
         </div>
         <Ornament width={240} />
         {isVictory && <Stars count={stars} />}

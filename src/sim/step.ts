@@ -8,6 +8,7 @@
 
 import type { Sfx } from '../audio/sfx'
 import { calcContactDamage, countAttackers } from '../mechanics/combat'
+import { defeatCause } from '../mechanics/corps'
 import { ENEMY_CONFIG } from '../mechanics/enemySim'
 import {
   approachAngle,
@@ -214,7 +215,7 @@ export function battleEnd(w: World): Extract<TelemetryEvent, { type: 'battle_end
   return {
     type: 'battle_end',
     outcome: victory ? 'victory' : 'defeat',
-    cause: victory ? null : w.battle?.reachedCamp ? 'camp' : 'health',
+    cause: victory ? null : defeatCause(w.battle, w.playerHealth),
     score: w.score,
     stars: w.stars,
     health: Math.round(w.playerHealth),

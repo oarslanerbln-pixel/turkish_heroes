@@ -24,7 +24,9 @@ import {
   BATTLE_SIZE,
   CENTER,
   COLUMN_CONFIG,
+  MALAZGIRT,
   MIRYOKEFALON,
+  nightTarget,
   REARGUARD,
 } from '../mechanics/corps'
 import { PASS } from '../mechanics/pass'
@@ -299,6 +301,22 @@ function battleDebrief(s: BattleSummary): Debrief {
       value: Math.round(s.simTime),
       target: day ? cfg.dayLength : cfg.nightAt,
       unit: 'sn',
+    }
+    if (s.cause === 'night') {
+      const need = nightTarget(MALAZGIRT, BATTLE_SIZE)
+      return {
+        headline: `Gece çöktü, Bizans ordusu ayakta: ${fallen} asker düştü, ${need} gerekiyordu.`,
+        close: need - fallen <= CLOSE_STAR_GAP,
+        peak,
+        advice: s.events.some((e) => e.event === 'harass')
+          ? harvestAdvice(s, sunset)
+          : {
+              id: 'harass',
+              text: 'Kenarda beklemek zafer getirmez. Birliklerin ok menziline gir: düzenleri erir, akşam hilal onları biçer.',
+            },
+        goal: { label: 'Zafer: ordunun dörtte biri', value: fallen, target: need, unit: 'asker' },
+        timeline,
+      }
     }
     if (s.cause === 'camp') {
       return {
