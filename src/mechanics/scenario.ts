@@ -34,6 +34,8 @@ export interface CommanderInfo {
    * ulaşmak da açar: kapı acemiye dar olmasın (TASARIM Mantık 6).
    */
   unlockWave?: number
+  /** Yıldızların koşulu (1–3); brifing sıradakini hedef olarak gösterir (TASARIM Mantık 5). */
+  stars: readonly [string, string, string]
 }
 
 export const COMMANDERS: readonly CommanderInfo[] = [
@@ -48,6 +50,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
       { title: '2 · Topla', text: 'Düzeni bozulan düşman kümelenir. Hilal enerjisi böyle dolar.' },
       { title: '3 · Kuşat', text: 'Enerji dolunca yayı kapat. Yaydaki herkes düşer.' },
     ],
+    stars: ['Dört dalgayı aş', 'Az yarayla bitir', 'Çok az yarayla bitir'],
   },
   {
     id: 'alp-arslan',
@@ -63,6 +66,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
       { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },
       { title: '3 · Akşamı bekle', text: 'Gün batınca ordu döner. Gece çökene dek ordunun dörtte birini düşür ya da imparatoru esir al.' },
     ],
+    stars: ['Ordunun dörtte birini düşür', 'Ordunun yarısını düşür', 'İmparatoru esir al'],
   },
   {
     id: 'kilicarslan',
@@ -77,6 +81,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
       { title: '2 · Sıkıştır', text: 'Arkadan gelen üst üste biner; darda düzen tutulmaz. Öncüyü taciz et, yığını temizlemesin.' },
       { title: '3 · Kuşat', text: 'Sıkışan birliği hilalle kapat. Manuel açıkta kalınca savaş biter.' },
     ],
+    stars: ['Kolu geceye dek geçitte tut', 'Ordunun yarısını düşür', "Manuel'i kuşat"],
   },
 ]
 

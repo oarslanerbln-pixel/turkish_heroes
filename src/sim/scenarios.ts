@@ -32,7 +32,12 @@ import {
 } from '../mechanics/baideng'
 import { stepEnemies } from '../mechanics/enemySim'
 import { WING_CONFIG } from '../mechanics/wings'
-import { calcSiegeState, type FallFilter, type SiegeState } from '../mechanics/hilalSystem'
+import {
+  calcSiegeState,
+  isStrikeReady,
+  type FallFilter,
+  type SiegeState,
+} from '../mechanics/hilalSystem'
 import type { CommanderId } from '../mechanics/scenario'
 import {
   ladderScale,
@@ -164,6 +169,37 @@ export function stillPress(stillTime: number): number {
   return Math.min(1, Math.max(0, (stillTime - STILL_GRACE) / STILL_RAMP))
 }
 
+/**
+ * Hilalin nasıl dolduğu ilk dakikada öğretilir (TASARIM Mantık 5, O5/O7):
+ * her ipucu sırası gelince bir kez. Dolduramayan oyuncu "dolmuyor"u duyar;
+ * dolduran, dolarken neden dolduğunu; kuran, ne yapacağını.
+ */
+/** Uzman bot hilali ~9 sn'de doldurmaya başlıyor; 15 sn'de hâlâ boşsa takılmıştır. */
+const STALL_HINT_AT = 15
+const STALL_HINT_UNTIL = 60
+/** Enerjinin "dolmuyor" sayıldığı üst sınır (eşik 100). */
+const STALL_ENERGY = 15
+const FILL_HINT_ENERGY = 30
+const STALL_HINT = 'Hilal dolmuyor: düşman düzenli — uzaklaş, peşine düşsün'
+const FILL_HINT = 'Peşine düşenin düzeni bozuldu — kümelendikçe hilal dolar'
+const READY_HINT = 'Hilal kuruldu — VUR, yaydakiler düşer'
+
+function teachEnergy(w: World, fx: StepEffects): void {
+  if (countAlive(w) === 0) return
+  const ready = isStrikeReady(w.energy)
+  if (
+    w.totalKills === 0 &&
+    w.time >= STALL_HINT_AT &&
+    w.time < STALL_HINT_UNTIL &&
+    w.energy < STALL_ENERGY &&
+    fx.hint('stall')
+  ) {
+    announce(w, STALL_HINT)
+  }
+  if (!ready && w.energy >= FILL_HINT_ENERGY && fx.hint('fill')) announce(w, FILL_HINT)
+  if (ready && w.strikeTimer === 0 && fx.hint('ready')) announce(w, READY_HINT)
+}
+
 /** Metehan'ın dalga kuralları; kapatmak yalnız önce/sonra ölçümü için (bkz. waveBots). */
 export interface WaveRules {
   /** Kırılan dalganın artığı dağılır. */
@@ -225,6 +261,7 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
         presentBaideng(w, fx)
       }
       if (stillPress(w.stillTime) > 0 && countAlive(w) > 0 && fx.hint('still')) announce(w, STILL_HINT)
+      teachEnergy(w, fx)
       // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
       const moreWaves = w.waveIndex < TOTAL_WAVES - 1
       if (countAlive(w) > 0 || !moreWaves) return

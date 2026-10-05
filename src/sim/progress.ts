@@ -19,6 +19,9 @@ export type HintId =
   | 'jam'
   | 'volley'
   | 'still'
+  | 'stall'
+  | 'fill'
+  | 'ready'
 
 interface Progress {
   /** Zafer kazanılan komutanlar. */

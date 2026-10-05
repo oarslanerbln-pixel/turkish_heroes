@@ -21,6 +21,11 @@ describe('ilerleme', () => {
     expect(takeHint('charge')).toBe(true)
     expect(takeHint('charge')).toBe(false)
     expect(takeHint('dusk')).toBe(true)
+    // Metehan'ın enerji ipuçları (TASARIM Mantık 5) birbirini tüketmez.
+    for (const id of ['stall', 'fill', 'ready'] as const) {
+      expect(takeHint(id)).toBe(true)
+      expect(takeHint(id)).toBe(false)
+    }
   })
 
   it("Alp Arslan, Metehan'da 3. dalgaya ulaşınca açılır: zafer beklenmez", () => {

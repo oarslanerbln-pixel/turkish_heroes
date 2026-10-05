@@ -745,6 +745,13 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
+  - **Yapıldı (5 Ekim 2026, TASARIM Mantık 5, `claude/adim-dongusu`):**
+    - Üç enerji ipucu, oyuncunun durumu açınca ve oyuncu başına bir kez (`teachEnergy`, `scenarios.ts`):
+      - `'stall'`: 15–60 sn arasında hiç düşüş yok ve hilal 15'in altında. Metin: düşman düzenli, uzaklaş.
+      - `'fill'`: hilal 30'u geçince. Metin: kümelendikçe hilal dolar.
+      - `'ready'`: vuruş hazır. Metin: VUR.
+    - Ölçüm (başlangıç basamağı): boştaki bot `'still'` 5 sn, `'stall'` 15 sn. Uzman bot `'fill'` 9,4 sn, `'ready'` 14,3 sn, ilk vuruş 14,5 sn. Acemi `'fill'` 9,9 sn, `'ready'` 14,9 sn. Kaçan oyuncu `'stall'`ı hiç görmez (`metehan.test`, `stepGame` ile tekrar).
+    - Harita kartı sıradaki yıldızın koşulunu gösterir (`CommanderInfo.stars`, `.brief-goal`). Örnek: "Zafer: Dört dalgayı aş". Üç yıldızda satır gizlenir.
 - **2f Denge (yalnız simülasyon):**
   1. ~~S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).~~ **Yapıldı (5 Ekim 2026, `claude/adim-dongusu`):**
      - `sim/step.ts` `stepGame(world, input, dt, fx)`: oyuncu → düşmanlar → temas → hilal yönü → vuruş/enerji → savaşın akışı → sonuç. Ses, titreşim, olay kaydı ve ipuçları `StepEffects` ile gelir: oyunda gerçek (`GAME_FX`), botlarda `SILENT_FX`.

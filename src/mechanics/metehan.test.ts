@@ -9,8 +9,8 @@
 import { describe, expect, it } from 'vitest'
 import { countAttackers } from './combat'
 import { createEnemies, ENEMY_CONFIG, stepEnemies } from './enemySim'
-import { calcSiegeState, countInCrescent, executeStrike } from './hilalSystem'
-import { kiter, runWaves, SKILLS, type WaveBot } from './waveBots'
+import { calcSiegeState, countInCrescent, executeStrike, HILAL_CONFIG } from './hilalSystem'
+import { kiter, runWaves, SKILLS, WAVE_BOT_DT, type WaveBot } from './waveBots'
 import {
   DAMAGE_LADDER,
   LADDER_BOTTOM,
@@ -29,6 +29,8 @@ import {
 import type { Enemy, Vec2 } from './types'
 import { stillPress, wavesScenario } from '../sim/scenarios'
 import { createWorld } from '../sim/world'
+import { SILENT_FX, stepGame, type StepEffects, type StepInput } from '../sim/step'
+import type { HintId } from '../sim/progress'
 
 const DT = 1 / 60
 
@@ -155,6 +157,58 @@ describe('Metehan — kurallar', () => {
     // Basamaklar tekdüze artar.
     for (let i = LADDER_BOTTOM + 1; i <= LADDER_TOP; i++) {
       expect(ladderScale(i)).toBeGreaterThan(ladderScale(i - 1))
+    }
+  })
+
+  it('enerji ipuçları sırası gelince açılır: dolduramayana, doldurana, kurana (Mantık 5)', () => {
+    /** Botun girdisini kaydeder; oyunun adımında aynen oynatılır. */
+    const recordInputs = (bot: WaveBot): StepInput[] => {
+      const inputs: StepInput[] = []
+      runWaves(
+        (v) => {
+          const a = bot(v)
+          const speed = HILAL_CONFIG.retreatSpeed
+          inputs.push({ move: { x: a.move.x / speed, z: a.move.z / speed }, strike: a.strike })
+          return a
+        },
+        undefined,
+        true,
+        true,
+        ladderScale(0),
+      )
+      return inputs
+    }
+    /** İlk 60 sn: gösterilen ipuçları ve anları, ilk vuruşun anı. */
+    const play = (inputs: StepInput[] | null) => {
+      const w = createWorld('metehan')
+      // Oyunun başladığı basamak: yarı hasar.
+      w.assist = ladderScale(0)
+      const shown = new Map<HintId, number>()
+      const fx: StepEffects = {
+        ...SILENT_FX,
+        hint: (id) => !shown.has(id) && !!shown.set(id, w.time),
+      }
+      const scenario = wavesScenario()
+      const idle: StepInput = { move: { x: 0, z: 0 }, strike: false }
+      let firstStrike = Infinity
+      for (let i = 0; w.time < 60 && w.outcome === 'playing'; i++) {
+        stepGame(w, inputs?.[i] ?? idle, WAVE_BOT_DT, fx, scenario)
+        if (w.totalKills > 0 && firstStrike === Infinity) firstStrike = w.time
+        w.events.length = 0
+      }
+      return { shown, firstStrike }
+    }
+
+    // Boşta: önce duran atlı, sonra "dolmuyor"; dolmadığı için ötekiler yok.
+    const idle = play(null)
+    expect([...idle.shown.keys()]).toEqual(['still', 'stall'])
+    expect(idle.shown.get('stall')).toBeCloseTo(15, 1)
+
+    // Kaçan oyuncu dolarken nedenini, kurunca ne yapacağını duyar; takılmadığı için "dolmuyor"u duymaz.
+    for (const skill of [SKILLS.expert, SKILLS.novice]) {
+      const run = play(recordInputs(kiter(skill, 1)))
+      expect([...run.shown.keys()]).toEqual(['fill', 'ready'])
+      expect(run.shown.get('ready')!).toBeLessThanOrEqual(run.firstStrike)
     }
   })
 
@@ -309,7 +363,8 @@ describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
       let step = 0
       let gate = -1
       let firstWin = -1
-      for (let a = 0; a < 8; a++) {
+      // İki ölçü de bulununca kariyer biter: testin süresi denemelere değil oyunculara bağlı.
+      for (let a = 0; a < 8 && (gate < 0 || firstWin < 0); a++) {
         const r = runWaves(kiter(SKILLS.novice, player * 100 + a), undefined, true, true, ladderScale(step))
         if (r.wave >= 2 && gate < 0) gate = a + 1
         if (r.result === 'victory' && firstWin < 0) firstWin = a + 1

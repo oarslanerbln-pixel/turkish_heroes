@@ -1185,6 +1185,18 @@
   gap: 10px;
 }
 
+/* Kendi satırında: tuşlar ve kayıt altında kalır. */
+.brief-goal {
+  display: inline-flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 4px;
+}
+
+.brief-goal svg {
+  color: var(--metal);
+}
+
 /* ---- Bilgi Hazinesi ---- */
 .archive {
   position: absolute;
