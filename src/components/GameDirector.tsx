@@ -12,6 +12,7 @@ import {
   recordLore,
   recordStars,
   recordVictory,
+  recordWave,
   takeHint,
 } from '../sim/progress'
 import { pickLore } from '../lore/lore'
@@ -78,7 +79,10 @@ function finishBattle(): void {
     recordStars(world.commander, world.stars)
   }
   if (world.battle) recordBattleEnd(world.commander)
-  else recordLadder(victory)
+  else {
+    recordLadder(victory)
+    recordWave(world.waveIndex)
+  }
   world.unlocked = locked.find((id) => isUnlocked(id)) ?? null
   world.bestScore = saveBestScore(world.commander, world.score)
 

@@ -151,7 +151,8 @@ function ArchiveBody({ tab, earned }: { tab: CommanderId; earned: readonly LoreI
               <b>
                 {available
                   ? current.hint
-                  : c.unlockedBy && `Önce ${commanderInfo(c.unlockedBy).name} ile zafer kazan`}
+                  : c.unlockedBy &&
+                    `Önce ${commanderInfo(c.unlockedBy).name} ile ${c.unlockWave ? `${c.unlockWave}. dalgaya ulaş` : 'zafer kazan'}`}
               </b>
             </div>
             {available && (

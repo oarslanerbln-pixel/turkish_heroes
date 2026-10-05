@@ -3,15 +3,17 @@ import {
   bestStars,
   inferStars,
   isFirstBattle,
+  furthestWave,
   isUnlocked,
   recordStars,
   ladderStep,
   recordBattleEnd,
   recordLadder,
   recordVictory,
+  recordWave,
   takeHint,
 } from './progress'
-import { LADDER_TOP } from '../mechanics/waves'
+import { LADDER_BOTTOM, LADDER_TOP } from '../mechanics/waves'
 
 // Test ortamında localStorage yok: ilerleme bellekte tutulur, kurallar aynı.
 describe('ilerleme', () => {
@@ -21,18 +23,25 @@ describe('ilerleme', () => {
     expect(takeHint('dusk')).toBe(true)
   })
 
-  it('Alp Arslan, Metehan kazanılınca açılır', () => {
+  it("Alp Arslan, Metehan'da 3. dalgaya ulaşınca açılır: zafer beklenmez", () => {
     expect(isUnlocked('metehan')).toBe(true)
     expect(isUnlocked('alp-arslan')).toBe(false)
+    recordWave(1)
+    expect(isUnlocked('alp-arslan')).toBe(false)
+    recordWave(2)
+    expect(isUnlocked('alp-arslan')).toBe(true)
+    // Rekor geri düşmez.
+    recordWave(0)
+    expect(furthestWave()).toBe(2)
     recordVictory('metehan')
     expect(isUnlocked('alp-arslan')).toBe(true)
   })
 
-  it('Metehan merdiveni yarı hasardan başlar, zaferle çıkar, yenilgiyle iner', () => {
+  it('Metehan merdiveni yarı hasardan başlar, zaferle çıkar, yenilgiyle tabana iner', () => {
     expect(ladderStep()).toBe(0)
-    recordLadder(false)
-    expect(ladderStep()).toBe(0)
-    for (let i = 0; i < LADDER_TOP + 2; i++) recordLadder(true)
+    for (let i = 0; i < -LADDER_BOTTOM + 2; i++) recordLadder(false)
+    expect(ladderStep()).toBe(LADDER_BOTTOM)
+    for (let i = 0; i < LADDER_TOP - LADDER_BOTTOM + 2; i++) recordLadder(true)
     expect(ladderStep()).toBe(LADDER_TOP)
     recordLadder(false)
     expect(ladderStep()).toBe(LADDER_TOP - 1)

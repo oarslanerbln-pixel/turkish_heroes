@@ -76,12 +76,24 @@ export interface Scenario {
   outcome(w: World): Outcome
   /** Zaferde eklenen puan; yıldızlı senaryo w.stars'ı burada yazar. */
   victoryBonus(w: World): number
+  /** Taban puanı bu savaşın zorluğuna çevirir; bkz. waveScore. */
+  points(w: World, base: number): number
 }
 
 /** Düşürülen (ya da teslim olan) düşman başına puan. */
 export const SCORE_PER_KILL = 100
 /** Zaferde kalan can başına bonus — temiz oynamayı ödüllendirir. */
 const HEALTH_BONUS_PER_POINT = 5
+
+/**
+ * Metehan puanı oynanan merdiven basamağıyla ölçeklenir (O4): yarı hasarda
+ * (başlangıç) ×1, tam hasarda ×2, tabanda ×0,4. Ölçeklenmeyen puanda kolay
+ * basamaktaki koşu daha çok dalga ve can bonusu toplar, rekoru zor
+ * basamağınkini geçerdi. Başlangıç ×1: eski rekorlar bugünkü ölçekte kalır.
+ */
+function waveScore(w: World, base: number): number {
+  return Math.round((base * w.assist) / ladderScale(0))
+}
 
 function countAlive(w: World): number {
   let n = 0
@@ -114,7 +126,7 @@ function presentBaideng(w: World, fx: StepEffects): void {
           announce(w, 'Han atlıları kendi oklarının altında kaldı!')
         }
         w.totalKills += felled
-        w.score += felled * SCORE_PER_KILL
+        w.score += waveScore(w, felled * SCORE_PER_KILL)
         fx.track({ type: 'volley', hit: e.hit, felled })
         w.events.push({ type: 'volleyLanded', x: e.x, z: e.z, hit: e.hit, felled })
         break
@@ -219,7 +231,7 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
       const next = w.waveIndex + 1
       if (w.waveBreak === 0) {
         // Bonus temizlendiği anda; yeni dalga düşenler devrildikten sonra.
-        w.score += waveClearBonus(w.waveIndex)
+        w.score += waveScore(w, waveClearBonus(w.waveIndex))
         w.waveBreak = waveBreak(next)
         fx.track({ type: 'wave_clear', wave: w.waveIndex, health: Math.round(w.playerHealth) })
         if (waveConfig(next).rest) {
@@ -257,8 +269,10 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
       // bonusu yarayı zaten sayıyor.
       w.stars = wavesStars(w.playerHealth, w.assist, w.restedFrom ?? undefined)
       // Son dalganın temizleme bonusu dalga geçişinde verilmiyor; burada.
-      return waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
+      return waveScore(w, waveClearBonus(w.waveIndex) + Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT))
     },
+
+    points: waveScore,
   }
 }
 
@@ -452,6 +466,8 @@ const battle: Scenario = {
       Math.round(w.playerHealth * HEALTH_BONUS_PER_POINT)
     )
   },
+
+  points: (_, base) => base,
 }
 
 const SCENARIOS: Record<CommanderId, Scenario> = {

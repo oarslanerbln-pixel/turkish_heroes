@@ -29,6 +29,8 @@ interface Progress {
   battles: Partial<Record<CommanderId, number>>
   /** Metehan'ın zorluk merdivenindeki basamak (bkz. waves.ts DAMAGE_LADDER). */
   ladder: number
+  /** Metehan'da ulaşılan en ileri dalga (0'dan); bkz. CommanderInfo.unlockWave. */
+  wave: number
   /** Kazanılan tarih notları, kazanılma sırasıyla (bkz. lore/lore.ts). */
   lore: LoreId[]
   /** Ordu savaşlarında kazanılan en iyi yıldız (1–3); menüdeki komutan kartı için. */
@@ -49,6 +51,7 @@ function load(): Progress {
         // Merdivenden önce Metehan'ı zaten kazanmış oyuncu tam hasarda başlar:
         // o zorluğu yenmiş, kolaylaştırılmış savaş ona hediye değil.
         ladder: p.ladder ?? (won.includes('metehan') ? LADDER_TOP : 0),
+        wave: p.wave ?? 0,
         lore: p.lore ?? [],
         stars: p.stars ?? inferStars(won, p.lore ?? []),
       }
@@ -56,7 +59,7 @@ function load(): Progress {
   } catch {
     // Bozuk kayıt ya da erişilemeyen depolama: sıfırdan başla.
   }
-  return { won: [], hints: [], battles: {}, ladder: 0, lore: [], stars: {} }
+  return { won: [], hints: [], battles: {}, ladder: 0, wave: 0, lore: [], stars: {} }
 }
 
 /**
@@ -88,13 +91,18 @@ function save(): void {
 
 /**
  * Komutan açık mı? Zincir: Metehan → Alp Arslan → II. Kılıçarslan; bir
- * öncekiyle zafer kazanınca açılır. Rekoru olan (prototipte zaten oynamış)
+ * öncekiyle zafer kazanınca açılır. Alp Arslan için Metehan'da 3. dalgaya
+ * ulaşmak da yeter (unlockWave). Rekoru olan (prototipte zaten oynamış)
  * oyuncunun kilidi geri kapanmasın.
  */
 export function isUnlocked(id: CommanderId): boolean {
-  const by = commanderInfo(id).unlockedBy
+  const { unlockedBy: by, unlockWave } = commanderInfo(id)
   if (!by) return true
-  return progress.won.includes(by) || loadBestScore(id) > 0
+  return (
+    progress.won.includes(by) ||
+    (unlockWave !== undefined && progress.wave >= unlockWave - 1) ||
+    loadBestScore(id) > 0
+  )
 }
 
 /** Bu komutanla zafer kazanıldı mı. */
@@ -134,6 +142,18 @@ export function ladderStep(): number {
 /** Metehan savaşı bitti: merdivende bir basamak yukarı ya da aşağı. */
 export function recordLadder(victory: boolean): void {
   progress = { ...progress, ladder: nextLadderStep(progress.ladder, victory) }
+  save()
+}
+
+/** Metehan'da ulaşılan en ileri dalga (0'dan). */
+export function furthestWave(): number {
+  return progress.wave
+}
+
+/** Metehan savaşı bitti: ulaşılan dalga rekorsa yazılır. */
+export function recordWave(index: number): void {
+  if (index <= progress.wave) return
+  progress = { ...progress, wave: index }
   save()
 }
 

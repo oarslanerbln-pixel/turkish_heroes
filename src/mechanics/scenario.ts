@@ -29,6 +29,11 @@ export interface CommanderInfo {
   keys?: string
   /** Bu komutanla zafer kazanınca açılır; yoksa hep açık. */
   unlockedBy?: CommanderId
+  /**
+   * Zafer beklenmeden, Metehan'ın dalgalı savaşında bu dalgaya (1'den sayılır)
+   * ulaşmak da açar: kapı acemiye dar olmasın (TASARIM Mantık 6).
+   */
+  unlockWave?: number
 }
 
 export const COMMANDERS: readonly CommanderInfo[] = [
@@ -52,6 +57,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     question: 'Hilali ne zaman kapatırsın?',
     keys: 'Q / E: kol emirleri',
     unlockedBy: 'metehan',
+    unlockWave: 3,
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
       { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },

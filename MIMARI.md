@@ -780,7 +780,13 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
        - Tohum 1071, boşta Malazgirt (assist 0,5): yenilgi, `'night'`, t≈160 (`step.test`).
        - E2E zafer çekimi artık boşta beklemiyor: çekim kipinde `?bot=harass` güvenli taciz botunu sürer (`battleBots` yalnızca bu kipte, ayrı parçada yüklenir).
        - Yerelde lint, tsc, 248 test, derleme, bütçe 360,7/385 kB ve checks 41/41 geçti. `shots` CI'da (R7 ve Metehan 6 sn çekimleri değişir).
-     - Kalan: O1 ayarı, O3 (Mantık 6: merdiven tabanı ~0,25 ve ilerleme göçü), O4, z=−1 bot ölümü.
+     - **Mantık 6, adil zorluk (O3, O4):**
+       - Merdiven başlangıcın altına iki basamak iner: 0,35 ve 0,2 (`LADDER_BOTTOM` −2). Başlangıç yine basamak 0 ve yarı hasar, yani kayıttaki eski basamak aynı hasarı verir ve göç gerekmez. Eski sürüm eksi basamağı 0'a kıstırır.
+       - 30 tohumda acemi bot 0,25'te 4, 0,2'de 14 zafer alıyor; taban bu yüzden 0,2. Tabanda 60 tohumda 26 zafer (%43, O3 hedefi ≥%20). Merdivenle 20 acemi 3. dalgaya en geç 4., ilk zafere en geç 8. denemede ulaşıyor (`metehan.test`).
+       - Alp Arslan, Metehan'da 3. dalgaya ulaşınca da açılır (`CommanderInfo.unlockWave`, ilerlemede `wave`). Kilit metni: "Metehan ile 3. dalgaya ulaşınca açılır".
+       - O4: Metehan puanı basamakla ölçeklenir (`waveScore`): yarı hasar ×1, tam hasar ×2, taban ×0,4. Başlangıç ×1 olduğu için eski rekorlar bugünkü ölçekte kalır. Basamak oyuncuya gösterilmiyor.
+       - Açık: Baideng'e bir kez ulaşanın oradan başlaması (TASARIM Mantık 6'nın ilk maddesi).
+     - Kalan: O1 ayarı, z=−1 bot ölümü.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**

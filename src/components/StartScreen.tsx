@@ -102,7 +102,10 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
       ) : (
         <div className="brief-locked">
           <LockIcon size={14} />
-          <span>{c.unlockedBy && `${commanderInfo(c.unlockedBy).name} ile zafer kazanınca açılır`}</span>
+          <span>
+            {c.unlockedBy &&
+              `${commanderInfo(c.unlockedBy).name} ile ${c.unlockWave ? `${c.unlockWave}. dalgaya ulaşınca` : 'zafer kazanınca'} açılır`}
+          </span>
         </div>
       )}
 

@@ -264,18 +264,25 @@ export function routSurvivors(enemies: Enemy[], index: number): number {
  * iyi %55, orta %22 ve hepsi en az bir kez kazanıyor (ilk zafer ortalama
  * 3,8. denemede). "İlk zafere kadar yarı, sonra tam" bir uçurum olurdu
  * (iyi oyuncu %70 → %14): kazandıktan sonra kaybetmeye başlamak.
+ *
+ * Başlangıcın altı (TASARIM Mantık 6, O3): yarı hasar acemiyi kurtarmıyordu.
+ * Acemi bot 30 tohumda 0,5'te 0, 0,35'te 3, 0,25'te 4, 0,2'de 14 zafer
+ * alıyor; yenilgiyle inilen iki basamak bu yüzden 0,35 ve 0,2. Başlangıç
+ * yine yarı hasar ve basamak 0: kayıttaki eski basamak aynı hasarı verir.
  */
-export const DAMAGE_LADDER = [0.5, 0.6, 0.7, 0.85, 1] as const
+export const DAMAGE_LADDER = [0.2, 0.35, 0.5, 0.6, 0.7, 0.85, 1] as const
 
-export const LADDER_TOP = DAMAGE_LADDER.length - 1
+/** En kolay basamak; başlangıç (0) yarı hasar. */
+export const LADDER_BOTTOM = -2
+export const LADDER_TOP = DAMAGE_LADDER.length - 1 + LADDER_BOTTOM
 
 /** Savaş sonucuna göre bir sonraki basamak. */
 export function nextLadderStep(step: number, victory: boolean): number {
-  return Math.min(LADDER_TOP, Math.max(0, step + (victory ? 1 : -1)))
+  return Math.min(LADDER_TOP, Math.max(LADDER_BOTTOM, step + (victory ? 1 : -1)))
 }
 
 export function ladderScale(step: number): number {
-  return DAMAGE_LADDER[Math.min(LADDER_TOP, Math.max(0, Math.round(step)))]
+  return DAMAGE_LADDER[Math.min(LADDER_TOP, Math.max(LADDER_BOTTOM, Math.round(step))) - LADDER_BOTTOM]
 }
 
 /** Bir dalganın temizlenmesiyle kazanılan puan. Sonraki dalgalar daha değerli. */
@@ -309,7 +316,7 @@ export const WAVES_STAR_HEALTH = { 2: 0, 3: 35 } as const
  * Malazgirt'in imparatoru gibi uzmanın da her seferinde alamadığı an.
  *
  * @param health Zaferde kalan can (0–100).
- * @param scale Oynanan basamağın hasar çarpanı (ladderScale), 0.5–1.
+ * @param scale Oynanan basamağın hasar çarpanı (ladderScale), 0.2–1.
  * @param preRest Molaya girerkenki can; mola yoksa (yenilgi öncesi) verilmez.
  */
 export function wavesStars(health: number, scale: number, preRest?: number): number {

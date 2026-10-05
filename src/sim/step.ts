@@ -199,7 +199,7 @@ function strike(w: World, aliveBefore: number, scenario: Scenario, fx: StepEffec
   // rehberinin 30–80 ms aralığı; büyük vuruş daha uzun.
   w.hitstop = kills >= 5 ? HITSTOP_BIG : HITSTOP_SMALL
   w.totalKills += kills
-  w.score += kills * SCORE_PER_KILL
+  w.score += scenario.points(w, kills * SCORE_PER_KILL)
   w.strikeOrigin.x = w.player.x
   w.strikeOrigin.z = w.player.z
   w.strikeFacing = w.facing

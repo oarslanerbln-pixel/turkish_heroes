@@ -13,6 +13,7 @@ import { calcSiegeState, countInCrescent, executeStrike } from './hilalSystem'
 import { kiter, runWaves, SKILLS, type WaveBot } from './waveBots'
 import {
   DAMAGE_LADDER,
+  LADDER_BOTTOM,
   LADDER_TOP,
   ladderScale,
   nextLadderStep,
@@ -26,7 +27,8 @@ import {
   wavesStars,
 } from './waves'
 import type { Enemy, Vec2 } from './types'
-import { stillPress } from '../sim/scenarios'
+import { stillPress, wavesScenario } from '../sim/scenarios'
+import { createWorld } from '../sim/world'
 
 const DT = 1 / 60
 
@@ -141,14 +143,31 @@ describe('Metehan — kurallar', () => {
   })
 
   it('zorluk merdiveni: yarı hasardan başlar, zaferle çıkar, yenilgiyle iner, sınırlarda durur', () => {
-    expect(DAMAGE_LADDER[0]).toBe(0.5)
-    expect(DAMAGE_LADDER[LADDER_TOP]).toBe(1)
-    expect(nextLadderStep(0, false)).toBe(0)
+    // Basamak 0 eski kayıtlarla aynı: yarı hasar.
+    expect(ladderScale(0)).toBe(0.5)
+    expect(ladderScale(LADDER_TOP)).toBe(1)
+    expect(ladderScale(LADDER_BOTTOM)).toBe(DAMAGE_LADDER[0])
+    expect(nextLadderStep(0, false)).toBe(-1)
     expect(nextLadderStep(0, true)).toBe(1)
+    expect(nextLadderStep(LADDER_BOTTOM, false)).toBe(LADDER_BOTTOM)
     expect(nextLadderStep(LADDER_TOP, true)).toBe(LADDER_TOP)
     expect(nextLadderStep(LADDER_TOP, false)).toBe(LADDER_TOP - 1)
     // Basamaklar tekdüze artar.
-    for (let i = 1; i <= LADDER_TOP; i++) expect(ladderScale(i)).toBeGreaterThan(ladderScale(i - 1))
+    for (let i = LADDER_BOTTOM + 1; i <= LADDER_TOP; i++) {
+      expect(ladderScale(i)).toBeGreaterThan(ladderScale(i - 1))
+    }
+  })
+
+  it('puan basamakla ölçeklenir: başlangıç ×1, tam hasar ×2, taban ×0,4 (O4)', () => {
+    const w = createWorld('metehan')
+    const points = (step: number) => {
+      w.assist = ladderScale(step)
+      return wavesScenario().points(w, 100)
+    }
+    expect(points(0)).toBe(100)
+    expect(points(LADDER_TOP)).toBe(200)
+    expect(points(LADDER_BOTTOM)).toBe(40)
+    for (let i = LADDER_BOTTOM + 1; i <= LADDER_TOP; i++) expect(points(i)).toBeGreaterThan(points(i - 1))
   })
 
   it('yıldız yarayı tam hasar karşılığıyla ölçer: merdiven basamağı yıldız vermez', () => {
@@ -202,11 +221,12 @@ describe('Metehan — kurallar', () => {
   it('boşta bekleyen oyuncu kazanamaz: sürü durana yüklenir', () => {
     // TASARIM Mantık 1: önceden düzenli sürü 9 adımda durur, boşta oyuncu hiç yara almazdı.
     const idle: WaveBot = () => ({ move: { x: 0, z: 0 }, strike: false })
-    for (const scale of [DAMAGE_LADDER[0], 1]) {
+    // Tabanda (0,2) bile yarım dakikada biter.
+    for (const scale of DAMAGE_LADDER) {
       const r = runWaves(idle, undefined, true, true, scale)
       expect(r.result).toBe('defeat')
       expect(r.health).toBeLessThanOrEqual(0)
-      expect(r.time).toBeLessThan(30)
+      expect(r.time).toBeLessThan(35)
     }
   })
 })
@@ -276,12 +296,38 @@ describe('Metehan — denge (olasılıksal bot ölçütleri)', () => {
     expect(expert.every((c) => c.firstWin === 1 && c.step === LADDER_TOP)).toBe(true)
   })
 
+  it('acemi tabanda kazanabilir; merdivenle Alp Arslan kapısı ilk denemelerde açılır', { timeout: 60000 }, () => {
+    // O3: yarı hasarda acemi 30 tohumda 0 zafer alıyordu. Ölçüm (5 Ekim 2026):
+    // tabanda 60 tohumda 26; merdivenle 20 acemi 3. dalgaya en geç 4.,
+    // ilk zafere en geç 8. denemede ulaştı.
+    const floor = seeds(30).filter(
+      (s) => runWaves(kiter(SKILLS.novice, s), undefined, true, true, ladderScale(LADDER_BOTTOM)).result === 'victory',
+    ).length
+    expect(floor).toBeGreaterThanOrEqual(6)
+
+    const career = (player: number) => {
+      let step = 0
+      let gate = -1
+      let firstWin = -1
+      for (let a = 0; a < 8; a++) {
+        const r = runWaves(kiter(SKILLS.novice, player * 100 + a), undefined, true, true, ladderScale(step))
+        if (r.wave >= 2 && gate < 0) gate = a + 1
+        if (r.result === 'victory' && firstWin < 0) firstWin = a + 1
+        step = nextLadderStep(step, r.result === 'victory')
+      }
+      return { gate, firstWin }
+    }
+    const novices = seeds(12).map(career)
+    expect(novices.every((c) => c.gate > 0 && c.gate <= 5)).toBe(true)
+    expect(novices.filter((c) => c.firstWin > 0).length).toBeGreaterThanOrEqual(10)
+  })
+
   it('yıldızlar beceriyi ayırır: 3. yıldız uzmanın bile her seferinde alamadığı an', { timeout: 30000 }, () => {
     // Yarı hasarda (herkesin başladığı basamak) 30 oyuncu. Taramada: uzman
     // 30 zaferin 28'i 2+, 13'ü 3 yıldız; iyi 19 zaferde 3 yıldız yok; orta 7
     // zaferin 1'i şanslı bir koşuyla 3.
     const stars = (skill: (typeof SKILLS)[keyof typeof SKILLS]) =>
-      seeds(30).map((s) => runWaves(kiter(skill, s), undefined, true, true, DAMAGE_LADDER[0]).stars)
+      seeds(30).map((s) => runWaves(kiter(skill, s), undefined, true, true, ladderScale(0)).stars)
     const count = (xs: number[], n: number) => xs.filter((x) => x >= n).length
 
     const expert = stars(SKILLS.expert)
