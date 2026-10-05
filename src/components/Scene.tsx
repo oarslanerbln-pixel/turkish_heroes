@@ -15,6 +15,7 @@ import { ChargeWarnings } from './ChargeWarnings'
 import { ArrowVolley } from './ArrowVolley'
 import { CrossbowVolleys } from './CrossbowVolleys'
 import { HunRing } from './HunRing'
+import { HilalVolley } from './HilalVolley'
 import { DustTrails } from './DustTrails'
 import { SteppeWind } from './SteppeWind'
 import { DayCycle } from './DayCycle'
@@ -165,9 +166,10 @@ export function Scene() {
               <ArrowVolley />
             </>
           )}
-          {/* Metehan'ın son dalgası Baideng: Han yaylımı ve dört renkli çember. */}
+          {/* Metehan: VUR'da Mete'nin okçuları; son dalga Baideng: Han yaylımı ve dört renkli çember. */}
           {commander === 'metehan' && (
             <>
+              <HilalVolley />
               <CrossbowVolleys />
               <HunRing />
             </>

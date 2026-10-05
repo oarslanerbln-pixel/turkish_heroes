@@ -27,20 +27,48 @@ export const ARROW_MAX = 4
 export const ARROW_SLOWMO = 0.2
 
 /**
- * Kameranın oka uzaklığı ve okun üstündeki yüksekliği: kalkışta yakın ve
- * alçak, saplanırken geri ve yukarı. Vuruş yeri saflığın içinde; alçakta
- * kalan kamera atlıların gövdesine gömülüyordu.
+ * Kameranın oka göre duruşu, kalkıştan (from) saplanışa (to). Uzaklık ve
+ * okun üstündeki yükseklik: kalkışta yakın ve alçak, saplanırken geri ve
+ * yukarı. Açı okun çevresinde (0 = tam arkası): arkadan başlar, yana döner;
+ * öne geçmez, önü düşman saflığı.
  */
-const RADIUS_FROM = 3.2
-const RADIUS_TO = 6.5
-const HEIGHT_FROM = 0.9
-const HEIGHT_TO = 4.5
+export interface ChaseFraming {
+  radiusFrom: number
+  radiusTo: number
+  heightFrom: number
+  heightTo: number
+  orbitFrom: number
+  orbitTo: number
+}
+
+const DEG = Math.PI / 180
+
 /**
- * Kameranın okun çevresindeki açısı (0 = tam arkası). Arkadan başlar, yana
- * döner; öne geçmez, önü düşman saflığı.
+ * Taciz oku. Vuruş yeri saflığın içinde; alçakta kalan kamera atlıların
+ * gövdesine gömülüyordu.
  */
-const ORBIT_FROM = (10 * Math.PI) / 180
-const ORBIT_TO = (90 * Math.PI) / 180
+export const ARROW_FRAMING: ChaseFraming = {
+  radiusFrom: 3.2,
+  radiusTo: 6.5,
+  heightFrom: 0.9,
+  heightTo: 4.5,
+  orbitFrom: 10 * DEG,
+  orbitTo: 90 * DEG,
+}
+
+/**
+ * Hilal yaylımı: okçular yan yana dörtnala gelir; okun hemen ardındaki alçak
+ * kamera yanındaki atlının sırtına gömülüyordu. Kalkışta okçu sırasının
+ * üstünden, biraz yandan bakar: bırakan okçular ve önlerindeki düşman bir arada.
+ */
+export const VOLLEY_FRAMING: ChaseFraming = {
+  radiusFrom: 5,
+  radiusTo: 6.5,
+  heightFrom: 2.4,
+  heightTo: 4.5,
+  orbitFrom: 25 * DEG,
+  orbitTo: 90 * DEG,
+}
 /** Uçarken bakış okun bu kadar önünde: okun nereye gittiği görünsün. */
 const LOOK_AHEAD = 1.4
 /** Kamera zeminin en az bu kadar üstünde (geçitte duvar, tepeler). */
@@ -122,21 +150,29 @@ const vel = new Vector3()
 /**
  * Okun çevresindeki kamera duruşu. Uçuş ilerledikçe kamera arkadan yana
  * döner; ok saplanınca (yay sonu) duruş sabitlenir ve vuruş yerine bakar.
+ * Ok henüz yaydaysa (yaşı eksi) kamera okçunun omzunda bekler.
  */
-export function arrowChasePose(arrow: Arrow, side: number, pass: boolean, out: Pose): Pose {
-  arrowPose(arrow, pos, vel)
-  const p = smoothstep(arrow.age / ARROW_FLIGHT)
+export function arrowChasePose(
+  arrow: Arrow,
+  side: number,
+  pass: boolean,
+  out: Pose,
+  flight = ARROW_FLIGHT,
+  framing: ChaseFraming = ARROW_FRAMING,
+): Pose {
+  arrowPose(arrow, pos, vel, flight)
+  const p = smoothstep(arrow.age / flight)
   const len = Math.hypot(arrow.tx - arrow.sx, arrow.tz - arrow.sz) || 1
   const fx = (arrow.tx - arrow.sx) / len
   const fz = (arrow.tz - arrow.sz) / len
-  const angle = ORBIT_FROM + (ORBIT_TO - ORBIT_FROM) * p
-  const radius = RADIUS_FROM + (RADIUS_TO - RADIUS_FROM) * p
+  const angle = framing.orbitFrom + (framing.orbitTo - framing.orbitFrom) * p
+  const radius = framing.radiusFrom + (framing.radiusTo - framing.radiusFrom) * p
   const back = Math.cos(angle) * radius
   const across = Math.sin(angle) * radius * side
   // Yan vektörü (−fz, fx): uçuş yönünün solu.
   out.pos.set(
     pos.x - fx * back - fz * across,
-    pos.y + HEIGHT_FROM + (HEIGHT_TO - HEIGHT_FROM) * p,
+    pos.y + framing.heightFrom + (framing.heightTo - framing.heightFrom) * p,
     pos.z - fz * back + fx * across,
   )
   out.pos.y = Math.max(out.pos.y, terrainHeight(out.pos.x, out.pos.z, pass) + GROUND_CLEARANCE)

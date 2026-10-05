@@ -8,6 +8,7 @@ import { isPlaying, simDelta, world } from '../sim/world'
 import { scenarioOf } from '../sim/scenarios'
 import { buildHorseGeometry, buildRiderGeometry, buildStandardGeometry } from '../characters/riderGeometry'
 import { CHARGE_COLOR as CHARGE } from './palette'
+import { VOLLEY_DEATH_TIME, fallState, volley } from './volleyPlan'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
 const ENEMY_PRIORITY = 1
@@ -69,6 +70,8 @@ export function EnemySwarm() {
   const headings = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
   const deathAge = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
   const lastWave = useRef<Enemy[] | null>(null)
+  /** Yaylımdaki düşenin çizildiği yer (bkz. volleyPlan.fallState). */
+  const fallAt = useMemo(() => ({ x: 0, z: 0 }), [])
 
   // Renk buffer'ı ilk karede yazılmazsa örnekler siyah görünür.
   useLayoutEffect(() => {
@@ -115,14 +118,18 @@ export function EnemySwarm() {
 
     for (let i = 0; i < n; i++) {
       const e = world.enemies[i]
+      // Metehan'da düşen okunu bekler: oku saplanana dek koşar, sonra orada devrilir.
+      const shot = e.alive || e.fled ? 'none' : fallState(volley, world.enemies, i, fallAt)
 
-      if (e.alive) {
+      if (e.alive || shot === 'pending') {
         const speed = Math.hypot(e.vel.x, e.vel.z)
         // Duruyorsa kendi son yönünü korur.
         if (speed > 0.05) headings[i] = Math.atan2(e.vel.x, e.vel.z)
         const gait = Math.min(1, speed / 3)
         const phase = time * GALLOP_RATE + i * 1.7
-        dummy.position.set(e.pos.x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, e.pos.z)
+        const x = e.alive ? e.pos.x : fallAt.x
+        const z = e.alive ? e.pos.z : fallAt.z
+        dummy.position.set(x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, z)
         dummy.rotation.set(Math.sin(phase) * GALLOP_PITCH * gait, headings[i], 0)
         dummy.scale.setScalar(e.emperor ? EMPEROR_SCALE : 1)
       } else if (e.fled) {
@@ -133,15 +140,18 @@ export function EnemySwarm() {
         // dt hitstop'ta sıfır: vuruş anında dik durur, donma bitince devrilir.
         deathAge[i] += dt
         const age = deathAge[i]
-        if (age >= DEATH_TIME) {
+        const end = shot === 'landed' ? VOLLEY_DEATH_TIME : DEATH_TIME
+        if (age >= end) {
           // Sahneden çıkarmanın en ucuz yolu: sıfır ölçek.
           dummy.position.set(0, -100, 0)
           dummy.scale.setScalar(0)
         } else {
           const fall = Math.min(1, age / FALL_TIME)
-          const sink = Math.max(0, (age - FALL_TIME) / (DEATH_TIME - FALL_TIME))
+          const sink = Math.max(0, (age - FALL_TIME) / (end - FALL_TIME))
           const side = i % 2 === 0 ? 1 : -1
-          dummy.position.set(e.pos.x, -sink * 1.2, e.pos.z)
+          const x = shot === 'landed' ? fallAt.x : e.pos.x
+          const z = shot === 'landed' ? fallAt.z : e.pos.z
+          dummy.position.set(x, -sink * 1.2, z)
           dummy.rotation.set(0, headings[i], side * fall * fall * (Math.PI / 2))
           dummy.scale.setScalar(1)
         }

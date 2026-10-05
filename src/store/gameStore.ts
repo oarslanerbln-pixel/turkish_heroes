@@ -63,6 +63,9 @@ export interface HudSnapshot {
   blockade: number // geçit: kaya yığınının kalan sağlamlığı 0–1 (yoksa 0)
 }
 
+/** Arayüzü bekleten sinematik çekim (bkz. GameState.cinematic). */
+export type Cinematic = 'opening' | 'volley'
+
 interface GameState extends HudSnapshot {
   /** Akış — world.mode'un sunum kopyası; kare döngüsü, girdi ve HUD bundan türer. */
   mode: FlowMode
@@ -78,10 +81,11 @@ interface GameState extends HudSnapshot {
    */
   reducedMotion: boolean
   /**
-   * Savaş açılış çekimi sürüyor: sinema şeritleri iner, savaş arayüzü bekler.
-   * Yazarı CameraDirector; atlanınca ya da çekim bitince kalkar.
+   * Sinematik çekim sürüyor: sinema şeritleri iner, savaş arayüzü bekler.
+   * 'opening' savaş açılışı, 'volley' hilal yaylımı. Yazarı CameraDirector;
+   * atlanınca ya da çekim bitince kalkar.
    */
-  cinematic: boolean
+  cinematic: Cinematic | null
   /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
   archive: CommanderId | null
   syncHud: (snapshot: HudSnapshot) => void
@@ -185,8 +189,8 @@ function entryCue(id: CommanderId): CameraCue {
  * Açılış uçuşu oynayacak mı. Şeritler savaşın ilk render'ında insin: yoksa
  * arayüz bir kare görünüp kaybolurdu. Sonrasını CameraDirector sürdürür.
  */
-function flies(reducedMotion: boolean): boolean {
-  return world.cameraCue === 'opening' && !reducedMotion
+function flies(reducedMotion: boolean): Cinematic | null {
+  return world.cameraCue === 'opening' && !reducedMotion ? 'opening' : null
 }
 
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
@@ -203,7 +207,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   haptics: hapticsEnabled(),
   hurtPulse: 0,
   reducedMotion: reducedMotionQuery?.matches ?? false,
-  cinematic: false,
+  cinematic: null,
   archive: null,
 
   // Mod da her eşitlemede kopyalanır: savaşın bittiği kare sonucu ve karneyi

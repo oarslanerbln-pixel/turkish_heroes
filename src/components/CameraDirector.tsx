@@ -4,8 +4,11 @@ import { Vector3 } from 'three'
 import { isPlaying, newBattleWatch, world } from '../sim/world'
 import { useGameStore } from '../store/gameStore'
 import { arrows } from './arrowPool'
+import { VOLLEY_FLIGHT, volley } from './volleyPlan'
 import {
+  ARROW_MAX,
   ARROW_SLOWMO,
+  VOLLEY_FRAMING,
   arrowChasePose,
   arrowDone,
   arrowHolding,
@@ -36,6 +39,9 @@ import { SHOT_POSE, SHOT_POSES } from '../shot'
 
 // Görsellerden (3) sonra, sarsıntıdan (6) ve çizimden (10) önce.
 const CAMERA_PRIORITY = 5
+
+/** Yaylım çekiminde oyuncu sürmeyi bırakmasın: bu tuşlar çekimi geçmez. */
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
 
 /**
  * Açılış: ordugahın ardından, alçaktan ufka. Ordugah ön planı çerçeveler,
@@ -81,8 +87,12 @@ export function CameraDirector() {
   const started = useMemo(() => ({ value: false }), [])
   const shot = useMemo(() => createShotState(pose()), [])
   const arrowShot = useMemo(createArrowShot, [])
+  /** Yaylım çekimi ok kamerasının eğrisini kullanır; ok havuzda değil, yaylımda. */
+  const volleyShot = useMemo(createArrowShot, [])
   /** Oyuncu çekim sırasında dokundu ya da tuşa bastı: çekim atlanır. */
   const skip = useMemo(() => ({ value: false }), [])
+  /** Hareket tuşu: yaylım dışındaki çekimleri atlar. */
+  const move = useMemo(() => ({ value: false }), [])
   const cine = useMemo(pose, [])
   /** Bu karenin duruşu; bir sonraki karede kesilen çekimin geçiş başlangıcı. */
   const out = useMemo(pose, [])
@@ -95,7 +105,9 @@ export function CameraDirector() {
     }
     // Basılı tutulan tuşun tekrarı yeni bir istek değil.
     const onKey = (e: KeyboardEvent) => {
-      if (!e.repeat) skip.value = true
+      if (e.repeat) return
+      if (MOVE_KEYS.has(e.code)) move.value = true
+      else skip.value = true
     }
     window.addEventListener('pointerdown', onPointer, true)
     window.addEventListener('keydown', onKey, true)
@@ -103,7 +115,7 @@ export function CameraDirector() {
       window.removeEventListener('pointerdown', onPointer, true)
       window.removeEventListener('keydown', onKey, true)
     }
-  }, [skip])
+  }, [skip, move])
 
   useFrame(({ camera }, delta) => {
     const dt = Math.min(delta, 0.1)
@@ -122,9 +134,9 @@ export function CameraDirector() {
 
     // Çekim girdiyi kilitlemez; oyuncu yeni bir dokunuşla geri alır. Çekimden
     // önceki dokunuş sayılmaz (SAVAŞA GİR'in kendisi açılışı atlamasın).
-    if (skip.value) {
-      skip.value = false
-      if (isPlaying()) skipShot(shot, out)
+    if (skip.value || move.value) {
+      if (isPlaying() && (skip.value || shot.cue !== 'volley')) skipShot(shot, out)
+      skip.value = move.value = false
     }
 
     // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
@@ -157,6 +169,20 @@ export function CameraDirector() {
       }
     }
 
+    // Önemli yaylımda kamera okçunun omzuna iner ve oku saplandığı yere dek izler.
+    // Süren çekimi kesmez.
+    if (volley.cue) {
+      volley.cue = false
+      if (isPlaying() && !reducedMotion && !shot.cue && volley.hero >= 0) {
+        const hero = volley.shots[volley.hero].arrow
+        volleyShot.slot = volley.hero
+        volleyShot.t0 = hero.t0
+        volleyShot.landedAt = null
+        volleyShot.side = hero.tx >= hero.sx ? 1 : -1
+        startShot(shot, 'volley', out)
+      }
+    }
+
     out.pos.copy(smooth).add(TACTICAL_OFFSET)
     out.look.copy(smooth)
 
@@ -180,6 +206,20 @@ export function CameraDirector() {
       out.pos.lerp(cine.pos, weight)
       out.look.lerp(cine.look, weight)
       if (arrowDone(arrowShot, shot.t)) shot.cue = null
+    } else if (shot.cue === 'volley') {
+      shot.t += dt
+      const hero = volley.shots[volleyShot.slot]
+      // Yeni yaylım okun yerini aldıysa kamera son duruşunda bekler.
+      const tracked = arrowTracked(volleyShot, hero.arrow)
+      if (volleyShot.landedAt === null && (!tracked || hero.landed || shot.t >= ARROW_MAX)) {
+        volleyShot.landedAt = shot.t
+      }
+      if (tracked) arrowChasePose(hero.arrow, volleyShot.side, false, cine, VOLLEY_FLIGHT, VOLLEY_FRAMING)
+      weight = arrowWeight(volleyShot, shot.t)
+      if (arrowHolding(volleyShot, shot.t)) world.slowmo = Math.max(world.slowmo, ARROW_SLOWMO)
+      out.pos.lerp(cine.pos, weight)
+      out.look.lerp(cine.look, weight)
+      if (arrowDone(volleyShot, shot.t)) shot.cue = null
     } else if (shot.cue) {
       // Gerçek zaman: gün batımının ağır çekimi çekimi uzatmasın.
       shot.t += dt
@@ -202,8 +242,8 @@ export function CameraDirector() {
       if (shotDone(shot.cue, shot.t)) shot.cue = null
     }
     if (shot.cue !== 'arrow') endArrow(arrowShot, arrows)
-    // Açılış sürerken sinema şeritleri iner, savaş arayüzü bekler (HUD).
-    const cinematic = shot.cue === 'opening'
+    // Açılışta ve yaylımda sinema şeritleri iner, savaş arayüzü bekler (HUD).
+    const cinematic = shot.cue === 'opening' || shot.cue === 'volley' ? shot.cue : null
     if (cinematic !== useGameStore.getState().cinematic) useGameStore.setState({ cinematic })
     applyBlend(shot, dt, out)
     // Sinematik kadrajda ordugah ön planı çerçeveler; taktikte HUD'un arkasında incelir.
