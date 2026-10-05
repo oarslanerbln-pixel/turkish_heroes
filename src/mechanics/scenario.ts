@@ -23,6 +23,15 @@ export interface CommanderInfo {
   axis: 'NASIL' | 'NE ZAMAN' | 'NEREDE'
   /** Eksenin sorusu — menüdeki brifingin başlığı. */
   question: string
+  /** Brifingi açan tarih gerçeği (HIKAYE.md §5); en çok iki satır. */
+  context: string
+  /**
+   * Anlatıcı Aydoğdu'nun brifing satırı: oyuncu hikâyeyi oynamadan önce. Kurgu
+   * bir derviş-ozanın kendi sözü; kaynaktaki olayı anlatır, söz uydurmaz.
+   */
+  narrator: string
+  /** Aydoğdu'nun sonuç ekranındaki satırı: erdemin adı sonradan konur. */
+  outcome: { victory: string; defeat: string }
   /** Başlangıç ekranındaki üç adım. */
   steps: readonly { title: string; text: string }[]
   /** Klavyede bu savaşa özgü tuşlar (dokunmatikte düğmeler zaten ekranda). */
@@ -35,9 +44,15 @@ export const COMMANDERS: readonly CommanderInfo[] = [
   {
     id: 'metehan',
     name: 'Metehan',
-    battle: 'Hilal taktiği · MÖ 209',
+    battle: 'Hilal taktiği · MÖ 209–200',
     axis: 'NASIL',
     question: 'Düşmanı nasıl kuşatırsın?',
+    context: 'MÖ 209: Modu Hun tahtına çıktı; Türk tarih geleneği ona Mete Han der.',
+    narrator: 'Atını da eşini de verdi; toprak istenince atlandı. Sabır, zamanı bilmektir.',
+    outcome: {
+      victory: 'Yay ancak gerilince ok atar. Gerilmeyi bilen kazandı.',
+      defeat: 'Erken bırakılan ok boşa gider. Bir daha dene; bu sefer bekle.',
+    },
     steps: [
       { title: '1 · Çekil', text: 'Kaçıyormuş gibi yap. Düşman peşine düştükçe düzeni bozulur.' },
       { title: '2 · Topla', text: 'Düzeni bozulan düşman kümelenir. Hilal enerjisi böyle dolar.' },
@@ -50,6 +65,12 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     battle: 'Malazgirt · 1071',
     axis: 'NE ZAMAN',
     question: 'Hilali ne zaman kapatırsın?',
+    context: "26 Ağustos 1071: Alp Arslan, Romanos Diogenes'i Malazgirt'te karşıladı.",
+    narrator: 'Cuma vaktini bekledi; elinden geleni yaptı, gerisini bıraktı.',
+    outcome: {
+      victory: 'Elinden geleni yaptın; gerisini akşam getirdi.',
+      defeat: 'Akşamı bekleyemeyen, sabahın zaferini de göremez.',
+    },
     keys: 'Q / E: kol emirleri',
     unlockedBy: 'metehan',
     steps: [
@@ -64,6 +85,12 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     battle: 'Miryokefalon · 1176',
     axis: 'NEREDE',
     question: 'Yolu nerede kesersin?',
+    context: "17 Eylül 1176: İmparator Manuel, Miryokefalon'da Tzivritze geçidine girdi.",
+    narrator: 'Sultan kolu dar yerde bekledi. Asıl sınav savaştan sonra geldi.',
+    outcome: {
+      victory: 'Güç elindeyken durmayı bilen, iki kez kazanır.',
+      defeat: 'Darda düzen tutulmaz; ama acele eden de darda kalır.',
+    },
     keys: 'R: yolu kes · Q / E: yamaçlar',
     unlockedBy: 'alp-arslan',
     steps: [

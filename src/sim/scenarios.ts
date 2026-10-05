@@ -255,7 +255,7 @@ const EVENT_TEXT: Record<BattleEvent, string> = {
 /** Miryokefalon'da aynı olayın geçitteki anlatımı. */
 const PASS_TEXT: Partial<Record<BattleEvent, string>> = {
   emperorExposed: 'Manuel açıkta — muhafızları sıkıştı!',
-  emperorCaptured: 'Manuel barış istedi',
+  emperorCaptured: 'Manuel kuşatıldı — sultan barış önerdi',
   wingShockLeft: 'Sol yamaç sıkışan kola indi!',
   wingShockRight: 'Sağ yamaç sıkışan kola indi!',
   wingTiredLeft: 'Sol yamaç yoruldu — sırta dönüyor',
