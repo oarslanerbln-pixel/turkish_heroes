@@ -10,6 +10,7 @@ import { OutcomeScreen } from './OutcomeScreen'
 import { PauseScreen } from './PauseScreen'
 import { RotateOverlay } from './RotateOverlay'
 import { StartScreen } from './StartScreen'
+import { TitleScreen } from './TitleScreen'
 import { Ornament } from './Ornament'
 import { SettingsButtons } from './SettingsButtons'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
@@ -49,7 +50,6 @@ const PHASE_COLOR: Record<HilalPhase, string> = {
   strike: '#ff5a1a',
 }
 
-/** Dalga bannerının alt satırı — oyuncuya neyin değiştiğini söyler. */
 /**
  * Dalga başlığının alt satırı: Mete'nin seferleri Shiji 110'daki sırayla
  * (doğuda Donghu, batıda Yüeçi, güneyde Loufan ve Baiyang, sonra Baideng)
@@ -73,27 +73,44 @@ export function HilalEnergyHUD() {
   const waveIndex = useGameStore((s) => s.waveIndex)
   const battle = useGameStore((s) => s.commander !== 'metehan')
   const pass = useGameStore((s) => s.commander === 'kilicarslan')
+  const cinematic = useGameStore((s) => s.cinematic)
+  const title = useGameStore((s) => s.title)
   const [touch] = useState(isTouchDevice)
   const portrait = usePortraitPhone()
 
-  if (mode === 'menu') return <StartScreen touch={touch} />
+  // Giriş ekranı solarken menü altında kurulmuş olsun.
+  if (mode === 'menu')
+    return (
+      <>
+        {title !== 'open' && <StartScreen touch={touch} />}
+        {title !== 'closed' && <TitleScreen touch={touch} />}
+      </>
+    )
   // Savaş sürüyor (molada da): sonuç gelene kadar savaş arayüzü yerinde.
   const live = mode !== 'outcome'
   const paused = mode === 'paused'
 
   return (
-    <div className={`hud${touch ? ' is-touch' : ''}${paused ? ' is-paused' : ''}`}>
+    <div className={`hud${touch ? ' is-touch' : ''}${paused ? ' is-paused' : ''}${cinematic ? ' is-cinematic' : ''}`}>
       {live && <HurtFlash />}
-      <StatusCard />
-      <Corner />
-      <EnergyPanel touch={touch} />
-      {touch && live && <TouchStrikeButton />}
-      {battle && live && <DayLine pass={pass} />}
-      {battle && live && <WingButtons touch={touch} pass={pass} />}
+      {/* Açılış çekiminde savaş arayüzü şeritlerin ardında bekler, çekim bitince belirir. */}
+      <div className="hud-controls">
+        <StatusCard />
+        <Corner />
+        <EnergyPanel touch={touch} />
+        {touch && live && <TouchStrikeButton />}
+        {battle && live && <DayLine pass={pass} />}
+        {battle && live && <WingButtons touch={touch} pass={pass} />}
+      </div>
+      {live && <Letterbox touch={touch} on={cinematic} />}
       {live && <Announcement />}
       {/* key ile her yeni dalgada yeniden mount olur, CSS animasyonu baştan oynar. */}
       {live &&
-        (battle ? <BattleBanner pass={pass} /> : <WaveBanner key={waveIndex} index={waveIndex} />)}
+        (battle ? (
+          <BattleBanner pass={pass} opening={cinematic} />
+        ) : (
+          <WaveBanner key={waveIndex} index={waveIndex} opening={cinematic} />
+        ))}
       {paused && <PauseScreen touch={touch} />}
       {!live && outcome !== 'playing' && <OutcomeScreen outcome={outcome} />}
       {touch && portrait && live && <RotateOverlay />}
@@ -383,9 +400,35 @@ function Announcement() {
   )
 }
 
-function BattleBanner({ pass }: { pass: boolean }) {
+/**
+ * Sinema şeritleri: savaş açılışında üstten ve alttan kayarak iner (MIMARI.md
+ * §8). DOM'da çizilir, sahnenin efekt zincirine dokunmaz (G3). Alt şeritte
+ * atlama ipucu: herhangi bir dokunuş ya da tuş çekimi geçer, girdi kilitlenmez.
+ */
+function Letterbox({ touch, on }: { touch: boolean; on: boolean }) {
   return (
-    <div className="wave-banner">
+    <div className={`letterbox${on ? ' is-on' : ''}`} aria-hidden="true">
+      <div className="letterbox-bar" />
+      <div className="letterbox-bar">
+        <span className="letterbox-skip">{touch ? 'Geçmek için dokun' : 'Geçmek için bir tuşa bas'}</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Açılış çekiminde afiş tarih kartı olur: alt üçte birde, çekim boyunca durur.
+ * Sınıf takıldığı anda sabitlenir: çekim atlanınca kart yerinden sıçramaz, söner.
+ */
+function useBannerClass(opening: boolean): string {
+  const [card] = useState(opening)
+  return card ? 'wave-banner is-opening' : 'wave-banner'
+}
+
+function BattleBanner({ pass, opening }: { pass: boolean; opening: boolean }) {
+  const className = useBannerClass(opening)
+  return (
+    <div className={className}>
       <h2>{pass ? 'MİRYOKEFALON' : 'MALAZGİRT'}</h2>
       <Ornament width={200} />
       <p>
@@ -422,9 +465,10 @@ function BlockadeButton({ touch }: { touch: boolean }) {
   )
 }
 
-function WaveBanner({ index }: { index: number }) {
+function WaveBanner({ index, opening }: { index: number; opening: boolean }) {
+  const className = useBannerClass(opening)
   return (
-    <div className="wave-banner">
+    <div className={className}>
       <h2>{index + 1}. DALGA</h2>
       <Ornament width={200} />
       <p>{WAVE_HINT[index] ?? ''}</p>

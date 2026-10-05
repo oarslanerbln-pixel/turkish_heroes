@@ -363,7 +363,7 @@ function battleDebrief(s: BattleSummary): Debrief {
 
   if (captured) {
     return {
-      headline: 'İmparator Romanos Diogenes esir alındı; ordu teslim oldu.',
+      headline: 'İmparator Romanos Diogenes esir alındı; ordusu dağıldı.',
       close: false,
       peak,
       advice: {
@@ -597,7 +597,7 @@ function passDebrief(s: BattleSummary): Debrief {
 
   const captured = s.stars >= 3
   let peak: string | null = null
-  if (captured) peak = 'Manuel barış istedi: savaşı tek hilal bitirdi.'
+  if (captured) peak = 'Sultan barış önerdi: savaşı tek hilal bitirdi.'
   else if (peakStrike) peak = `En büyük hilalin: tek vuruşta ${peakStrike.kills} asker`
 
   const nightAt = COLUMN_CONFIG.nightAt
@@ -637,7 +637,7 @@ function passDebrief(s: BattleSummary): Debrief {
 
   if (captured) {
     return {
-      headline: 'Manuel Komnenos barış istedi; ordu geçitten geri döndü.',
+      headline: 'Sultan barış önerdi, Manuel kabul etti; ordu geçitten geri döndü.',
       close: false,
       peak,
       advice: {

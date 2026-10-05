@@ -20,7 +20,7 @@ import type { WorldEvent } from './events'
 import { canEnter, type FlowMode } from './flow'
 
 /** Kameraya tek seferlik işaret (bkz. components/cameraShots.ts). */
-export type CameraCue = 'intro' | 'dusk' | 'encircle'
+export type CameraCue = 'intro' | 'opening' | 'dusk' | 'encircle'
 
 /**
  * Ok kamerası isteği (bkz. components/arrowShot.ts): oyuncunun bu birliğe

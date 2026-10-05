@@ -410,6 +410,7 @@ describe('savaş karnesi — Miryokefalon', () => {
       { best: 0 },
     )
     expect(three.advice.id).toBe('mastery')
-    expect(three.peak).toContain('Manuel')
+    // T1: Khoniates'te barışı galip sultan önerir.
+    expect(three.peak).toContain('Sultan barış önerdi')
   })
 })

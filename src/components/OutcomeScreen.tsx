@@ -6,6 +6,7 @@ import { LORE, type LoreCard } from '../lore/lore'
 import { earnedLore, reachedBaideng } from '../sim/progress'
 import { BAIDENG_WAVE, retryWave } from '../mechanics/waves'
 import { Ornament } from './Ornament'
+import { Narrator } from './Narrator'
 import { StarIcon } from './icons'
 import { exportTelemetry, loggedBattles, TELEMETRY_DEBUG } from '../telemetry/track'
 import { DataConsent } from './DataConsent'
@@ -71,6 +72,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
           {report?.headline ?? (isVictory ? 'Zafer.' : 'Yenilgi.')}
         </div>
         {captured && <div className="epilogue">{EPILOGUE[commander]}</div>}
+        <Narrator text={commanderInfo(commander).outcome[outcome]} className="outcome-narrator" />
 
         <div className="outcome-scroll">
           <div className="result-stats">
@@ -138,8 +140,7 @@ export function OutcomeScreen({ outcome }: { outcome: 'victory' | 'defeat' }) {
 /** Üç yıldızın (imparator / Manuel) tarihteki sonucu. */
 const EPILOGUE: Partial<Record<string, string>> = {
   'alp-arslan': 'Alp Arslan esir imparatora iyi davrandı ve bir antlaşmayla onu serbest bıraktı.',
-  kilicarslan:
-    "Manuel barış istedi ve sınır kalelerini yıkmayı kabul etti. Miryokefalon'la Anadolu'nun Türk yurdu olduğu kesinleşti.",
+  kilicarslan: 'Sultan barış önerdi; Manuel sınır kalelerini yıkmayı kabul edip ordusunu geri çekti.',
 }
 
 /**

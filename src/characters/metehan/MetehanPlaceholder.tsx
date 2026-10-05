@@ -1,8 +1,15 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Group } from 'three'
+import { Group, MeshStandardMaterial } from 'three'
 import { isPlaying, world } from '../../sim/world'
 import { buildHorseGeometry, buildRiderGeometry } from '../riderGeometry'
+import { applyUnitShading } from '../../components/world/unitShading'
+import {
+  CONTACT_SHADOW_ORDER,
+  CONTACT_SHADOW_SCALE,
+  contactShadowGeometry,
+  contactShadowMaterial,
+} from '../../components/world/contactShadow'
 import { hoofbeat } from '../../audio/ambience'
 
 // Metehan'ın gerçek 3D modeli gelene kadar ilkel şekillerden süvari
@@ -24,6 +31,13 @@ export function MetehanPlaceholder() {
   const strideRef = useRef(0)
   const horse = useMemo(() => buildHorseGeometry('hero'), [])
   const rider = useMemo(() => buildRiderGeometry('hero'), [])
+  const [horseMaterial, riderMaterial] = useMemo(() => {
+    const h = new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })
+    const r = new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15 })
+    applyUnitShading(h)
+    applyUnitShading(r)
+    return [h, r]
+  }, [])
 
   useFrame(() => {
     if (!isPlaying()) {
@@ -58,13 +72,16 @@ export function MetehanPlaceholder() {
     <group ref={groupRef}>
       {/* Görsel temel ölçümü yalnız binici ve atı sayar, zemin halkasını değil (bkz. ArtProbe). */}
       <group ref={bodyRef} userData={{ unit: 'player' }}>
-        <mesh geometry={horse} castShadow>
-          <meshStandardMaterial vertexColors roughness={0.8} />
-        </mesh>
-        <mesh geometry={rider} castShadow>
-          <meshStandardMaterial vertexColors roughness={0.55} metalness={0.15} />
-        </mesh>
+        <mesh geometry={horse} material={horseMaterial} castShadow />
+        <mesh geometry={rider} material={riderMaterial} castShadow />
       </group>
+      {/* Temas gölgesi gövdeyle zıplamaz, yerde kalır. */}
+      <mesh
+        geometry={contactShadowGeometry()}
+        material={contactShadowMaterial()}
+        scale={CONTACT_SHADOW_SCALE}
+        renderOrder={CONTACT_SHADOW_ORDER}
+      />
       {/* Zemin halkası: kahraman kalabalığın içinde tek bakışta bulunsun. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
         <ringGeometry args={[0.95, 1.15, 40]} />

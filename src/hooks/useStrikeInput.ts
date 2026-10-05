@@ -26,6 +26,8 @@ export function useStrikeInput() {
         return
       }
       const menu = useGameStore.getState()
+      // Giriş ekranı kendi tuşunu dinler (TitleScreen); menünün tuşları uyusun.
+      if (menu.mode === 'menu' && menu.title !== 'closed') return
       // Bilgi Hazinesi kendi tuşlarını yönetir (oklar, Enter odaktaki düğmede);
       // burada yalnızca Esc: kapat. Enter savaşı başlatmasın.
       if (menu.mode === 'menu' && menu.archive) {

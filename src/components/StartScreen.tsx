@@ -5,6 +5,7 @@ import { bestStars, earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
 import { LockIcon, ScrollIcon, StarIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
+import { Narrator } from './Narrator'
 import { SeferMap } from './SeferMap'
 import { SettingsButtons } from './SettingsButtons'
 
@@ -86,15 +87,18 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
       <span className="brief-sub">
         {c.name} · {c.battle}
       </span>
-
-      <ol className="brief-steps">
-        {c.steps.map((s) => (
-          <li key={s.title}>
-            <b>{s.title}</b>
-            <span>{s.text}</span>
-          </li>
-        ))}
-      </ol>
+      <div className="brief-body">
+        <p className="brief-context">{c.context}</p>
+        <Narrator text={c.narrator} className="brief-narrator" />
+        <ol className="brief-steps">
+          {c.steps.map((s) => (
+            <li key={s.title}>
+              <b>{s.title}</b>
+              <span>{s.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       {available ? (
         <button className="primary-btn" onClick={start} autoFocus>
@@ -110,7 +114,7 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
         </div>
       )}
 
-      <div className="brief-foot">
+      <div className={touch ? 'brief-foot is-touch' : 'brief-foot'}>
         {/* Sıradaki yıldızın koşulu: tekrar oynayışın hedefi. İlk yıldız zaferin kendisi. */}
         {available && stars < 3 && (
           <span className="brief-goal">
@@ -118,7 +122,7 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
             {stars === 0 ? 'Zafer' : `${stars + 1}. yıldız`}: <b>{c.stars[stars]}</b>
           </span>
         )}
-        <span>{keys}</span>
+        <span className="brief-keys">{keys}</span>
         {available && (
           <span className="brief-record">
             <span title="Tarih notları">

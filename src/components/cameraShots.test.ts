@@ -7,12 +7,18 @@ import {
   DUSK_HOLD,
   DUSK_RISE,
   INTRO_TIME,
+  OPENING_PUSH,
+  OPENING_RISE,
+  OPENING_TIME,
   applyBlend,
   createShotState,
+  openingPose,
+  planOpening,
   shotDone,
   shotWeight,
   skipShot,
   startShot,
+  type OpeningPath,
   type Pose,
 } from './cameraShots'
 
@@ -26,6 +32,7 @@ function film(first: CameraCue, cutAt: number, blend: boolean, skipAt = Infinity
   const tactical = pose(0, 17, 22)
   const cine: Record<CameraCue, Pose> = {
     intro: pose(6, 5.5, 14),
+    opening: pose(6, 5.5, 14),
     dusk: pose(0, 9, 24),
     encircle: pose(0, 28, 22),
   }
@@ -71,6 +78,18 @@ describe('sinematik çekimler', () => {
     expect(shotDone('intro', INTRO_TIME)).toBe(true)
   })
 
+  it('savaş açılışı menü karesinde başlar, cephede bekler, R3 anından önce taktikte biter', () => {
+    expect(shotWeight('opening', 0)).toBe(1)
+    expect(shotWeight('opening', OPENING_RISE)).toBe(1)
+    expect(shotWeight('opening', (OPENING_RISE + OPENING_TIME) / 2)).toBeGreaterThan(0)
+    expect(shotWeight('opening', (OPENING_RISE + OPENING_TIME) / 2)).toBeLessThan(1)
+    expect(shotWeight('opening', OPENING_TIME)).toBe(0)
+    expect(shotDone('opening', OPENING_TIME - 0.01)).toBe(false)
+    expect(shotDone('opening', OPENING_TIME)).toBe(true)
+    // R3 referans anı (6 sn) taktik kadrajda çekilir; arayüzün belirmesi (0,6 sn) da sığar.
+    expect(OPENING_TIME + 0.6).toBeLessThan(6)
+  })
+
   it('gün batımı taktikten başlar, alçalır, bekler ve geri döner', () => {
     expect(shotWeight('dusk', 0)).toBe(0)
     expect(shotWeight('dusk', DUSK_RISE)).toBe(1)
@@ -82,7 +101,7 @@ describe('sinematik çekimler', () => {
   })
 
   it('ağırlık sıçramaz: ardışık karelerde küçük adımlarla değişir', () => {
-    for (const cue of ['intro', 'dusk'] as const) {
+    for (const cue of ['intro', 'opening', 'dusk'] as const) {
       let prev = shotWeight(cue, 0)
       for (let t = 1 / 60; t < 6; t += 1 / 60) {
         const w = shotWeight(cue, t)
@@ -120,5 +139,79 @@ describe('sinematik çekimler', () => {
     // Kesişten BLEND_TIME sonra kamera, aynı anda başlamış açılışla aynı yerde.
     const i = Math.round((1 + BLEND_TIME) * 60) + 1
     expect(frames[i].distanceTo(direct[i - 60])).toBeLessThan(1e-6)
+  })
+})
+
+describe('savaş açılışı uçuşu', () => {
+  const PLAYER = { x: 0, z: 0 }
+  const START: Pose = { pos: new Vector3(6, 5.5, 14), look: new Vector3(-6, 2, -36) }
+  /** Oyuncunun 40 birim önünde, altı sıra genişliğinde, dört sıra derin bir ordu. */
+  const ARMY = Array.from({ length: 24 }, (_, i) => ({
+    pos: { x: (i % 6) * 3 - 7.5, z: -40 - Math.floor(i / 6) * 4 },
+    alive: true,
+  }))
+
+  function plan(enemies: typeof ARMY): OpeningPath {
+    const path: OpeningPath = {
+      start: { pos: START.pos.clone(), look: START.look.clone() },
+      reveal: pose(0, 0, 0),
+      dir: new Vector3(),
+    }
+    planOpening(path, PLAYER, enemies)
+    return path
+  }
+
+  it('kamera öncünün önünde alçakta durur, ordunun ortasına bakar', () => {
+    const { reveal, dir } = plan(ARMY)
+    expect(dir.x).toBeCloseTo(0)
+    expect(dir.z).toBeCloseTo(-1)
+    expect(reveal.look.x).toBeCloseTo(0)
+    expect(reveal.look.z).toBeCloseTo(-46)
+    // Öncü z = -40: kamera onun oyuncu tarafında, ordunun içine gömülmez.
+    expect(reveal.pos.z).toBeGreaterThan(-40)
+    expect(reveal.pos.z).toBeLessThan(-20)
+    // Alçakta: ordu ufka karşı görünür.
+    expect(reveal.pos.y).toBeLessThan(START.pos.y)
+  })
+
+  it('geniş cephe çaprazdan görünür; dar kolda (geçit) kamera eksende kalır', () => {
+    const wide = plan(ARMY.map((e) => ({ ...e, pos: { x: e.pos.x * 2, z: e.pos.z } })))
+    const column = Array.from({ length: 20 }, (_, i) => ({
+      pos: { x: (i % 2) * 3 - 1.5, z: -20 - i * 1.5 },
+      alive: true,
+    }))
+    expect(wide.reveal.pos.x).toBeGreaterThan(3)
+    expect(Math.abs(plan(column).reveal.pos.x)).toBeLessThan(0.5)
+  })
+
+  it('düşen asker cepheyi çekmez; ordu yoksa menü karesinin baktığı yere uçar', () => {
+    const { reveal, dir } = plan(ARMY.map((e) => ({ ...e, alive: false })))
+    expect(reveal.look.x).toBeCloseTo(START.look.x)
+    expect(reveal.look.z).toBeCloseTo(START.look.z)
+    expect(dir.length()).toBeCloseTo(1)
+  })
+
+  it('uçuş menü karesinden kesmesiz kalkar, cephe karşısına varır, taktiğe sıçramadan döner', () => {
+    const path = plan(ARMY)
+    const cine = pose(0, 0, 0)
+    openingPose(path, 0, cine)
+    expect(cine.pos.distanceTo(START.pos)).toBeLessThan(1e-9)
+    expect(cine.look.distanceTo(START.look)).toBeLessThan(1e-9)
+    openingPose(path, OPENING_PUSH, cine)
+    // Varışta yalnızca cepheye doğru süzülme farkı kalır (0,8 b/sn).
+    expect(cine.pos.distanceTo(path.reveal.pos)).toBeLessThan(OPENING_PUSH)
+
+    const tactical = pose(0, 17, 22)
+    const out = pose(0, 0, 0)
+    const frames: Vector3[] = []
+    for (let t = 0; t <= OPENING_TIME + 1e-9; t += 1 / 60) {
+      openingPose(path, t, cine)
+      const w = shotWeight('opening', t)
+      out.pos.copy(tactical.pos).lerp(cine.pos, w)
+      frames.push(out.pos.clone())
+    }
+    expect(frames.at(-1)!.distanceTo(tactical.pos)).toBeLessThan(1e-6)
+    // En hızlı anda bile karede bir birimden az: uçuş, kesme değil.
+    expect(maxStep(frames)).toBeLessThan(1)
   })
 })
