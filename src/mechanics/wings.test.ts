@@ -11,8 +11,9 @@ import {
   safeHarasser,
   sweep,
   withWings,
+  type WingPolicy,
 } from './battleBots'
-import { nextOrder, orderWing, WING_CONFIG } from './wings'
+import { nextOrder, orderWing, WING_CONFIG, type WingOrder } from './wings'
 import type { Enemy, Vec2 } from './types'
 
 const DT = 1 / 60
@@ -26,6 +27,20 @@ function run(b: BattleState, enemies: Enemy[], seconds: number): void {
 }
 
 /** Gün batımından bir kare önce: sonraki adım dönüşü başlatır. */
+/** Gün batımından `delay` sn sonra iki kola HÜCUM; öncesinde pusu. */
+const lateCharge =
+  (delay: number): WingPolicy =>
+  (b) =>
+    b.time < b.layout.dayLength + delay ? ['ambush', 'ambush'] : ['charge', 'charge']
+
+/** Gündüz sabırsız; akşam yorgun kolu dinlendirir, gücü `ready`'ye varınca hücum. */
+const restAtDusk =
+  (ready: number): WingPolicy =>
+  (b) =>
+    b.time < b.layout.dayLength
+      ? ['charge', 'charge']
+      : b.wings.map((w): WingOrder => (w.order === 'charge' || w.strength >= ready ? 'charge' : 'ambush'))
+
 function atSunset(seed = 1) {
   const s = createBattle(seed)
   s.battle.time = BATTLE_CONFIG.dayLength - DT / 2
@@ -148,6 +163,22 @@ describe('Selçuklu kolları — denge (bot ölçütleri)', () => {
     expect(mean(provokerAmbush.map((r) => r.score))).toBeGreaterThan(
       mean(provoker.map((r) => r.score)),
     )
+  })
+
+  it('baskın tarif riskli: kolları gündüz tüketen imparatoru açamaz, pusudaki kollar açar (O1)', { timeout: 60000 }, () => {
+    const seeds = Array.from({ length: 30 }, (_, i) => i + 1)
+    const threeStars = (runs: { stars: number }[]) => runs.filter((r) => r.stars === 3).length / runs.length
+    const eager = threeStars(sweep(withWings(provokerBot, eagerWings), seeds))
+    const ambush = threeStars(sweep(withWings(provokerBot, ambushWings), seeds))
+    expect(eager).toBeLessThanOrEqual(0.7)
+    expect(ambush).toBeGreaterThanOrEqual(Math.max(eager, 0.7))
+  })
+
+  it('pencere insan tepkisine yeter; kolları akşam dinlendiren geç kalır', { timeout: 30000 }, () => {
+    const late = sweep(withWings(provokerBot, lateCharge(10)), SEEDS)
+    expect(late.filter((r) => r.stars === 3).length).toBeGreaterThanOrEqual(SEEDS.length / 2)
+    const rested = sweep(withWings(provokerBot, restAtDusk(0.5)), SEEDS)
+    expect(rested.every((r) => r.stars < 3)).toBe(true)
   })
 
   it('kolları gündüz tüketen akşamı zayıf karşılar', { timeout: 30000 }, () => {

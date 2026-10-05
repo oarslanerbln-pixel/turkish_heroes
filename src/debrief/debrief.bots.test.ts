@@ -7,7 +7,8 @@
 // oynuyor mu —
 //   useWings  → kolsuz tacizci < kolları akşama saklayan (wings.test.ts)
 //   saveWings → kolları gündüz tüketen < pusuda tutan (wings.test.ts)
-//   breakRear → güvenli tacizci 1–2 yıldız, artçıyı kışkırtan 3 yıldız (corps.test.ts)
+//   breakRear → güvenli tacizci 1–2 yıldız, artçıyı kışkırtıp kollarını saklayan 3 yıldız (wings.test.ts)
+//   closeWings → artçıyı kaçırıp kolları sürmeyen ≤ 2 yıldız, gün batımında hücum veren 3 yıldız (wings.test.ts)
 //   saveHilal → gündüz vuran açgözlü < hilali saklayan (corps.test.ts)
 //   waitReady → davranış zararsız ama mekaniğin anlaşılmadığını gösterir;
 //               tavsiye hilalin nasıl dolduğunu anlatır (nedensellik iddiası yok).
@@ -102,6 +103,17 @@ describe('savaş karnesi — bot türü başına tavsiye (Malazgirt)', () => {
     ]
     expect(runs.length).toBeGreaterThanOrEqual(8)
     expect(share(runs, 'breakRear')).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it('artçıyı kaçırıp imparatoru kaçıran: kolsuz "kollara HÜCUM ver", sabırsız "kolları sakla"', { timeout: 30000 }, () => {
+    const missed = (runs: Graded[]) => [...oneStar(runs), ...twoStars(runs)]
+    const idle = missed(battles(provokerBot, SEEDS))
+    expect(idle.length).toBeGreaterThanOrEqual(4)
+    expect(share(idle, 'useWings') + share(idle, 'closeWings')).toBeGreaterThanOrEqual(0.8)
+
+    const eager = missed(battles(withWings(provokerBot, eagerWings), SEEDS))
+    expect(eager.length).toBeGreaterThanOrEqual(4)
+    expect(share(eager, 'saveWings')).toBeGreaterThanOrEqual(0.8)
   })
 
   it('kışkırtıcı + pusudaki kollar: çoğunlukla ustalık', { timeout: 30000 }, () => {

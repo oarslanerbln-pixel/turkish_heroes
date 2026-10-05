@@ -280,12 +280,32 @@ describe('savaş karnesi — Malazgirt', () => {
     expect(rear.advice.text).toContain('%86')
     expect(rear.goal).toMatchObject({ value: 0, target: 3 })
 
-    const center = run([
+    // Artçı kaçtı: sıradaki adım kolların merkeze kapanması.
+    const rearLeft: Timed[] = [
+      [dayLength, event('sunset')],
       [dayLength, dusk([0.6, 0.9, 0.6, 0.7])],
       [dayLength, event('rearguardLeaves')],
+    ]
+    const idle = run(rearLeft)
+    expect(idle.advice.id).toBe('closeWings')
+    expect(idle.goal).toMatchObject({ value: 1 })
+    const tooLate = run([
+      ...rearLeft,
+      [dayLength + BATTLE_CONFIG.emperorWindow + 1, { type: 'wing_order', wing: 0, order: 'charge' }],
     ])
+    expect(tooLate.advice.id).toBe('closeWings')
+
+    const tired = run([
+      [10, { type: 'wing_order', wing: 0, order: 'charge' }],
+      [dayLength, event('sunset')],
+      [dayLength, dusk([0.6, 0.9, 0.6, 0.7], [0.2, 0.25])],
+      [dayLength, event('rearguardLeaves')],
+    ])
+    expect(tired.advice.id).toBe('saveWings')
+    expect(tired.advice.text).toContain('%25')
+
+    const center = run([...rearLeft, [dayLength + 2, { type: 'wing_order', wing: 1, order: 'charge' }]])
     expect(center.advice.id).toBe('breakCenter')
-    expect(center.goal).toMatchObject({ value: 1 })
 
     const exposed = run([
       [dayLength, event('rearguardLeaves')],

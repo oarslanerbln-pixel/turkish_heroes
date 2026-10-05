@@ -798,7 +798,37 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
          - Merdiven, dalga kaydı ve yıldızlar her savaştaki gibi. Yıldız mola payı olmadan, yalnız Baideng yarasından; tam koşuda da mola canı neredeyse doldurduğu için ölçü yakın. Skor önceki dalgaların bonusunu almaz, rekor şişmez.
          - Telemetri: `battle_start.startWave` (yalnız 0 değilse), özette `startWave`. Karne hedefi yalnız Baideng ordusu (33), zafer başlığı "Baideng kuşatıldı".
          - Düzen bekçisine "sonuç Baideng seçeneği" eklendi (üç görünüm, ihlalsiz).
-     - Kalan: O1 ayarı, z=−1 bot ölümü.
+     - **Mantık 2, kışkırtmanın amacı (O1), 5 Ekim 2026:**
+       - Sorun: artçı gün batımında kaçınca imparator kollardan bağımsız olarak hemen açılıyordu (3★ ortancası 101 sn). Kollar yalnız artçıyı yıpratmaya yarıyordu. Gündüz hücum eden kol bunu daha iyi yaptığı için sabırsız tarif 30/30 aldı.
+       - Kural: imparatoru kolların merkeze kapanması açar (TASARIM §2.2: yemle bir birliği kopar, kollarla kuşat, komutanı esir al).
+         - Artçı kaçınca kolların hedefi merkez olur (`wingTarget`). Kaçış tek başına imparatoru açmaz.
+         - İmparator gün batımından sonraki `emperorWindow` (15 sn) içinde açılır. Şart: kollar merkezi en az `emperorPin` (0,6, iki kolun toplamı) şiddetle tutsun ve merkezin düzeni 0,75'in altında olsun.
+         - Taze bir kol tek başına yeter, gündüz tükenen iki kol yetmez. Pencere kapanınca muhafız toparlanır; kollarını akşam dinlendiren geç kalır.
+       - 30 tohumda kışkırtıcı botla 3★:
+
+         | Kollar | Önce | Sonra |
+         |---|---|---|
+         | sabırsız (hep hücum) | 30 | 0 |
+         | pusu, gün batımında hücum | 25 | 25 |
+         | gündüz taciz, akşam hücum | 30 | 0 |
+         | gündüz sabırsız, akşam dinlendirip hücum | — | 0 |
+         | pusu, hücum gün batımından 6 / 10 / 14 sn sonra | — | 25 / 24 / 0 |
+         | biri gündüz hücumda, öteki pusuda | — | 29 |
+         | kolsuz | 25 | 0 |
+
+       - Brifingin 3. adımı: "Gün batınca ordu döner; o an kollara HÜCUM ver. Gece çökene dek ordunun dörtte birini düşür." İmparator 3★ satırında duruyor.
+       - Karne, artçı kaçtıysa 2★'da sıradaki adımı söyler:
+         - kollar yorgunsa `saveWings`;
+         - pencerede hücum yoksa yeni `closeWings`;
+         - kollar kapandı ama merkez sağlamsa `breakCenter`.
+         - 1★ yolu değişmedi: kolsuz bot `useWings`, sabırsız bot `saveWings` alıyor (`debrief.bots.test`).
+       - Ayar paneline "İmparator penceresi (sn)" eklendi.
+       - Bilinenler:
+         - Tek kolu gündüz harcayıp ötekini saklayan 29/30 alıyor, saf pusudan iyi. Bu bir karar (hangi boynuz gündüz çalışsın); baskın tarif sayılmadı.
+         - Kolsuz 3★ artık yok. Kolsuz kışkırtıcı 8 tohumda gece hedefini de kaçırıyor; botun akşam vuruşu imparatoru beklemeye ayarlı.
+       - Tarayıcıda (tohum 1071, gün batımına atlanarak): artçı kaçtı, kollar pusudayken imparator korundu. HÜCUM'dan ~5 sn sonra kollar merkezi tuttu ve "İmparator korumasız!" duyurusu çıktı.
+       - Zincir: lint, tsc, 260 test, derleme, bütçe 361,8/385 kB, checks 44/44.
+     - Kalan: z=−1 bot ölümü.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**

@@ -53,6 +53,7 @@ const SLIDERS: Slider[] = [
   slider(BATTLE_CONFIG, 'rearguardThreshold', 'Artçı eşiği', 0.5, 1, 0.01),
   slider(BATTLE_CONFIG, 'emperorThreshold', 'İmparator eşiği', 0.5, 1, 0.01),
   slider(BATTLE_CONFIG, 'emperorPin', 'Merkez tutma eşiği', 0.2, 1, 0.05),
+  slider(BATTLE_CONFIG, 'emperorWindow', 'İmparator penceresi (sn)', 5, 40, 1),
   slider(WING_CONFIG, 'harass', 'Kol tacizi', 0, 1, 0.05),
   slider(WING_CONFIG, 'shock', 'Kol ilk darbesi', 0, 0.6, 0.02),
   slider(WING_CONFIG, 'turnSlow', 'Kol dönüş yavaşlatma', 0, 1, 0.05),

@@ -100,10 +100,18 @@ export const BATTLE_CONFIG = {
 
   /** Artçı, akşam düzeni bunun altındaysa savaş alanını terk eder. */
   rearguardThreshold: 0.8,
-  /** Artçı gittiyse ve merkezin düzeni bunun altındaysa imparator korumasız. */
+  /** Kollar akşam merkezi tutarken merkezin düzeni bunun altındaysa imparator korumasız. */
   emperorThreshold: 0.75,
-  /** Artçı gitmese de kollar merkezi en az bu şiddetle tutuyorsa arkası açılmış sayılır. */
-  emperorPin: 0.5,
+  /**
+   * Kolların merkezi tutma şiddeti (iki kolun toplamı): taze bir kol tek
+   * başına yeter, gündüz tükenen iki kol yetmez.
+   */
+  emperorPin: 0.6,
+  /**
+   * Gün batımından sonra imparatorun açığa çıkabileceği süre (sn): dönüşün
+   * karmaşası. Sonra muhafız toparlanır — kollarını akşam dinlendiren geç kalır.
+   */
+  emperorWindow: 15,
   /** Gündüz vuruşundan sonra ordu irkilir: her birliğin düzeni bu kadar toparlanır. */
   strikeRecovery: 0.2,
 
@@ -584,9 +592,10 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
 }
 
 /**
- * İmparator korumasız mı? Malazgirt: akşam arkası açıldıysa (artçı gitti ya da
- * kollar merkezi tutuyor) ve merkez yıprandıysa. Miryokefalon: muhafızlar
- * geçitte sıkıştıysa ve merkezin düzeni kırıldıysa — Manuel açıkta.
+ * İmparator korumasız mı? Malazgirt: gün batımının hemen ardından kollar
+ * merkezi tutuyorsa ve merkez yıprandıysa — hilalin boynuzları kapandı. Artçının
+ * kaçışı tek başına açmaz; kolları merkeze yöneltir (wingTarget). Miryokefalon:
+ * muhafızlar geçitte sıkıştıysa ve merkezin düzeni kırıldıysa — Manuel açıkta.
  */
 function emperorOpen(b: BattleState): boolean {
   const center = b.corps[CENTER]
@@ -596,7 +605,8 @@ function emperorOpen(b: BattleState): boolean {
   const cfg = BATTLE_CONFIG
   return (
     !isDay(b) &&
-    (b.rearguardLeft || center.pinned >= cfg.emperorPin) &&
+    b.time - b.layout.dayLength < cfg.emperorWindow &&
+    center.pinned >= cfg.emperorPin &&
     center.cohesion < cfg.emperorThreshold
   )
 }
@@ -693,8 +703,10 @@ function measureCorps(b: BattleState, enemies: readonly Enemy[], player: Vec2): 
   }
 }
 
+/** Kolun hedefi: kendi tarafındaki sırayla; artçı kaçtıysa merkezin arkası açık, kollar ona kapanır. */
 function wingTarget(b: BattleState, w: WingState): number {
   if (w.order === 'ambush') return -1
+  if (b.rearguardLeft && b.corps[CENTER].alive > 0) return CENTER
   for (const ci of b.layout.wingTargets[w.side < 0 ? 0 : 1]) {
     const c = b.corps[ci]
     if (c.alive > 0 && c.status !== 'fleeing') return ci
