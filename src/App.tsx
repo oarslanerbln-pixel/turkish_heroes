@@ -1,6 +1,7 @@
-import { Component, type ReactNode } from 'react'
+import { Component, useEffect, type ReactNode } from 'react'
 import { Scene } from './components/Scene'
 import { CrashScreen } from './components/CrashScreen'
+import { SHOT } from './shot'
 
 /**
  * Render sırasındaki bir hata uygulamayı boş ekrana düşürmesin. Sahnenin
@@ -20,7 +21,20 @@ class CrashGuard extends Component<{ children: ReactNode }, { failed: boolean }>
   }
 }
 
+/** index.html'deki satır içi açılış ekranı ilk çizimden sonra söner; çekim kipinde beklemeden. */
+function useDismissSplash() {
+  useEffect(() => {
+    const splash = document.getElementById('splash')
+    if (!splash) return
+    if (SHOT !== null) return splash.remove()
+    splash.classList.add('is-gone')
+    const timer = setTimeout(() => splash.remove(), 600)
+    return () => clearTimeout(timer)
+  }, [])
+}
+
 export default function App() {
+  useDismissSplash()
   return (
     <CrashGuard>
       <Scene />

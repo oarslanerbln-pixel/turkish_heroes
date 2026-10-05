@@ -20,11 +20,14 @@ import {
 import {
   applyBlend,
   createShotState,
+  openingPose,
+  planOpening,
   resetShot,
   shotDone,
   shotWeight,
   skipShot,
   startShot,
+  type OpeningPath,
   type Pose,
 } from './cameraShots'
 import { TACTICAL_OFFSET, followLook, tacticalTarget } from './tacticalCamera'
@@ -36,7 +39,8 @@ const CAMERA_PRIORITY = 5
 
 /**
  * Açılış: ordugahın ardından, alçaktan ufka. Ordugah ön planı çerçeveler,
- * oyuncu ortada, düşman ordusu gökyüzüne karşı. Oyuncuya göre.
+ * oyuncu ortada, düşman ordusu gökyüzüne karşı. Oyuncuya göre. Savaş
+ * açılışının uçuşu da bu kareden kalkar.
  */
 const INTRO_OFFSET = new Vector3(6, 5.5, 14)
 const INTRO_LOOK = new Vector3(-6, 2, -36)
@@ -82,6 +86,7 @@ export function CameraDirector() {
   const cine = useMemo(pose, [])
   /** Bu karenin duruşu; bir sonraki karede kesilen çekimin geçiş başlangıcı. */
   const out = useMemo(pose, [])
+  const opening = useMemo<OpeningPath>(() => ({ start: pose(), reveal: pose(), dir: new Vector3() }), [])
   const newBattle = useMemo(newBattleWatch, [])
 
   useEffect(() => {
@@ -125,7 +130,15 @@ export function CameraDirector() {
     // Çekim isteği yalnızca oyun sürerken tüketilir: menüde kamera taktik kalır.
     // Hareketi azaltta çekim oynamaz: kamera süzülmek yerine taktik kadraja keser.
     if (world.cameraCue && isPlaying()) {
-      if (!reducedMotion) startShot(shot, world.cameraCue, out)
+      if (!reducedMotion) {
+        if (world.cameraCue === 'opening') {
+          // Uçuş menü karesinden başlar; cephe savaşın ilk dizilişinden okunur.
+          opening.start.pos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
+          opening.start.look.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+          planOpening(opening, world.player, world.enemies)
+        }
+        startShot(shot, world.cameraCue, out)
+      }
       world.cameraCue = null
     }
 
@@ -175,6 +188,8 @@ export function CameraDirector() {
       if (shot.cue === 'intro') {
         cine.pos.set(world.player.x, 0, world.player.z).add(INTRO_OFFSET)
         cine.look.set(world.player.x, 0, world.player.z).add(INTRO_LOOK)
+      } else if (shot.cue === 'opening') {
+        openingPose(opening, shot.t, cine)
       } else if (shot.cue === 'encircle' && ring) {
         cine.look.set((smooth.x + ring.center.x) / 2, 0, (smooth.z + ring.center.z) / 2)
         cine.pos.copy(cine.look).add(CRANE_OFFSET)
@@ -187,6 +202,9 @@ export function CameraDirector() {
       if (shotDone(shot.cue, shot.t)) shot.cue = null
     }
     if (shot.cue !== 'arrow') endArrow(arrowShot, arrows)
+    // Açılış sürerken sinema şeritleri iner, savaş arayüzü bekler (HUD).
+    const cinematic = shot.cue === 'opening'
+    if (cinematic !== useGameStore.getState().cinematic) useGameStore.setState({ cinematic })
     applyBlend(shot, dt, out)
     // Sinematik kadrajda ordugah ön planı çerçeveler; taktikte HUD'un arkasında incelir.
     nearFadeStrength.value = 1 - weight

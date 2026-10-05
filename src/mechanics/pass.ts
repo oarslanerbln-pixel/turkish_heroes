@@ -1,7 +1,7 @@
 // II. Kılıçarslan — Miryokefalon 1176: Tzivritze geçidi.
 //
 // Bizans ordusu dar bir geçitte uzun bir kol halinde yürüdü; Selçuklular iki
-// yamacı tuttu. Ağırlıklar yolu tıkadı, kol sıkıştı, Manuel barış istedi.
+// yamacı tuttu. Ağırlıklar yolu tıkadı, kol sıkıştı; galip sultan barış önerdi.
 // Oyunun yeni ekseni NEREDE: Metehan'da nasıl kaçtığın, Malazgirt'te ne zaman
 // vurduğun, burada kolu nerede durdurduğun belirler.
 //

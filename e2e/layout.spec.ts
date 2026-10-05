@@ -103,6 +103,29 @@ function auditFonts(page: Page): Promise<string[]> {
 }
 
 /** Ekrandaki dokunma hedeflerinin kural ihlalleri; sıralı, piksel değeri içermez (platformlar arası kararlı). */
+/**
+ * Hikâye satırları (HIKAYE.md §7) en çok iki satır. Yatay telefonda brifing
+ * paneli dar: oradaki satırlar sayılmaz. Brifing gövdesi kayıyorsa adımların
+ * başı görünmeli.
+ */
+function auditStory(page: Page, portrait: boolean): Promise<string[]> {
+  return page.evaluate((portrait) => {
+    const problems: string[] = []
+    for (const el of document.querySelectorAll<HTMLElement>('.brief-context, .narrator')) {
+      const style = getComputedStyle(el)
+      if (style.display === 'none' || (!portrait && el.closest('.brief-body'))) continue
+      const lines = Math.round(el.getBoundingClientRect().height / parseFloat(style.lineHeight))
+      if (lines > 2) problems.push(`${el.classList[el.classList.length - 1]} ${lines} satır`)
+    }
+    const body = document.querySelector<HTMLElement>('.brief-body')
+    const steps = document.querySelector<HTMLElement>('.brief-steps')
+    if (body && steps && steps.getBoundingClientRect().top > body.getBoundingClientRect().bottom - 16) {
+      problems.push('brief-steps görünmüyor')
+    }
+    return problems
+  }, portrait)
+}
+
 function auditTargets(page: Page): Promise<string[]> {
   return page.evaluate(
     ({ minTarget, minGap }) => {
@@ -179,7 +202,7 @@ for (const view of VIEWS) {
         await open(page)
         await settle(page)
         if (screen.startsWith('sonuç')) await expectOutcomeOpening(page)
-        const found = [...(await auditTargets(page)), ...(await auditFonts(page))].sort()
+        const found = [...(await auditTargets(page)), ...(await auditFonts(page)), ...(await auditStory(page, view.height > view.width))].sort()
         await test.info().attach('ihlaller', { body: JSON.stringify({ [key]: found }), contentType: 'application/json' })
         // Tam eşitlik: yeni bir ihlal de, giderilip listede kalan bir ihlal de kırmızı.
         expect(found, `düzen borcu: ${key}`).toEqual(LAYOUT_DEBT[key] ?? [])

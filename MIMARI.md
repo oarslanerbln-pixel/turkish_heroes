@@ -744,6 +744,20 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
     - Kalan: gerçek telefonda his (titreşim süreleri, flaş şiddeti) ve D5 (limiter, ayrı ses sürgüleri) düşük önemde açık.
 - **2c Terim ve tipografi:** tek fiil (VUR), bizim birlikler kanat/yamaç, Bizans'ınki kol; Cinzel metinleri `uppercase` (`lang="tr"` ile i→İ); "→" kaldırılır; U8 `aria-live`. Kabul: Cinzel seçicilerinde karışık harf yok; menü ve HUD aynı fiili kullanır.
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
+  - **Yapıldı (5 Ekim 2026, `claude/tarih-duzeltmeleri`):**
+    - T1: barışı sultan önerir (elçi Gabras); kart, sonuç ekranı, karne ve geçit duyurusu.
+    - T2: geçit kartında öncü geçidi az kayıpla aşar, darbe arkadan gelen kola iner. YOLU KES'in kaya yığını oyun kuralı olarak kalır; kartlarda geçmez.
+    - T4: Metehan kartı "MÖ 209–200" (tahta çıkıştan Baideng'e).
+    - T6: Malazgirt karnesinde ordu dağılır.
+    - T7: "Türk yurdu oldu" kalktı. Son kart: Manuel yenilgiyi Malazgirt'e benzetti; Miryokefalon yaylayı geri alma çabalarının son büyük seferi.
+    - T10: yirmi dört beyin hepsi "on bin atlı" unvanlı, büyükleri on bin, küçükleri birkaç bin atlı yönetir; kataphrakt kartının kaynağı Praecepta Militaria; Romanos önce tahtını (Ekim 1071), sonra gözlerini (Haziran 1072) kaybeder.
+    - T12: sayfa tanımında "gerçek taktikleriyle" yerine "taktiklerinden esinlenen".
+    - `lore.test`: kartlarda yasak ifadeler (Manuel … istedi, kaya, öncü durdu, kolun başı dur, teslim oldu, Türk yurdu, kalıcı).
+    - Kalan: PAZARLAMA.md'nin tek cümlesi ("gerçek taktiklerini", akşamı bekleme) T5 ile birlikte düzelir.
+  - **Yapıldı (5 Ekim 2026, `claude/hikaye-anlatici`, HIKAYE.md §7 adım 2):**
+    - T3 çerçeve cümlesi: Metehan bağlamı "Türk tarih geleneği ona Mete Han der".
+    - T13'ün ilk parçası: her brifing bir bağlam satırı ve Aydoğdu'nun satırıyla açılır; sonuç ekranında Aydoğdu'nun zafer ya da yenilgi satırı var.
+    - `lore.test` yasak ifadeleri hikâye metinlerinde de arar. Düzen bekçisi iki satır sınırını ve yatay telefonda adımların görünmesini denetler.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
   - **Yapıldı (5 Ekim 2026, TASARIM Mantık 5, `claude/adim-dongusu`):**
     - Üç enerji ipucu, oyuncunun durumu açınca ve oyuncu başına bir kez (`teachEnergy`, `scenarios.ts`):
@@ -852,7 +866,14 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
      - Durum (4 Ekim 2026): yapıldı. K1 ~%25 → ~%8 (`tacticalCamera.test.ts`). K2: R3'te HUD altındaki cephe Malazgirt %2,9 → 0, Miryokefalon %8,3 → 0; ordunun HUD altındaki payı %26 → %7 / %20 (`art.spec.ts` kadraj). K3: geçiş testi `cameraShots.test.ts`, yönlü sarsıntı `shake.test.ts`. Eğim 45° → 38°; 36° cepheyi daha açıyordu ama R5'te kahraman |ΔL| 0,12'ye düşüyordu.
   2. ~~Ok kamerası~~
      - Durum (4 Ekim 2026): yapıldı (`arrowShot.ts`). Tetik savaş başına en çok iki: oyuncunun ilk tacizi ve imparatorun açığa çıkışı (merkeze giden ilk ok); ok 2,5 sn içinde kalkmazsa istek düşer. Kamera 0,6 sn'de oka iner, ok ağır çekimde uçarken arkasından yana ~80° döner, saplanınca yükselip vuruş yerine bakar (kıvılcım), 0,7 sn bekler ve 1,1 sn'de taktiğe döner; toplam ~4,5 sn. Süren çekimi kesmez, hareketi azaltta kapalı. Yeni bir dokunuş ya da tuş her çekimi atlar (`skipShot`): açılış ve gün batımı dahil. Referans anlarına (R3 6 sn, R5 104 sn) düşmez: hareketsiz oyuncuda ilk taciz Malazgirt'te 50–70, Miryokefalon'da 20–40 sn arası.
-  3. Savaş açılış çekimi, letterbox ve atlama
+  3. ~~Savaş açılış çekimi, letterbox ve atlama~~
+     - Durum (4 Ekim 2026): yapıldı (`planOpening`, `openingPose`). Bir savaşa oturumda ilk girişte 5 sn sürer:
+       - Uçuş menü karesinden ordugahın üstünden cephe karşısına 2,6 sn sürer. Kamera öncünün 14 birim önünde, 4 birim yükseklikte durur. Yana açılış cephenin genişliğiyle büyür; geçitte kamera eksende kalır, yamaca yaslanmaz.
+       - Kısa bir bekleyişten sonra kamera 1,9 sn'de taktik kadraja yükselir.
+       - Şeritler iner ve savaş arayüzü gizlenir. Joystick görünmez ama dokunulur; başparmak yerine gidince aynı dokunuşla yürüyüş başlar.
+       - Afiş alt üçte birde tarih kartı olur. Dokunuş ya da tuş çekimi atlar; kart yerinde söner.
+       - Aynı savaşa tekrar girişte eski kısa giriş çekimi oynar. YENİDEN'de çekim yok, hareketi azaltta kapalı.
+       - R3 (6 sn) taktik kadrajda. Hareketsiz oyuncu yara almaz: Metehan'ın 1. dalgasında kontrol döndüğünde en yakın atlı 10 birimde.
   4. Ağır çekim sesi
   5. Renk derecelendirme (yüksek kademe; görsel temeldeki ton eşlemeye bağlı)
 - Her çekimin kabulü: girdiyi kilitlemez, dokununca atlanır, hareketi azaltta kapalı, sık tekrarlamaz. His ve zamanlamada son söz senin.
@@ -948,7 +969,7 @@ S4 doğrulandı: O1–O3 sayıları botlarda enerji donması olmayan, daha kolay
 | V4 | Yüksek | Siluet imzaları alt-piksel: atlı ~22 px, mızrak/yay/tuğ <1 px. İmparator yalnız 1,25× ve altın; Romanos ile Manuel aynı. | `riderGeometry.ts`, `EnemySwarm.tsx:25` |
 | V5 | Orta | Yüksek kademede çim okunabilirliği düşürüyor; otağ titreşimli koyu leke; menü panelleri yatay genişliğin ~%75'i. | ekran görüntüleri |
 | V6 | Orta | Ton eşleme yok: EffectComposer `NoToneMapping` kuruyor, ACES ayarı ölü. Renk derecelendirmenin önkoşulu. | `Scene.tsx:91-96` |
-| V7 | Düşük | Gölge çerçevesi orijine sabit (±35); kanyona özgü ışık dizisi yok. | `DayCycle.tsx:100-103, 147-166` |
+| V7 | Düşük | **Kısmen kapandı (Grafik 4).** Gölge çerçevesi artık güneşe göre sahayı sarıyor: aynı harita öğlende 1,24×, gün batımında 2,15× keskin. Kameraya bağlı dar çerçeve bırakıldı: telefon yatay oynanıyor, taktik kadraj sahanın neredeyse tamamını görüyor. Açık kalan: kanyona özgü ışık dizisi yok. | `sunShadow.ts`, `sunShadow.test.ts` |
 | V8 | Orta | Cinzel küçük harfleri noktasız küçük büyük harf: karışık harfli metinde i = ı. "→" yedek yazıya düşüyor. 7–10,5 px Cinzel metinler var. | woff harf tablosu, `hud.css` |
 | ~~K1~~ | Orta | **Kapandı (G1).** İleriye bakış 180° dönüşte oyuncuyu ekranda ~%25 yükseklik savuruyor. | `FollowCamera.tsx:19`, `hilalSystem.ts:41` |
 | ~~K2~~ | Orta | **Kapandı (G1).** 667×375'te düşman cephesi üst kenarda, HUD'un altında. | ekran görüntüsü, Malazgirt t≈6 |

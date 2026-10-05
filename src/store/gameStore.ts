@@ -4,7 +4,7 @@ import type { Outcome } from '../mechanics/combat'
 import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import { COMMANDERS, parseCommander, type CommanderId } from '../mechanics/scenario'
-import { announce, enterMode, isPlaying, resetWorld, world } from '../sim/world'
+import { announce, enterMode, isPlaying, resetWorld, world, type CameraCue } from '../sim/world'
 import type { FlowMode } from '../sim/flow'
 import { nextOrder, orderWing, type WingOrder } from '../mechanics/wings'
 import { dropBlockade as dropBlockadeAt, type DefeatCause } from '../mechanics/corps'
@@ -25,6 +25,10 @@ import {
 import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 import { PLAYTEST } from '../playtest'
+import { SHOT } from '../shot'
+
+/** Giriş ekranı: açık, menüye solarak açılıyor, kapalı. */
+export type TitleState = 'open' | 'leaving' | 'closed'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -78,8 +82,18 @@ interface GameState extends HudSnapshot {
    * kayan/büyüyen animasyonları kapalı. Şimdilik işletim sisteminin tercihi.
    */
   reducedMotion: boolean
+  /**
+   * Savaş açılış çekimi sürüyor: sinema şeritleri iner, savaş arayüzü bekler.
+   * Yazarı CameraDirector; atlanınca ya da çekim bitince kalkar.
+   */
+  cinematic: boolean
   /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
   archive: CommanderId | null
+  /**
+   * Giriş ekranı sayfa her açıldığında bir kez gelir; sonuçtan menüye dönüşte
+   * gelmez. Çekim kipi onu atlar: kadrajlar menüden ölçülür.
+   */
+  title: TitleState
   syncHud: (snapshot: HudSnapshot) => void
   /**
    * Başlangıç ekranında komutan seçimi; savaşı henüz başlatmaz. Kilitli
@@ -95,6 +109,10 @@ interface GameState extends HudSnapshot {
   enterBattle: (id: CommanderId) => void
   openArchive: (id: CommanderId) => void
   closeArchive: () => void
+  /** Giriş ekranından menüye: menü altta açılır, ekran üstünde solar. */
+  leaveTitle: () => void
+  /** Solma bitti: giriş ekranı kalkar. */
+  closeTitle: () => void
   requestStrike: () => void
   /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
   cycleWing: (wing: number) => void
@@ -170,6 +188,24 @@ if (urlCommander) resetWorld(urlCommander)
 const reducedMotionQuery =
   typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
 
+/** Bu oturumda açılış uçuşu oynamış savaşlar: aynı savaşa dönüşte kısa açılış yeter. */
+const openingsSeen = new Set<CommanderId>()
+
+/** Savaşa girişin çekimi: oturumdaki ilk girişte uçuş, sonra kısa açılış. */
+function entryCue(id: CommanderId): CameraCue {
+  if (openingsSeen.has(id)) return 'intro'
+  openingsSeen.add(id)
+  return 'opening'
+}
+
+/**
+ * Açılış uçuşu oynayacak mı. Şeritler savaşın ilk render'ında insin: yoksa
+ * arayüz bir kare görünüp kaybolurdu. Sonrasını CameraDirector sürdürür.
+ */
+function flies(reducedMotion: boolean): boolean {
+  return world.cameraCue === 'opening' && !reducedMotion
+}
+
 /** Komutan seçilebilir mi: kilidi açık ya da URL ile istenmiş. */
 export function isCommanderAvailable(id: CommanderId): boolean {
   return id === urlCommander || isUnlocked(id)
@@ -184,7 +220,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   haptics: hapticsEnabled(),
   hurtPulse: 0,
   reducedMotion: reducedMotionQuery?.matches ?? false,
+  cinematic: false,
   archive: null,
+  title: SHOT !== null ? 'closed' : 'open',
 
   // Mod da her eşitlemede kopyalanır: savaşın bittiği kare sonucu ve karneyi
   // aynı anda getirir, sonuç ekranı boş açılmaz.
@@ -211,8 +249,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     startAmbience()
     enterMode('playing')
     // Açılış çekimi yalnızca menüden girerken: YENİDEN'de oyuncu hemen oynamak ister.
-    world.cameraCue = 'intro'
-    set({ mode: world.mode, archive: null })
+    world.cameraCue = entryCue(world.commander)
+    set({ mode: world.mode, archive: null, cinematic: flies(get().reducedMotion) })
   },
 
   enterBattle: (id) => {
@@ -229,6 +267,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   closeArchive: () => {
     uiTick()
     set({ archive: null })
+  },
+
+  // İlk kullanıcı hareketi çoğunlukla bu: ses bağlamı burada açılır.
+  leaveTitle: () => {
+    if (get().title !== 'open') return
+    uiTick()
+    set({ title: 'leaving' })
+  },
+
+  closeTitle: () => {
+    if (get().title === 'leaving') set({ title: 'closed' })
   },
 
   toggleMute: () => {
@@ -324,8 +373,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Savaş hemen başlar: yeni savaş alanı, açılış çekimiyle.
     resetWorld(id)
     enterMode('playing')
-    world.cameraCue = 'intro'
-    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, mode: world.mode })
+    world.cameraCue = entryCue(id)
+    set({ ...INITIAL_HUD, bestScore: world.bestScore, commander: id, mode: world.mode, cinematic: flies(get().reducedMotion) })
   },
 
   backToMenu: () => {

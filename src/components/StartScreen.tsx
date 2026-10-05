@@ -5,6 +5,7 @@ import { bestStars, earnedLore } from '../sim/progress'
 import { Ornament } from './Ornament'
 import { LockIcon, ScrollIcon, StarIcon } from './icons'
 import { LoreArchive } from './LoreArchive'
+import { Narrator } from './Narrator'
 import { SeferMap } from './SeferMap'
 import { SettingsButtons } from './SettingsButtons'
 
@@ -86,15 +87,18 @@ function Briefing({ id, touch }: { id: CommanderId; touch: boolean }) {
       <span className="brief-sub">
         {c.name} · {c.battle}
       </span>
-
-      <ol className="brief-steps">
-        {c.steps.map((s) => (
-          <li key={s.title}>
-            <b>{s.title}</b>
-            <span>{s.text}</span>
-          </li>
-        ))}
-      </ol>
+      <div className="brief-body">
+        <p className="brief-context">{c.context}</p>
+        <Narrator text={c.narrator} className="brief-narrator" />
+        <ol className="brief-steps">
+          {c.steps.map((s) => (
+            <li key={s.title}>
+              <b>{s.title}</b>
+              <span>{s.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       {available ? (
         <button className="primary-btn" onClick={start} autoFocus>
