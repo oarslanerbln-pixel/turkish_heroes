@@ -2473,6 +2473,13 @@
 @media (max-height: 460px) {
   /* Anlatıcı adımlarla aynı boyda: dar panelde adımların başı görünür kalsın. */
   .menu-brief .brief-narrator { font-size: 12px; }
+  /*
+   * Yıldız hedefi kendi satırında ikiye kayıp adımları gövdeden itiyordu.
+   * Dokunmatikte tuş satırı düşer (joystick ve vuruş savaşta ekranda);
+   * hedef rekorla aynı satırı paylaşır.
+   */
+  .menu-brief .brief-foot.is-touch .brief-keys { display: none; }
+  .menu-brief .brief-foot.is-touch .brief-goal { flex: 1 1 0; min-width: 0; }
   .screen { gap: 10px; }
   .screen h1 { font-size: clamp(36px, 7vw, 56px); }
   .result-title { font-size: clamp(34px, 6vw, 48px); }
