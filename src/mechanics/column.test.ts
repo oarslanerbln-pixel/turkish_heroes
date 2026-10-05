@@ -145,6 +145,14 @@ describe('Miryokefalon — denge: NEREDE kestiğin belirler', () => {
     expect(stars(PASS.neckZ + 8).every((s) => s <= 2)).toBe(true)
   })
 
+  it('kola yetişemeyen kesici başın önünde keser, kaçtığı yerde değil', { timeout: 20000 }, () => {
+    // Eskiden z=−1 isteyen bot hamleden kaçıp çıkışta kesiyor, sonra boğazda ölüyordu.
+    for (const r of sweep(blockerBot(-1, 4), SEEDS, MIRYOKEFALON)) {
+      expect(r.result).toBe('victory')
+      expect(r.blockadeZ!).toBeLessThan(PASS.neckZ - 2)
+    }
+  })
+
   it('simülasyon karesi 100 µs altında kalır', () => {
     const { battle, enemies } = column()
     dropBlockade(battle, PASS.neckZ + 3)

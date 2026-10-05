@@ -21,6 +21,7 @@ import {
 } from './corps'
 import { ENEMY_CONFIG } from './enemySim'
 import { HILAL_CONFIG, isInCrescent } from './hilalSystem'
+import { passHalfWidth } from './pass'
 import type { Enemy, Vec2 } from './types'
 import { orderWing, type WingOrder } from './wings'
 import type { TelemetryEvent } from '../telemetry/summary'
@@ -232,8 +233,8 @@ const FLEE_DEVIATIONS = [0, 20, -20, 40, -40, 60, -60, 80, -80, 100, -100]
 
 /**
  * Hamleden kaç: tehditlerin tam tersine koş — kovalamada kaçanın tek avantajı
- * düz çizgi. Yol arena sınırına ya da başka bir askerin dibine çıkıyorsa en
- * az sapan açık yönü seç.
+ * düz çizgi. Yol arena sınırına, geçit duvarına ya da başka bir askerin
+ * dibine çıkıyorsa en az sapan açık yönü seç.
  */
 function flee(v: BotView): Vec2 {
   let cx = 0
@@ -254,6 +255,8 @@ function flee(v: BotView): Vec2 {
     const fx = v.player.x + Math.sin(a) * reach
     const fz = v.player.z + Math.cos(a) * reach
     let clear = ENEMY_CONFIG.arenaRadius - 1.5 - Math.hypot(fx, fz)
+    // Geçitte duvara kaçan kenarda sıkışır (oyuncu duvardan 0,6 içeride tutulur).
+    if (v.battle.layout.pass) clear = Math.min(clear, passHalfWidth(fz) - 1.5 - Math.abs(fx))
     v.enemies.forEach((e, i) => {
       if (e.alive && v.battle.mode[i] === MODE_FORMATION && !isThreat(v, e, i)) {
         clear = Math.min(clear, Math.hypot(e.pos.x - fx, e.pos.z - fz) - 4)
@@ -465,7 +468,8 @@ function leadCorps(b: BattleState): number {
 }
 
 /**
- * Kesici: yolu `blockZ`'de keser (null: hiç kesmez), sonra kolun başının
+ * Kesici: yolu `blockZ`'de keser (null: hiç kesmez; kol oraya yetişmişse
+ * başının hemen önünde, yani en erken kesilebilen yerde), sonra kolun başının
  * önünde taciz menzilinde durup öncüyü yıpratır, sıkışan kolu yayı dolunca
  * kuşatır. Manuel açığa çıkınca ona döner. Hamleden kaçar.
  */
@@ -486,11 +490,12 @@ export function blockerBot(blockZ: number | null, minStrike = 6): () => Bot {
     const headZ = b.corps[lead].anchor.z + 1.5
 
     if (blockZ !== null && !b.blockadeUsed) {
-      const dest = { x: 0, z: blockZ }
+      // Kol oraya yetişmişse başın hemen önünde, hamle menzilinin dışında kes.
+      // Bulunduğu yerde kesmek (ör. hamleden kaçtıktan sonra) ölçülen yeri bozar.
+      const dest = { x: 0, z: Math.max(blockZ, headZ + BATTLE_CONFIG.chargeTrigger + 0.5) }
       const there = Math.hypot(v.player.x - dest.x, v.player.z - dest.z) < 0.8
-      // Kol oraya varmak üzereyse beklemeden kes (geç kalmak yolu açık bırakır).
-      if (there || headZ > blockZ - 3) return { move: { x: 0, z: 0 }, strike: false, blockade: true }
-      return { move: navigate(v, dest, -1), strike: false }
+      if (there) return { move: { x: 0, z: 0 }, strike: false, blockade: true }
+      return { move: navigate(v, dest, lead), strike: false }
     }
 
     const dest = { x: 0, z: b.corps[lead].anchor.z + 9.5 }

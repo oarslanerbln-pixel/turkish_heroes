@@ -828,7 +828,12 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
          - Kolsuz 3★ artık yok. Kolsuz kışkırtıcı 8 tohumda gece hedefini de kaçırıyor; botun akşam vuruşu imparatoru beklemeye ayarlı.
        - Tarayıcıda (tohum 1071, gün batımına atlanarak): artçı kaçtı, kollar pusudayken imparator korundu. HÜCUM'dan ~5 sn sonra kollar merkezi tuttu ve "İmparator korumasız!" duyurusu çıktı.
        - Zincir: lint, tsc, 260 test, derleme, bütçe 361,8/385 kB, checks 44/44.
-     - Kalan: z=−1 bot ölümü.
+     - **Geçitte z=−1 bot ölümü (5 Ekim 2026):** oyun kuralı değil, iki bot hatası.
+       - Kesici bot kola yetişemeyince yığını bulunduğu yere düşürüyordu ("kol oraya varmak üzereyse beklemeden kes"). z=−1 isteyen bot z≈0'da hamleyi kışkırtıp kuzeye kaçıyor, yığını 17,9'da (çıkışta) düşürüyordu; "z=−4" isteyen de 16'da kesiyordu. Ölçülen kesme yeri istenen değildi.
+       - Kaçış (`flee`) yalnız arena çemberine bakıyordu, geçit duvarına değil: boğazda hamleden yana kaçan bot duvarda (x=8,4) sıkışıp vuruluyordu.
+       - Düzeltme: bot `max(blockZ, baş + chargeTrigger + 0,5)`'te keser, yani en erken kesilebilen yerde, hamle menzilinin dışında; kaçış geçitte duvar payını da denetler.
+       - Sonuç (8 tohum): z=−4/−1/0 → yığın 2,5'te, 1★, can 100 (önce z=−1 8/8 yenilgi, t=37–50). z=2/5/8 ve kesmeyen bot değişmedi (1/3/3★, yenilgi); z=0 önce 0,8'de kesiyordu, şimdi 2,5'te (yine 1★). Eski tetikle duvar düzeltmesi tek başına ölümü yalnız geciktiriyordu (t=68–87): bot, geri dönen hamlecilerin arasından geçip zincirleme hamleyle kuzey sınırına sıkışıyordu.
+       - `column.test`: "kola yetişemeyen kesici başın önünde keser". Zincir: lint, tsc, 261 test, derleme, bütçe 361,8/385 kB. Bot yalnız testlerde ve çekim kipinde (Malazgirt) çalışır; oyun davranışı değişmedi.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 
 **3. Faz 27 — Sinematik.**
