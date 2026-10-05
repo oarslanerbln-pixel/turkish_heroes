@@ -149,6 +149,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
   - `stepGame(world, input, dt)` adında, Suspense'in dışında duran tek bir sürücü; bileşenler yalnızca okuyup çizer.
   - Her model kendi Suspense'ine sarılsın; yükleme sırasında bugünkü prosedürel mesh görünsün.
 - Zaman: **`stepGame`: faz 26 (denge önkoşulu, S4); bölünmüş Suspense: faz 28 önkoşulu**
+- Durum: ilk yarı yapıldı (§8 2f.1): `sim/step.ts`, yönetmen Suspense'in dışında. Kalan: model başına Suspense.
 
 **S2 · Olaylar tipsiz, konumsuz, tek okuyuculu**
 - Kanıt: `scenarios.ts:300`, `hilalSystem.ts:338`, `ArrowVolley.tsx:40-62`
@@ -254,6 +255,7 @@ Tablo açık riskleri sayar. Kapananlar maddelerinde işaretli: G2, P6. Disiplin
 - Etki: vuruştan sonraki 0,9 sn'lik enerji donması botlarda yok; denge, gerçeğinden daha kolay bir oyunda ayarlanıyor.
 - Öneri: S1'deki `stepGame`'i botlar da kullansın.
 - Zaman: **faz 26, denge ayarından önce** (§10 O1–O3 bu açıkla ölçüldü)
+- Durum: yapıldı (§8 2f.1). Botlar `stepGame`'i çağırır; donma botlarda da var.
 
 **S5 · Yapıştırıcı kod testsiz**
 - Testsiz parçalar:
@@ -695,7 +697,7 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
    - Paket bütçesi (`npm run budget`): gzip toplam 348 kB (three 180, render 70, react 54, index 43), bütçe 385 kB.
    - PR şablonu: `.github/pull_request_template.md`.
    - Ölçüm tuzakları: hedef adı `textContent`'ten alınınca ilerleme sayacı ("0 / 14") ada giriyor ve liste boşuna kırılıyordu; ad artık erişilebilir adın ya da görünen metnin ilk parçası. Mola paneli kayarak girerken ölçülen konumlar titriyordu; bekçi sonlu animasyonların bitmesini bekler.
-   - Bulgu (2f.1'e): tohum 1071'de hiç dokunmayan oyuncu Malazgirt'i t=160'ta kazanıyor ("Gece çöktü; ordugah korundu"). Faz 17 bot testi "kollar pasif oyuncuyu kurtarmaz" diyor: ya bot ile gerçek döngü ayrışıyor ya da bu tohum istisna; ayrımı 2f.1 yapar. Boşta Miryokefalon t=85'te yenilgi, Metehan'da savaş bitmiyor.
+   - Bulgu (2f.1'e): tohum 1071'de hiç dokunmayan oyuncu Malazgirt'i t=160'ta kazanıyor ("Gece çöktü; ordugah korundu"). Faz 17 bot testi "kollar pasif oyuncuyu kurtarmaz" diyor: ya bot ile gerçek döngü ayrışıyor ya da bu tohum istisna; ayrımı 2f.1 yapar. Boşta Miryokefalon t=85'te yenilgi, Metehan'da savaş bitmiyor. **Cevap (2f.1):** döngü değil, ilk savaşın yarı hasarı (assist 0,5).
 
 **2. Faz 26 — Okunabilirlik ve denge.** İki kol paralel yürür.
 - **2a Yerleşim ve yazı:** sonuç düğmeleri sarılır, dikeyde "telefonu yatay çevir" örtüsü, sağ başparmak bölgesi (U3), A8 ≥44 px, U1 yazı tabanı ≥12 px, U2 panelsiz metne koyu zemin. Kabul: düzen bekçisi 3 görüşte yeşil; HUD'da en küçük yazı ≥12 px; R3/R5'te metin kontrastı ≥4,5:1.
@@ -744,7 +746,22 @@ CREDITS.md'ye her model için üretim aracı, tarih, katman ve sahiplik yazılma
 - **2d Tarih metinleri:** T1, T2, T4, T6, T7, T10, T12, T3 çerçeve cümlesi, T13 bağlam satırları. Kabul: kaynaklı kartlarda "Manuel … istedi", "kaya", "öncü durdu", "teslim oldu" yok (`lore.test`); her brifing bir bağlam satırıyla açılır.
 - **2e Kural ipuçları (O5/O7):** Metehan'a ≥3 kapılı ipucu, harita kartında yıldız hedefi. Kabul: her ipucu `progress.test`'te bir kez tetiklenir.
 - **2f Denge (yalnız simülasyon):**
-  1. S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).
+  1. ~~S1'in ilk yarısı (`stepGame` saf fonksiyonu) ve S4. Kabul: aynı tohum ve girdiyle bot ile oyun döngüsü aynı dünya durumunu verir; 0,9 sn enerji donması botlarda da var. İlk sınama: tohum 1071'de boşta Malazgirt oyun döngüsünde kazanılıyor; pasif bot aynı tohumda aynı sonucu vermeli (Adım 1.8 bulgusu).~~ **Yapıldı (5 Ekim 2026, `claude/adim-dongusu`):**
+     - `sim/step.ts` `stepGame(world, input, dt, fx)`: oyuncu → düşmanlar → temas → hilal yönü → vuruş/enerji → savaşın akışı → sonuç. Ses, titreşim, olay kaydı ve ipuçları `StepEffects` ile gelir: oyunda gerçek (`GAME_FX`), botlarda `SILENT_FX`.
+     - Yönetmen öncelik −1'de adımı yürütür; oyuncu ve sürü artık yalnız çizer. Yönetmen ve olay boşaltıcı Suspense'in dışında (S1'in ikinci yarısı, model başına Suspense, faz 28'de).
+     - `runBattle` ve `runWaves` aynı adımı çağırır; dalgalı savaşın eski kural düğmeleri (bozgun, uzakta doğma) `wavesScenario(rules)` parametresi. Hasar çarpanı `world.assist`'te: yönetmen savaş başında senaryodan yazar, botlar parametreden.
+     - Zafer puanı (yıldızlar dahil) adımın içinde; botlar oyunun puanını görür. Bot dosyalarındaki puan kopyası kalktı.
+     - `step.test.ts`: kaydedilen bot girdisi oyun döngüsünde aynı sonucu, süreyi, canı, puanı ve düşen sayısını verir. Vuruştan sonra 0,9 sn enerji dolmaz (kuşatmaya açıklık varken de); kuralı silen değişiklikte test kırmızı.
+     - Adım 1.8 bulgusunun cevabı: döngü ayrışmıyordu. Tarayıcıdaki ilk savaş yarı hasarla (assist 0,5) koşuyor, testler tam hasarla. Tohum 1071, boşta:
+
+       | Savaş | assist 0,5 | assist 1 |
+       |---|---|---|
+       | Malazgirt | zafer, t=160 (can 15,7, puan 579) | yenilgi, t=100,9 |
+       | Miryokefalon | yenilgi, t=84,6 | yenilgi, t=78,1 |
+
+       Oyun döngüsü ile pasif bot dört durumda da aynı. Metehan'da boşta oyuncu hiç hasar almaz (600 sn'de can 100); savaş bitmez.
+     - Donma artık botlarda da var; mevcut 243 denge testi değişmeden geçti. Eşikler yine de 2.'de yeniden ölçülür.
+     - Tarayıcıda (`?commander=alp-arslan&seed=1071`): klavye 6 birim/sn yürütür, sürü yürür, VUR 4 düşüş ve 400 puan verir, 2 kare hitstop ve 0,9 sn donma; konsol temiz. Zincir: lint, tsc, 246 test, derleme, bütçe 358,5/385 kB, 38/38 e2e.
   2. Yeniden ölçüm, sonra ayar. O1: kışkırtıcı + sabırsız 30 tohumda 3★ ≤%70, pusu 3★ oranı ≥ sabırsız. O2: önce ilk vuruşun neden hep ~99 sn olduğu ölçülür; sonra ilk vuruş ortancası ≤60 sn, 3★ penceresi ≥3 birim. O3: acemi bot tabanda ≥%20, uzman tam hasarda ≥%90 kazanır. O4 skor basamağa göre ölçeklenir; O6 belge ifadesi.
   3. Senin tarafında: gerçek oyuncuyla ilk 3 denemede kazanma oranı (bot insan değildir).
 

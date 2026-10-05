@@ -259,7 +259,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const order = nextOrder(w.order)
     if (!orderWing(w, order)) {
       play('refuse')
-      announce(`${WING_NAMES[wing]} dinleniyor — atlar yorgun`)
+      announce(world, `${WING_NAMES[wing]} dinleniyor — atlar yorgun`)
       return
     }
     play('order')
@@ -273,7 +273,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!b?.layout.pass || !isPlaying()) return
     if (!dropBlockadeAt(b, world.player.z)) {
       play('refuse')
-      announce('Yol zaten kesildi — kaya yığını bir kez')
+      announce(world, 'Yol zaten kesildi — kaya yığını bir kez')
       return
     }
     track({ type: 'blockade', z: Math.round(b.blockade!.z * 10) / 10 })

@@ -1,55 +1,34 @@
-// Alp Arslan savaşı için headless oyun döngüsü ve test botları.
+// Ordu savaşları (Malazgirt, Miryokefalon) için headless oyun döngüsü ve test botları.
 //
-// Döngü GameDirector'ın savaş kolunu birebir izler (hareket → savaş adımı →
-// temas → yön → vuruş/enerji → sonuç); denge testleri ve tarama betikleri
-// bunu kullanır. Oyun kodu bu dosyayı içe aktarmaz.
+// Döngü oyunun adımını (sim/step.ts) sabit adımla çağırır: bot oyuncunun
+// gördüğünü görür, oyuncunun girdisini verir; kurallar oyundakinin aynısı
+// (vuruş sonrası donma dahil). Denge testleri ve tarama betikleri bunu
+// kullanır. Oyun kodu bu dosyayı içe aktarmaz.
 
 import {
-  afterStrike,
   BATTLE_CONFIG,
-  battleSiege,
-  battleStars,
   CENTER,
-  countSurrendered,
   countFallen,
-  createBattle,
   dropBlockade,
   isDay,
   MALAZGIRT,
   MODE_FORMATION,
   REARGUARD,
-  resolveBattle,
-  stepBattle,
-  strikeBudget,
   type BattleLayout,
   type BattleResult,
   type BattleState,
 } from './corps'
-import { confineToPass } from './pass'
-import { calcContactDamage, countAttackers } from './combat'
 import { ENEMY_CONFIG } from './enemySim'
-import {
-  approachAngle,
-  calcFacing,
-  countInCrescent,
-  executeStrike,
-  HILAL_CONFIG,
-  isInCrescent,
-  isStrikeReady,
-  stepEnergy,
-} from './hilalSystem'
+import { HILAL_CONFIG, isInCrescent } from './hilalSystem'
 import type { Enemy, Vec2 } from './types'
 import { orderWing, type WingOrder } from './wings'
 import type { TelemetryEvent } from '../telemetry/summary'
+import { battleEnd, SILENT_FX, stepGame, type StepEffects, type StepInput } from '../sim/step'
+import { createWorld } from '../sim/world'
 
 export const BOT_DT = 1 / 60
 /** Oyuncunun başlangıcı: ordugahın önü. */
 export const PLAYER_START: Vec2 = { x: 0, z: 16 }
-
-/** Oyuncu puanı, GameDirector ile aynı kurallar. */
-export const SCORE_PER_KILL = 100
-export const SCORE_PER_STAR = 500
-export const HEALTH_BONUS_PER_POINT = 5
 
 export interface BotView {
   battle: BattleState
@@ -78,6 +57,7 @@ export interface BattleRun {
   stars: number
   health: number
   fallen: number
+  /** Oyunun puanı: vuruşla düşen, teslim olan, yıldız ve can bonusu. */
   score: number
   time: number
   strikes: number[]
@@ -98,135 +78,86 @@ export interface BattleRun {
 /**
  * @param record Oyundaki olay takibiyle aynı olaylar; savaş karnesi testleri
  *   koşuyu oyuncunun özetine böyle çevirir. t: savaş saati (sn).
+ * @param assist Hasar çarpanı (oyunda komutanla ilk savaş 0,5).
  */
 export function runBattle(
   bot: Bot,
   seed: number,
   record?: (e: TelemetryEvent, t: number) => void,
   layout: BattleLayout = MALAZGIRT,
+  assist = 1,
 ): BattleRun {
-  const { battle, enemies } = createBattle(seed, layout)
-  const player = { ...layout.playerStart }
+  const commander = layout.pass ? 'kilicarslan' : 'alp-arslan'
+  const w = createWorld(commander, { seed, layout })
+  w.assist = assist
+  const battle = w.battle!
   const peakJam = battle.corps.map(() => 0)
   let blockZ: number | null = null
-  let health = 100
-  let energy = 0
-  let facing = Math.PI
-  let facingTarget = Math.PI
-  let result: BattleResult = 'playing'
   const strikes: number[] = []
   let bestDuskStrike = 0
   let duskCohesion: number[] = []
   let duskWingStrength: number[] = []
-  const view: BotView = { battle, enemies, player, energy, facing, inCrescent: 0, health }
-  record?.(
-    { type: 'battle_start', commander: layout.pass ? 'kilicarslan' : 'alp-arslan', attempt: 1, assist: 1, seed },
-    0,
-  )
+  const fx: StepEffects = {
+    ...SILENT_FX,
+    track(e) {
+      if (e.type === 'strike') {
+        strikes.push(e.kills)
+        if (!isDay(battle)) bestDuskStrike = Math.max(bestDuskStrike, e.kills)
+      } else if (e.type === 'dusk') {
+        duskCohesion = battle.corps.map((c) => c.cohesion)
+        duskWingStrength = battle.wings.map((x) => x.strength)
+      }
+      record?.(e, battle.time)
+    },
+  }
+  const input: StepInput = { move: { x: 0, z: 0 }, strike: false }
+  const view: BotView = {
+    battle,
+    enemies: w.enemies,
+    player: w.player,
+    energy: 0,
+    facing: w.facing,
+    inCrescent: 0,
+    health: w.playerHealth,
+  }
+  record?.({ type: 'battle_start', commander, attempt: 1, assist, seed }, 0)
 
-  while (result === 'playing') {
-    view.energy = energy
-    view.facing = facing
-    view.health = health
+  while (w.outcome === 'playing') {
+    view.energy = w.energy
+    view.facing = w.facing
+    view.inCrescent = w.inCrescent
+    view.health = w.playerHealth
     const action = bot(view)
     action.wings?.forEach((order, wi) => {
-      const w = battle.wings[wi]
-      const before = w.order
-      if (orderWing(w, order) && w.order !== before) {
-        record?.({ type: 'wing_order', wing: wi, order: w.order }, battle.time)
+      const wing = battle.wings[wi]
+      const before = wing.order
+      if (orderWing(wing, order) && wing.order !== before) {
+        record?.({ type: 'wing_order', wing: wi, order: wing.order }, battle.time)
       }
     })
-    if (action.blockade && dropBlockade(battle, player.z)) {
+    if (action.blockade && dropBlockade(battle, w.player.z)) {
       blockZ = battle.blockade!.z
       record?.({ type: 'blockade', z: Math.round(blockZ * 10) / 10 }, battle.time)
     }
 
-    const len = Math.hypot(action.move.x, action.move.z)
-    if (len > 0) {
-      const speed = Math.min(len, HILAL_CONFIG.retreatSpeed)
-      player.x += (action.move.x / len) * speed * BOT_DT
-      player.z += (action.move.z / len) * speed * BOT_DT
-      const r = Math.hypot(player.x, player.z)
-      if (r > ENEMY_CONFIG.arenaRadius) {
-        player.x *= ENEMY_CONFIG.arenaRadius / r
-        player.z *= ENEMY_CONFIG.arenaRadius / r
-      }
-      if (layout.pass) confineToPass(player)
-    }
-
-    const wasDay = isDay(battle)
-    stepBattle(battle, enemies, player, BOT_DT)
+    // Botun hızı oyuncunun çubuğuna çevrilir (retreatSpeed = tam itiş).
+    input.move.x = action.move.x / HILAL_CONFIG.retreatSpeed
+    input.move.z = action.move.z / HILAL_CONFIG.retreatSpeed
+    input.strike = action.strike
+    stepGame(w, input, BOT_DT, fx)
     battle.corps.forEach((c, ci) => (peakJam[ci] = Math.max(peakJam[ci], c.jam)))
-    if (wasDay && !isDay(battle)) {
-      duskCohesion = battle.corps.map((c) => c.cohesion)
-      duskWingStrength = battle.wings.map((w) => w.strength)
-      record?.(
-        { type: 'dusk', cohesion: duskCohesion, wings: duskWingStrength, health: Math.round(health) },
-        battle.time,
-      )
-    }
-    for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
-    battle.events.length = 0
-    battle.charges.length = 0
-    const siege = battleSiege(battle, enemies)
-    health -= calcContactDamage(
-      countAttackers(enemies, player),
-      BOT_DT,
-      BATTLE_CONFIG.contactDamage,
-    )
-
-    facingTarget = calcFacing(enemies, player, facingTarget, siege.centroid)
-    facing = approachAngle(facing, facingTarget, HILAL_CONFIG.facingTurnRate * BOT_DT)
-    view.inCrescent = countInCrescent(enemies, player, facing, strikeBudget(battle))
-
-    if (action.strike && isStrikeReady(energy) && view.inCrescent > 0) {
-      const alive = siege.aliveCount
-      const kills = executeStrike(enemies, player, facing, undefined, strikeBudget(battle))
-      afterStrike(battle, enemies)
-      record?.({ type: 'strike', kills, alive }, battle.time)
-      for (const event of battle.events) record?.({ type: 'battle_event', event }, battle.time)
-      battle.events.length = 0
-      battle.charges.length = 0
-      strikes.push(kills)
-      if (!isDay(battle)) bestDuskStrike = Math.max(bestDuskStrike, kills)
-      energy = 0
-    } else {
-      energy = stepEnergy(energy, siege.vulnerability, BOT_DT)
-    }
-
-    result = resolveBattle(battle, enemies, health)
+    // Oyunda karenin sonunda boşalır (EventFlush).
+    w.events.length = 0
   }
 
-  const fallen = countFallen(enemies)
-  const stars = result === 'victory' ? battleStars(battle, enemies) : 0
-  record?.(
-    {
-      type: 'battle_end',
-      outcome: result,
-      cause: result === 'defeat' ? (battle.reachedCamp ? 'camp' : 'health') : null,
-      score: 0,
-      stars,
-      health: Math.max(0, Math.round(health)),
-      wave: 0,
-      remaining: enemies.filter((e) => e.alive).length,
-      simTime: battle.time,
-    },
-    battle.time,
-  )
-  const score =
-    fallen * SCORE_PER_KILL +
-    (result === 'victory'
-      ? countSurrendered(battle, enemies) * SCORE_PER_KILL +
-        stars * SCORE_PER_STAR +
-        Math.round(health) * HEALTH_BONUS_PER_POINT
-      : 0)
-
+  const end = battleEnd(w)
+  record?.(end, battle.time)
   return {
-    result,
-    stars,
-    health: Math.max(0, health),
-    fallen,
-    score,
+    result: w.outcome,
+    stars: end.stars,
+    health: w.playerHealth,
+    fallen: countFallen(w.enemies),
+    score: w.score,
     time: battle.time,
     strikes,
     bestDuskStrike,

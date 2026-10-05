@@ -4,12 +4,11 @@ import { Color, InstancedMesh, type Mesh, MeshStandardMaterial, Object3D } from 
 import { MODE_FORMATION } from '../mechanics/corps'
 import { ENEMY_CAPACITY } from '../mechanics/scenario'
 import type { Enemy } from '../mechanics/types'
-import { isPlaying, simDelta, world } from '../sim/world'
-import { scenarioOf } from '../sim/scenarios'
+import { simDelta, world } from '../sim/world'
 import { buildHorseGeometry, buildRiderGeometry, buildStandardGeometry } from '../characters/riderGeometry'
 import { CHARGE_COLOR as CHARGE } from './palette'
 
-// Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
+// Yalnız çizer: düşmanları yönetmenin adımı (öncelik -1) yürütür.
 const ENEMY_PRIORITY = 1
 
 // Disiplinli (düzenli) → dağılmış (öfkeli takip) renk geçişi. Oyuncunun
@@ -87,9 +86,8 @@ export function EnemySwarm() {
     if (!horseMesh || !riderMesh || !standard) return
     const dt = simDelta(delta)
 
-    // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
+    // Çizim her karede world'ü izler: sonuç ekranında sürü donmuş durur,
     // yeniden başlatıldığında yeni pozisyonlar ilk karede görünür.
-    if (isPlaying()) scenarioOf(world).moveEnemies(world, dt)
     const battle = world.battle
     const calm = battle ? BYZANTINE_COLOR : DISCIPLINED_COLOR
     const broken = battle ? BYZANTINE_BROKEN : BROKEN_COLOR

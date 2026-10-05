@@ -7,11 +7,12 @@ import { HURT_CONFIG, stepHurt } from './hurt'
 import { resetWorld, world } from './world'
 
 const DT = 1 / 60
+const fx = { play, haptic }
 
 /** sn saniye boyunca saniyede dps hasar; kaç yara tepkisi verildi. */
 function bleed(dps: number, seconds: number): number {
   let n = 0
-  for (let i = 0; i < Math.round(seconds / DT); i++) if (stepHurt(world, dps * DT, DT)) n++
+  for (let i = 0; i < Math.round(seconds / DT); i++) if (stepHurt(world, dps * DT, DT, fx)) n++
   return n
 }
 
@@ -45,8 +46,8 @@ describe('yara geri bildirimi', () => {
   })
 
   it('eşik altındaki hasar birikir, kaybolmaz', () => {
-    stepHurt(world, HURT_CONFIG.step / 2, DT)
+    stepHurt(world, HURT_CONFIG.step / 2, DT, fx)
     expect(play).not.toHaveBeenCalled()
-    expect(stepHurt(world, HURT_CONFIG.step / 2, DT)).toBe(true)
+    expect(stepHurt(world, HURT_CONFIG.step / 2, DT, fx)).toBe(true)
   })
 })
