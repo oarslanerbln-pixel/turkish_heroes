@@ -50,6 +50,7 @@ export type AdviceId =
   | 'saveHilal'
   | 'evade'
   | 'useWings'
+  | 'bait'
   | 'saveWings'
   | 'duskStrike'
   | 'breakRear'
@@ -63,7 +64,7 @@ export type AdviceId =
   | 'harvestJam'
   | 'jamCenter'
 
-export type MarkKind = 'strike' | 'charge' | 'wave' | 'rout' | 'emperor' | 'shock' | 'block'
+export type MarkKind = 'strike' | 'charge' | 'wave' | 'rout' | 'emperor' | 'shock' | 'block' | 'ambush'
 
 export interface TimelineMark {
   /** 0–1: savaşın süresi içindeki yeri. */
@@ -273,11 +274,13 @@ function battleDebrief(s: BattleSummary): Debrief {
   const cfg = BATTLE_CONFIG
   const sunset = s.events.find((e) => e.event === 'sunset')?.t ?? null
   const isDusk = (t: number) => sunset !== null && t >= sunset
-  const fallen = sum(s.strikes.map((x) => x.kills))
+  // Pusuda kesilenler de düşen sayılır (yıldız ölçüsüyle aynı: corps.ts countFallen).
+  const fallen = sum(s.strikes.map((x) => x.kills)) + sum(s.ambushes.map((x) => x.taken))
   const peakStrike = bestStrike(s)
 
   const marks: TimelineMark[] = [
     ...s.strikes.map((x) => ({ at: at(s, x.t), kind: 'strike' as const, size: x.kills })),
+    ...s.ambushes.map((x) => ({ at: at(s, x.t), kind: 'ambush' as const })),
     ...s.events.flatMap((e): TimelineMark[] => {
       if (e.event === 'charge') return [{ at: at(s, e.t), kind: 'charge' }]
       if (e.event === 'emperorCaptured') return [{ at: at(s, e.t), kind: 'emperor' }]
@@ -449,6 +452,12 @@ function harvestAdvice(s: BattleSummary, sunset: number | null): Debrief['advice
       text: 'Kolları pusuda sakla, gün batımında HÜCUM ver: dönen orduya arkadan vurur, düzeni bir anda çöker.',
     }
   }
+  if (s.ambushes.length === 0) {
+    return {
+      id: 'bait',
+      text: 'Gündüz hamle edeni pusudaki kolun yanına çek: kol çıkar, peşindekileri keser. Kanadın komutanı esir düşerse kanat akşam dağılır.',
+    }
+  }
   return {
     id: 'duskStrike',
     text: 'Akşam dönen birliği dönüşün ortasında kuşat: disiplini sıfıra iner, yaydaki herkes düşer.',
@@ -484,9 +493,13 @@ function emperorAdvice(s: BattleSummary, exposed: boolean, rearLeft: boolean): D
     }
   }
   if (!chargedAtDusk(s)) {
+    const late = lateDuskCharge(s)
     return {
       id: 'closeWings',
-      text: `Artçı kaçtı, merkezin arkası açıldı. Gün batınca ${cfg.emperorWindow} sn içinde kollara HÜCUM ver: merkeze kapanırlarsa imparator korumasız kalır.`,
+      text:
+        late !== null
+          ? `Kollara HÜCUM'u sancak döndükten ${late} sn sonra verdin; merkez çarkını bitirdi, muhafız toparlandı. Sancak döner dönmez sal: kolların merkeze varması ~2 sn sürer.`
+          : 'Artçı kaçtı, merkezin arkası açıldı. Sancak dönünce kollara HÜCUM ver: merkez çark ederken kapanırlarsa imparator korumasız kalır.',
     }
   }
   const center = cohesion[CENTER]
@@ -499,13 +512,25 @@ function emperorAdvice(s: BattleSummary, exposed: boolean, rearLeft: boolean): D
   }
 }
 
-/** İmparatorun penceresi kapanmadan (bkz. emperorWindow) bir kol hücumdaydı mı. */
+/**
+ * Sancak penceresi kapanmadan bir kol hücumdaydı mı. Pencere merkezin
+ * dönüşü kadar: bitişi 'guardRallied' olayı (bkz. corps.ts emperorOpen).
+ */
 function chargedAtDusk(s: BattleSummary): boolean {
-  const sunset = s.events.find((e) => e.event === 'sunset')?.t
-  if (sunset === undefined) return false
+  if (!s.events.some((e) => e.event === 'sunset')) return false
+  const closed = s.events.find((e) => e.event === 'guardRallied')?.t ?? Infinity
   const last: WingOrder[] = ['ambush', 'ambush']
-  for (const o of s.orders) if (o.t < sunset + BATTLE_CONFIG.emperorWindow) last[o.wing] = o.order
+  for (const o of s.orders) if (o.t < closed) last[o.wing] = o.order
   return last.includes('charge')
+}
+
+/** Pencere kapandıktan sonra verilen ilk HÜCUM emri, gün batımından kaç sn sonra (yoksa null). */
+function lateDuskCharge(s: BattleSummary): number | null {
+  const sunset = s.events.find((e) => e.event === 'sunset')?.t
+  const closed = s.events.find((e) => e.event === 'guardRallied')?.t
+  if (sunset === undefined || closed === undefined) return null
+  const late = s.orders.find((o) => o.order === 'charge' && o.t >= closed)
+  return late ? Math.round(late.t - sunset) : null
 }
 
 // ——— II. Kılıçarslan: Miryokefalon ———

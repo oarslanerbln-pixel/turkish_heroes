@@ -12,6 +12,7 @@ import {
   BATTLE_CONFIG,
   battleSiege,
   CENTER,
+  CORPS,
   battleStars,
   countSurrendered,
   resolveBattle,
@@ -31,7 +32,7 @@ import {
   type BaidengEvent,
 } from '../mechanics/baideng'
 import { stepEnemies } from '../mechanics/enemySim'
-import { WING_CONFIG } from '../mechanics/wings'
+import { canSpring, WING_CONFIG } from '../mechanics/wings'
 import {
   calcSiegeState,
   isStrikeReady,
@@ -326,6 +327,13 @@ const EVENT_TEXT: Record<BattleEvent, string> = {
   emperorCaptured: 'İmparator esir alındı',
   wingShockLeft: 'Sol kol dönen orduya yüklendi!',
   wingShockRight: 'Sağ kol dönen orduya yüklendi!',
+  wingMetLeft: 'Sol kol dönmemiş hatta çarptı — darbe boşa gitti',
+  wingMetRight: 'Sağ kol dönmemiş hatta çarptı — darbe boşa gitti',
+  guardRallied: 'Merkez döndü — muhafız toparlandı',
+  ambushLeft: 'Sol kol pusudan çıktı — peşine düşen bölük kesildi!',
+  ambushRight: 'Sağ kol pusudan çıktı — peşine düşen bölük kesildi!',
+  commanderCaptured: 'Kanat komutanı esir — kanadı akşam dağınık dönecek',
+  corpsBreaks: 'Komutansız kanat dönüşü beceremiyor — şimdi kuşat',
   // Geçitte (Miryokefalon) bu olayların kendi metni var: bkz. PASS_TEXT.
   wingTiredLeft: 'Sol kol yoruldu — pusuya dönüyor',
   wingTiredRight: 'Sağ kol yoruldu — pusuya dönüyor',
@@ -366,6 +374,12 @@ const round2 = (v: number) => Math.round(v * 100) / 100
 /** Ağır çekim süreleri (gerçek zaman, sn). */
 const FIRST_CHARGE_SLOWMO = 0.45
 const SUNSET_SLOWMO = 0.9
+const AMBUSH_SLOWMO = 0.6
+
+/** Yem bölüğün ilk tanıtımı: hamleden kaçmayı öğrenmiş oyuncunun ikinci hamlesinde. */
+const BAIT_HINT = 'Hamle edeni pusudaki kolun yanına çek — kol peşindekileri keser'
+/** Birlik adlarının -in hali (duyurularda). */
+const CORPS_OF = ['Sol kanadın', 'Merkezin', 'Sağ kanadın', 'Artçının'] as const
 
 /**
  * Ok kamerası (bkz. components/arrowShot.ts) savaş başına en çok iki kez:
@@ -419,6 +433,7 @@ const battle: Scenario = {
     ) {
       announce(w, WINGS_HINT)
     }
+    let ambushed: BattleState['ambushes'][number] | null = null
     for (const event of b.events) {
       fx.track({ type: 'battle_event', event })
       switch (event) {
@@ -434,7 +449,30 @@ const battle: Scenario = {
           if (fx.hint('charge')) {
             announce(w, EVENT_TEXT.charge)
             w.slowmo = FIRST_CHARGE_SLOWMO
+          } else if (!b.layout.pass && b.wings.some(canSpring) && fx.hint('bait')) {
+            // Hamleden kaçmayı öğrenen oyuncuya ikinci adım: kaçışın yönü.
+            announce(w, BAIT_HINT)
           }
+          break
+        case 'ambushLeft':
+        case 'ambushRight': {
+          const a = b.ambushes.shift()
+          if (!a) break
+          ambushed = a
+          w.totalKills += a.taken
+          w.score += a.taken * SCORE_PER_KILL
+          fx.track({ type: 'ambush', wing: a.side < 0 ? 0 : 1, corps: a.corps, taken: a.taken, commander: a.commander })
+          fx.play('wingCharge')
+          fx.haptic([30, 20, 60])
+          w.slowmo = AMBUSH_SLOWMO
+          announce(w, `Pusu! ${CORPS_OF[a.corps]} ${a.taken} askeri kesildi`)
+          break
+        }
+        case 'commanderCaptured':
+          announce(
+            w,
+            ambushed ? `Komutanı esir — ${CORPS[ambushed.corps].name} akşam dağınık dönecek` : EVENT_TEXT.commanderCaptured,
+          )
           break
         case 'sunset':
           fx.track({
@@ -484,6 +522,7 @@ const battle: Scenario = {
       }
     }
     b.events.length = 0
+    b.ambushes.length = 0
     for (const c of b.charges) w.events.push({ type: 'charge', corps: c.corps, pos: c.pos })
     b.charges.length = 0
   },

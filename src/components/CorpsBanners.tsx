@@ -24,10 +24,13 @@ const STEADY = new Color('#f1d17a')
 const WORN = new Color('#ff5a1a')
 /** Taciz altında çubuk bu renge doğru parlar. */
 const HARASSED = new Color('#fff3c4')
+/** Komutanı pusuda esir düşen kanat: çubuğun solunda kolun renginde baklava. */
+const LEADERLESS = '#8fd8c8'
 
 export function CorpsBanners() {
   const groups = useRef<(Group | null)[]>([])
   const fills = useRef<(Mesh | null)[]>([])
+  const leaderless = useRef<(Mesh | null)[]>([])
   const emperorRing = useRef<Mesh>(null)
 
   useFrame(({ camera, clock }) => {
@@ -69,6 +72,8 @@ export function CorpsBanners() {
         const pulse = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 10)
         material.color.lerp(HARASSED, c.harass * 0.6 * pulse)
       }
+      const mark = leaderless.current[ci]
+      if (mark) mark.visible = c.leaderless
     }
 
     // İmparator korumasız: altında nabız gibi atan kırmızı halka.
@@ -114,6 +119,18 @@ export function CorpsBanners() {
           >
             <planeGeometry args={[0.05, BAR_HEIGHT + 0.16]} />
             <meshBasicMaterial color="#fff3c4" transparent opacity={0.7} depthTest={false} fog={false} />
+          </mesh>
+          <mesh
+            renderOrder={12}
+            position={[-BAR_WIDTH / 2 - 0.3, 0, 0]}
+            rotation={[0, 0, Math.PI / 4]}
+            visible={false}
+            ref={(m) => {
+              leaderless.current[ci] = m
+            }}
+          >
+            <planeGeometry args={[0.24, 0.24]} />
+            <meshBasicMaterial color={LEADERLESS} depthTest={false} fog={false} toneMapped={false} />
           </mesh>
         </group>
       ))}

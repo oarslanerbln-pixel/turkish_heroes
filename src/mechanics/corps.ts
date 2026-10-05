@@ -11,6 +11,9 @@
 //     ortasında disiplin sıfıra iner; asıl kuşatma anı budur.
 //   - Artçı akşam düzeni düşükse savaş alanını terk eder; merkez de
 //     yıpranmışsa imparator korumasız kalır.
+//   - Yem: hamle eden bölüğü pusudaki kola çeken oyuncu bölüğü kestirir,
+//     kanadın komutanını esir aldırır. Komutansız kanat akşam sancağın
+//     dönüşünü bozgun sanıp çekilir (bkz. stepAmbush).
 //
 // Saf veri ve saf fonksiyonlar: React'e ve world'e bağımlı değil, bot
 // testleri (corps.test.ts) aynı kodu koşturur.
@@ -21,6 +24,7 @@ import { confineToPass, narrowness, PASS, passHalfWidth } from './pass'
 import { mulberry32 } from './random'
 import type { Enemy, Vec2 } from './types'
 import {
+  canSpring,
   createWings,
   moveWing,
   stepStrength,
@@ -89,6 +93,17 @@ export const BATTLE_CONFIG = {
   /** Hamleden sonra aynı birliğin yeniden kışkırtılabilmesi için bekleme (sn). */
   chargeCooldown: 1.5,
 
+  /** Hamle eden asker pusudaki kola bu kadar yaklaşırsa pusu tutar. */
+  ambushRadius: 5,
+  /** Pusu tutunca kolun bu yakınındaki hamle edenler kesilir (esir). */
+  ambushCapture: 9,
+  /** Pusunun kola maliyeti (güç). */
+  ambushCost: 0.2,
+  /** Bölüğü kesilen birliğin düzeninden düşen (gündüz tabanıyla sınırlı). */
+  ambushShock: 0.1,
+  /** Komutansız kanadın akşam çarkı bu kat uzun sürer (dağınık dönüş). */
+  leaderlessTurn: 2,
+
   /** Ağır süvari teması: asker başına saniyelik hasar (Metehan'da 8). */
   contactDamage: 12,
 
@@ -107,11 +122,6 @@ export const BATTLE_CONFIG = {
    * başına yeter, gündüz tükenen iki kol yetmez.
    */
   emperorPin: 0.6,
-  /**
-   * Gün batımından sonra imparatorun açığa çıkabileceği süre (sn): dönüşün
-   * karmaşası. Sonra muhafız toparlanır — kollarını akşam dinlendiren geç kalır.
-   */
-  emperorWindow: 15,
   /** Gündüz vuruşundan sonra ordu irkilir: her birliğin düzeni bu kadar toparlanır. */
   strikeRecovery: 0.2,
 
@@ -352,6 +362,8 @@ export interface CorpsState {
   jam: number
   /** Birliğin ilerleyebileceği en uzak z (öndeki birlik ya da yığın). */
   limit: number
+  /** Kanadın komutanı pusuda esir düştü: akşam çarkı uzar, kol onu bırakır. */
+  leaderless: boolean
 }
 
 /** Askerin anlık görevi. */
@@ -370,6 +382,18 @@ export type BattleEvent =
   /** Kol akşam dönen birliğe hücumun ilk darbesini vurdu. */
   | 'wingShockLeft'
   | 'wingShockRight'
+  /** Kol dönmemiş, düzenli hatta çarptı: ilk darbesi boşa gitti. */
+  | 'wingMetLeft'
+  | 'wingMetRight'
+  /** Merkez dönüşünü bitirdi, imparator açılmadan: muhafız toparlandı. */
+  | 'guardRallied'
+  /** Yem: pusudaki kol hamle eden bölüğü kesti (ayrıntı `ambushes`'ta). */
+  | 'ambushLeft'
+  | 'ambushRight'
+  /** Pusuda bir kanat komutanı esir düştü (birlik başına bir kez). */
+  | 'commanderCaptured'
+  /** Komutansız birlik sancağın dönüşünü bozgun sandı, çekiliyor. */
+  | 'corpsBreaks'
   /** Kol yoruldu, pusuya dönüyor. */
   | 'wingTiredLeft'
   | 'wingTiredRight'
@@ -405,6 +429,8 @@ export interface BattleState {
    * kayıt. events ile birlikte okunup boşaltılır.
    */
   charges: { corps: number; pos: Vec2 }[]
+  /** Tutan pusular: kesilen birlik, kol (−1/+1), yer ve esir sayısı. events ile birlikte okunup boşaltılır. */
+  ambushes: { corps: number; side: -1 | 1; pos: Vec2; taken: number; commander: boolean }[]
   /** Bir kez gösterilen olaylar (ilk taciz, ilk hamle) tekrar yayılmasın. */
   seen: Set<BattleEvent>
   /** Geçit: kaya yığını (z'si ve kalan sağlamlığı 0–1); yoksa null. */
@@ -458,6 +484,7 @@ export function createBattle(
       pinned: 0,
       jam: 0,
       limit: Infinity,
+      leaderless: false,
     }
   })
 
@@ -484,6 +511,7 @@ export function createBattle(
     frontZ: armyZ,
     events: [],
     charges: [],
+    ambushes: [],
     seen: new Set(),
     blockade: null,
     blockadeUsed: false,
@@ -566,6 +594,7 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
   if (b.layout.pass) stepColumn(b, dt)
   stepWings(b, dt)
 
+  const centerTurning = b.corps[CENTER].status === 'turning'
   for (let ci = 0; ci < b.corps.length; ci++) {
     const c = b.corps[ci]
     if (c.alive === 0) continue
@@ -578,12 +607,17 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
     b.emperorExposed = true
     b.events.push('emperorExposed')
   }
+  // Pencere kapandı: geç kalan bunu görsün (karnede de okunur).
+  if (centerTurning && b.corps[CENTER].status !== 'turning' && !b.emperorExposed) {
+    b.events.push('guardRallied')
+  }
 
   for (let i = 0; i < enemies.length; i++) {
     const e = enemies[i]
     if (!e.alive) continue
     stepSoldier(b, e, i, enemies, player, dt)
   }
+  if (!b.layout.pass) stepAmbush(b, enemies)
 
   if (isDay(b)) {
     b.frontZ = frontLine(b)
@@ -592,9 +626,12 @@ export function stepBattle(b: BattleState, enemies: Enemy[], player: Vec2, dt: n
 }
 
 /**
- * İmparator korumasız mı? Malazgirt: gün batımının hemen ardından kollar
- * merkezi tutuyorsa ve merkez yıprandıysa — hilalin boynuzları kapandı. Artçının
- * kaçışı tek başına açmaz; kolları merkeze yöneltir (wingTarget). Miryokefalon:
+ * İmparator korumasız mı? Malazgirt: sancak dönüşü. Gün batımında imparatorun
+ * sancağı döner, merkez çark eder; çark sürerken kollar merkezi tutuyorsa ve
+ * merkez yıprandıysa hilalin boynuzları kapandı. Pencere merkezin görünür
+ * dönüşü kadar: yıpranmış merkez geç döner (turnDuration), tutulan merkez daha
+ * da geç (turnSlow). Çark bitince muhafız toparlanır. Artçının kaçışı tek
+ * başına açmaz; kolları merkeze yöneltir (wingTarget). Miryokefalon:
  * muhafızlar geçitte sıkıştıysa ve merkezin düzeni kırıldıysa — Manuel açıkta.
  */
 function emperorOpen(b: BattleState): boolean {
@@ -604,8 +641,7 @@ function emperorOpen(b: BattleState): boolean {
   }
   const cfg = BATTLE_CONFIG
   return (
-    !isDay(b) &&
-    b.time - b.layout.dayLength < cfg.emperorWindow &&
+    center.status === 'turning' &&
     center.pinned >= cfg.emperorPin &&
     center.cohesion < cfg.emperorThreshold
   )
@@ -671,7 +707,11 @@ export function dropBlockade(b: BattleState, z: number): boolean {
   return true
 }
 
-/** Gün batımı: her birlik dönmeye başlar; artçı yıprandıysa çekilir. */
+/**
+ * Gün batımı: imparatorun sancağı döner, her birlik çark etmeye başlar.
+ * Uzaktakiler dönüşü bozgun sanabilir: yıpranmış artçı çekilir. Komutanı esir
+ * düşmüş kanat dönüşü beceremez: çarkı uzar, düzeni uzun süre çözük kalır.
+ */
 function sunset(b: BattleState): void {
   const cfg = BATTLE_CONFIG
   b.events.push('sunset')
@@ -682,10 +722,61 @@ function sunset(b: BattleState): void {
       b.events.push('rearguardLeaves')
       return
     }
+    if (c.leaderless && c.alive > 0) b.events.push('corpsBreaks')
     c.status = 'turning'
     c.turn = 0
-    c.turnDuration = cfg.turnBase + cfg.turnPerDisorder * (1 - c.cohesion)
+    c.turnDuration =
+      (cfg.turnBase + cfg.turnPerDisorder * (1 - c.cohesion)) * (c.leaderless ? cfg.leaderlessTurn : 1)
   })
+}
+
+/**
+ * Yem bölük (Bryennios I.14: ordugahın önünde görünüp kaçan Türk bölükleri
+ * Basilakes'i peşine çekti; yolu kesildi, esir düştü). Oyuncunun peşine
+ * takılan hamle bölüğü pusuda dinlenen kola yaklaşırsa kol çıkar: kolun
+ * yakınındaki hamle edenler kesilir. Bir kanadın bölüğüyse komutanı da esir
+ * düşer (kanat başına bir kez); merkezde imparator, artçıda yedek kalır. Her
+ * kolun pususu savaşta bir kez tutar. Gerçekte bu çatışma savaştan bir gün önceydi; oyun onu
+ * savaş gününe taşır (oyun kuralı).
+ */
+function stepAmbush(b: BattleState, enemies: Enemy[]): void {
+  const cfg = BATTLE_CONFIG
+  for (const w of b.wings) {
+    if (!canSpring(w)) continue
+    let ci = -1
+    for (let i = 0; i < enemies.length && ci < 0; i++) {
+      const e = enemies[i]
+      if (e.alive && b.mode[i] === MODE_CHARGE && Math.hypot(e.pos.x - w.pos.x, e.pos.z - w.pos.z) < cfg.ambushRadius) {
+        ci = e.corps ?? 0
+      }
+    }
+    if (ci < 0) continue
+
+    const c = b.corps[ci]
+    const pos = { x: 0, z: 0 }
+    let taken = 0
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i]
+      if (!e.alive || e.corps !== ci || b.mode[i] === MODE_FORMATION) continue
+      if (Math.hypot(e.pos.x - w.pos.x, e.pos.z - w.pos.z) >= cfg.ambushCapture) continue
+      e.alive = false
+      b.mode[i] = MODE_FORMATION
+      pos.x += e.pos.x
+      pos.z += e.pos.z
+      taken++
+    }
+    c.alive -= taken
+    pos.x /= taken
+    pos.z /= taken
+    w.sprung = true
+    w.strength = Math.max(0, w.strength - cfg.ambushCost)
+    c.cohesion = clampCohesion(b, c.cohesion - cfg.ambushShock)
+    const commander = ci !== CENTER && ci !== REARGUARD && !c.leaderless
+    if (commander) c.leaderless = true
+    b.ambushes.push({ corps: ci, side: w.side, pos, taken, commander })
+    b.events.push(w.side < 0 ? 'ambushLeft' : 'ambushRight')
+    if (commander) b.events.push('commanderCaptured')
+  }
 }
 
 /** Her birliğin hayattaki asker sayısı ve oyuncuya en yakın askeri. */
@@ -703,13 +794,17 @@ function measureCorps(b: BattleState, enemies: readonly Enemy[], player: Vec2): 
   }
 }
 
-/** Kolun hedefi: kendi tarafındaki sırayla; artçı kaçtıysa merkezin arkası açık, kollar ona kapanır. */
+/**
+ * Kolun hedefi: kendi tarafındaki sırayla; artçı kaçtıysa merkezin arkası
+ * açık, kollar ona kapanır. Komutanı esir düşen kanadı kol bırakır: o yandan
+ * yol merkeze açık.
+ */
 function wingTarget(b: BattleState, w: WingState): number {
   if (w.order === 'ambush') return -1
   if (b.rearguardLeft && b.corps[CENTER].alive > 0) return CENTER
   for (const ci of b.layout.wingTargets[w.side < 0 ? 0 : 1]) {
     const c = b.corps[ci]
-    if (c.alive > 0 && c.status !== 'fleeing') return ci
+    if (c.alive > 0 && c.status !== 'fleeing' && !c.leaderless) return ci
   }
   return -1
 }
@@ -728,10 +823,17 @@ function stepWings(b: BattleState, dt: number): void {
     const c = w.target >= 0 ? b.corps[w.target] : null
     moveWing(w, c ? c.anchor : null, dt)
     if (c) {
-      if (w.order === 'charge' && !w.shocked && w.presence >= 0.8 && shockable(b, c)) {
-        w.shocked = true
-        c.cohesion = clampCohesion(b, c.cohesion - WING_CONFIG.shock * w.strength)
-        b.events.push(w.side < 0 ? 'wingShockLeft' : 'wingShockRight')
+      if (w.order === 'charge' && !w.shocked && w.presence >= 0.8) {
+        if (shockable(b, c)) {
+          w.shocked = true
+          c.cohesion = clampCohesion(b, c.cohesion - WING_CONFIG.shock * w.strength)
+          b.events.push(w.side < 0 ? 'wingShockLeft' : 'wingShockRight')
+        } else if (!b.layout.pass && c.status === 'advancing') {
+          // Erken salınan kol dönmemiş, yüzü dönük hatta çarpar: darbe boşa
+          // gider. Sonradan dönen birliği sarsmak için emir yenilenmeli.
+          w.shocked = true
+          b.events.push(w.side < 0 ? 'wingMetLeft' : 'wingMetRight')
+        }
       }
       c.wingHarass += wingHarass(w)
       // Açık alanda ilerleyen birlik hücumu karşılar ve yürümeyi sürdürür;

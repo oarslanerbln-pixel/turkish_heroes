@@ -431,6 +431,68 @@ export const provokerBot = (): Bot => (v) => {
   return { move: navigate(v, dest, ci), strike: v.inCrescent >= 8 }
 }
 
+/** Yemin kola varabileceği en uzak mesafe: birliğin önünden pusu yerine. */
+const BAIT_REACH = 17
+/** Pusunun gerisinde koşulan nokta: kovalayanlar kolun dibinden geçsin. */
+const BAIT_OVERRUN = 3
+
+/**
+ * Yemci (Mantık 2): pusu yerine yeterince yaklaşan kanadı kışkırtır, hamle
+ * eden bölüğü pusudaki kolun dibinden geçirir; komutan esir düşünce merkezi
+ * yıpratır (arkasındaki artçı da yıpranır). Komutansız kanat akşam çekilince
+ * kol doğrudan merkeze kapanır. Akşam kışkırtıcı gibi oynar.
+ */
+export const baiterBot = (): Bot => {
+  const dusk = provokerBot()
+  return (v) => {
+    const b = v.battle
+    if (!isDay(b)) return dusk(v)
+    const lure = baitPlan(b)
+    const threat = nearestThreat(v)
+    if (threat) {
+      // Kanadın bölüğü peşimizdeyse pusuya koş; başka hamleden kaç.
+      if (lure && v.enemies.some((e, i) => e.alive && e.corps === lure.corps && b.mode[i] !== MODE_FORMATION)) {
+        return { move: toward(v.player, lure.run), strike: false }
+      }
+      return { move: flee(v), strike: false }
+    }
+    if (lure) return { move: navigate(v, lure.post, lure.corps), strike: false }
+    const center = b.corps[CENTER]
+    const rows = BATTLE_CONFIG.slotSpacing / 2
+    const dist = center.cohesion > 0.62 ? rows + 4.5 : 10.5
+    return { move: navigate(v, post(b, CENTER, { x: 0, z: 1 }, dist), CENTER), strike: false }
+  }
+}
+
+/** Yem planı: kışkırtılacak kanat, kışkırtma yeri ve kaçış hedefi (yoksa null). */
+function baitPlan(b: BattleState): { corps: number; post: Vec2; run: Vec2 } | null {
+  let best: { corps: number; post: Vec2; run: Vec2 } | null = null
+  let bestD = BAIT_REACH
+  for (const w of b.wings) {
+    if (w.sprung || w.order !== 'ambush' || w.strength < 0.5) continue
+    const ci = w.side < 0 ? 0 : 2
+    const c = b.corps[ci]
+    if (c.alive === 0 || c.leaderless || c.status !== 'advancing') continue
+    const dx = w.home.x - c.anchor.x
+    const dz = w.home.z - c.anchor.z
+    const d = Math.hypot(dx, dz)
+    if (d >= bestD) continue
+    bestD = d
+    const ux = dx / d
+    const uz = dz / d
+    const rows = BATTLE_CONFIG.slotSpacing / 2
+    const reach = Math.min(ENEMY_CONFIG.arenaRadius - 3, Math.hypot(w.home.x, w.home.z) + BAIT_OVERRUN)
+    const r = Math.hypot(w.home.x + ux * BAIT_OVERRUN, w.home.z + uz * BAIT_OVERRUN)
+    const k = r > reach ? reach / r : 1
+    best = {
+      corps: ci,
+      post: { x: c.anchor.x + ux * (rows + 5.5), z: c.anchor.z + uz * (rows + 5.5) },
+      run: { x: (w.home.x + ux * BAIT_OVERRUN) * k, z: (w.home.z + uz * BAIT_OVERRUN) * k },
+    }
+  }
+  return best
+}
+
 // ——— Kol emirleri ———
 
 /** Savaşın durumuna göre iki kolun emri (sol, sağ). */

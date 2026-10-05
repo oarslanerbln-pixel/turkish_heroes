@@ -38,6 +38,11 @@ export type TelemetryEvent =
   | { type: 'rout'; count: number }
   /** Baideng: arbalet yaylımı indi. hit oyuncu halkadaydı; felled halkada düşen Han atlısı. */
   | { type: 'volley'; hit: boolean; felled: number }
+  /**
+   * Malazgirt: pusudaki kol peşindeki bölüğü kesti (yem). wing 0 sol, 1 sağ;
+   * corps kesilen birlik; taken esir düşen; commander kanadın komutanı da mı.
+   */
+  | { type: 'ambush'; wing: number; corps: number; taken: number; commander: boolean }
   /** Miryokefalon: YOLU KES — yığının düştüğü z (geçidin neresi: asıl karar). */
   | { type: 'blockade'; z: number }
   /** alive: vuruştan önce sahada (Malazgirt'te teslim olmamış) kalan. */
@@ -103,6 +108,8 @@ export interface BattleSummary {
   routs: { t: number; count: number }[]
   /** Baideng'in arbalet yaylımları. */
   volleys: { t: number; hit: boolean; felled: number }[]
+  /** Malazgirt: tutan pusular (yem bölük). */
+  ambushes: { t: number; wing: number; corps: number; taken: number; commander: boolean }[]
   /** Miryokefalon: yolun kesildiği an ve yer; kesilmediyse null. */
   blockade: { t: number; z: number } | null
   events: { event: BattleEvent; t: number }[]
@@ -145,6 +152,7 @@ export function startSummary(
     waves: [],
     routs: [],
     volleys: [],
+    ambushes: [],
     blockade: null,
     events: [],
     pauses: [],
@@ -172,6 +180,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'volley':
       s.volleys.push({ t: e.t, hit: e.hit, felled: e.felled })
+      break
+    case 'ambush':
+      s.ambushes.push({ t: e.t, wing: e.wing, corps: e.corps, taken: e.taken, commander: e.commander })
       break
     case 'blockade':
       s.blockade = { t: e.t, z: e.z }

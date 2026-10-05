@@ -84,7 +84,7 @@ export const COMMANDERS: readonly CommanderInfo[] = [
     unlockWave: 3,
     steps: [
       { title: '1 · Taciz et', text: 'Birliklerin menzilinde dur. Düzenleri erir, ilerleyişleri yavaşlar.' },
-      { title: '2 · Kışkırt', text: 'Çok yaklaşırsan ağır süvari hamle eder. Kırmızıyı görünce kaç.' },
+      { title: '2 · Kışkırt', text: 'Yaklaşınca ağır süvari hamle eder. Kırmızıyı görünce pusudaki kola doğru kaç: kol peşindekileri keser.' },
       { title: '3 · Akşamı bekle', text: 'Gün batınca ordu döner; o an kollara HÜCUM ver. Gece çökene dek ordunun dörtte birini düşür.' },
     ],
     stars: ['Ordunun dörtte birini düşür', 'Ordunun yarısını düşür', 'İmparatoru esir al'],

@@ -242,7 +242,7 @@ describe('savaş karnesi — Malazgirt', () => {
     expect(d.timeline.dusk).toBeCloseTo(dayLength / nightAt)
   })
 
-  it('1 yıldız tavsiyesi: gündüz harcanan hilal → yorgun kollar → kullanılmayan kollar → akşam vuruşu', () => {
+  it('1 yıldız tavsiyesi: gündüz harcanan hilal → yorgun kollar → kullanılmayan kollar → yem → akşam vuruşu', () => {
     const advice = (events: Timed[]) =>
       debrief(
         summary('alp-arslan', [
@@ -262,7 +262,27 @@ describe('savaş karnesi — Malazgirt', () => {
       ]),
     ).toBe('saveWings')
     expect(advice([[dayLength, dusk([0.7, 0.7, 0.7, 0.9])]])).toBe('useWings')
-    expect(advice([[dayLength + 3, event('wingShockRight')]])).toBe('duskStrike')
+    expect(advice([[dayLength + 3, event('wingShockRight')]])).toBe('bait')
+    expect(
+      advice([
+        [40, { type: 'ambush', wing: 0, corps: 0, taken: 4, commander: true }],
+        [dayLength + 3, event('wingShockRight')],
+      ]),
+    ).toBe('duskStrike')
+  })
+
+  it('pusuda kesilenler düşen sayılır ve zaman çizelgesinde görünür', () => {
+    const d = debrief(
+      summary('alp-arslan', [
+        [30, strike(5)],
+        [40, { type: 'ambush', wing: 1, corps: 2, taken: 4, commander: true }],
+        [dayLength, event('sunset')],
+        [nightAt, end('victory', { stars: 1, simTime: nightAt })],
+      ]),
+      { best: 0 },
+    )
+    expect(d.headline).toContain('9 asker')
+    expect(d.timeline.marks.filter((m) => m.kind === 'ambush')).toHaveLength(1)
   })
 
   it('2 yıldız: imparatora giden üç adım; kalınan adımın tavsiyesi', () => {
@@ -289,11 +309,15 @@ describe('savaş karnesi — Malazgirt', () => {
     const idle = run(rearLeft)
     expect(idle.advice.id).toBe('closeWings')
     expect(idle.goal).toMatchObject({ value: 1 })
+    expect(idle.advice.text).toContain('Sancak dönünce')
+    // Merkez çarkını bitirdikten sonra verilen emir: pencere kapanmıştı.
     const tooLate = run([
       ...rearLeft,
-      [dayLength + BATTLE_CONFIG.emperorWindow + 1, { type: 'wing_order', wing: 0, order: 'charge' }],
+      [dayLength + 7, event('guardRallied')],
+      [dayLength + 9, { type: 'wing_order', wing: 0, order: 'charge' }],
     ])
     expect(tooLate.advice.id).toBe('closeWings')
+    expect(tooLate.advice.text).toContain('9 sn sonra')
 
     const tired = run([
       [10, { type: 'wing_order', wing: 0, order: 'charge' }],
