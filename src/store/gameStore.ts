@@ -24,6 +24,10 @@ import {
 import { startAmbience } from '../audio/ambience'
 import { endUnfinished, track } from '../telemetry/track'
 import { PLAYTEST } from '../playtest'
+import { SHOT } from '../shot'
+
+/** Giriş ekranı: açık, menüye solarak açılıyor, kapalı. */
+export type TitleState = 'open' | 'leaving' | 'closed'
 
 /**
  * Yalnızca sunum (HUD) state'i.
@@ -88,6 +92,11 @@ interface GameState extends HudSnapshot {
   cinematic: Cinematic | null
   /** Bilgi Hazinesi açıksa hangi komutanın sekmesinde; kapalıysa null. */
   archive: CommanderId | null
+  /**
+   * Giriş ekranı sayfa her açıldığında bir kez gelir; sonuçtan menüye dönüşte
+   * gelmez. Çekim kipi onu atlar: kadrajlar menüden ölçülür.
+   */
+  title: TitleState
   syncHud: (snapshot: HudSnapshot) => void
   /**
    * Başlangıç ekranında komutan seçimi; savaşı henüz başlatmaz. Kilitli
@@ -103,6 +112,10 @@ interface GameState extends HudSnapshot {
   enterBattle: (id: CommanderId) => void
   openArchive: (id: CommanderId) => void
   closeArchive: () => void
+  /** Giriş ekranından menüye: menü altta açılır, ekran üstünde solar. */
+  leaveTitle: () => void
+  /** Solma bitti: giriş ekranı kalkar. */
+  closeTitle: () => void
   requestStrike: () => void
   /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
   cycleWing: (wing: number) => void
@@ -209,6 +222,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   reducedMotion: reducedMotionQuery?.matches ?? false,
   cinematic: null,
   archive: null,
+  title: SHOT !== null ? 'closed' : 'open',
 
   // Mod da her eşitlemede kopyalanır: savaşın bittiği kare sonucu ve karneyi
   // aynı anda getirir, sonuç ekranı boş açılmaz.
@@ -253,6 +267,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   closeArchive: () => {
     uiTick()
     set({ archive: null })
+  },
+
+  // İlk kullanıcı hareketi çoğunlukla bu: ses bağlamı burada açılır.
+  leaveTitle: () => {
+    if (get().title !== 'open') return
+    uiTick()
+    set({ title: 'leaving' })
+  },
+
+  closeTitle: () => {
+    if (get().title === 'leaving') set({ title: 'closed' })
   },
 
   toggleMute: () => {

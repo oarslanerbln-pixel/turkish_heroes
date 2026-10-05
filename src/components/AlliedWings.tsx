@@ -7,6 +7,13 @@ import { WING_CONFIG, type WingState } from '../mechanics/wings'
 import { simDelta, world } from '../sim/world'
 import { buildHorseGeometry, buildRiderGeometry } from '../characters/riderGeometry'
 import { applyNearFade, nearFadeDepthMaterial } from './world/nearFade'
+import { applyUnitShading } from './world/unitShading'
+import {
+  CONTACT_SHADOW_ORDER,
+  contactShadowGeometry,
+  contactShadowMaterial,
+  placeContactShadow,
+} from './world/contactShadow'
 
 // Selçuklu kolları sahada: her kol bir avuç atlı okçu.
 //
@@ -148,6 +155,7 @@ function turnToward(from: number, to: number, t: number): number {
 export function AlliedWings() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
+  const blobRef = useRef<InstancedMesh>(null)
   const horse = useMemo(() => buildHorseGeometry('ally'), [])
   const rider = useMemo(() => buildRiderGeometry('ally'), [])
   const [horseMaterial, riderMaterial] = useMemo(() => {
@@ -155,7 +163,15 @@ export function AlliedWings() {
     const r = new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 })
     applyNearFade(h, FADE_NEAR, FADE_FAR)
     applyNearFade(r, FADE_NEAR, FADE_FAR)
+    applyUnitShading(h)
+    applyUnitShading(r)
     return [h, r]
+  }, [])
+  // Leke de atlıyla birlikte incelir: ordugahta HUD'un arkasında kara iz kalmasın.
+  const blobMaterial = useMemo(() => {
+    const m = contactShadowMaterial().clone()
+    applyNearFade(m, FADE_NEAR, FADE_FAR)
+    return m
   }, [])
   const depthMaterial = useMemo(() => nearFadeDepthMaterial(FADE_NEAR, FADE_FAR), [])
   useEffect(
@@ -165,8 +181,9 @@ export function AlliedWings() {
       horseMaterial.dispose()
       riderMaterial.dispose()
       depthMaterial.dispose()
+      blobMaterial.dispose()
     },
-    [horse, rider, horseMaterial, riderMaterial, depthMaterial],
+    [horse, rider, horseMaterial, riderMaterial, depthMaterial, blobMaterial],
   )
 
   // Yalnızca çizim durumu: süvarinin konumu, yönü ve hızı.
@@ -174,6 +191,7 @@ export function AlliedWings() {
   const heading = useMemo(() => new Float32Array(COUNT), [])
   const speed = useMemo(() => new Float32Array(COUNT), [])
   const dummy = useMemo(() => new Object3D(), [])
+  const blob = useMemo(() => new Object3D(), [])
   const slot = useMemo<Slot>(() => ({ x: 0, z: 0, facing: 0 }), [])
   const lastBattle = useRef<BattleState | null>(null)
   const clock = useRef(0)
@@ -181,16 +199,19 @@ export function AlliedWings() {
   useFrame((_, delta) => {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
-    if (!horseMesh || !riderMesh) return
+    const blobMesh = blobRef.current
+    if (!horseMesh || !riderMesh || !blobMesh) return
     const b = world.battle
     if (!b) {
       horseMesh.count = 0
       riderMesh.count = 0
+      blobMesh.count = 0
       lastBattle.current = null
       return
     }
     horseMesh.count = COUNT
     riderMesh.count = COUNT
+    blobMesh.count = COUNT
 
     const dt = simDelta(delta)
     clock.current += dt
@@ -239,9 +260,12 @@ export function AlliedWings() {
       dummy.updateMatrix()
       horseMesh.setMatrixAt(n, dummy.matrix)
       riderMesh.setMatrixAt(n, dummy.matrix)
+      placeContactShadow(blob, x, ground, z, heading[n])
+      blobMesh.setMatrixAt(n, blob.matrix)
     }
     horseMesh.instanceMatrix.needsUpdate = true
     riderMesh.instanceMatrix.needsUpdate = true
+    blobMesh.instanceMatrix.needsUpdate = true
   }, VISUAL_PRIORITY)
 
   return (
@@ -262,6 +286,12 @@ export function AlliedWings() {
         castShadow
         frustumCulled={false}
         userData={UNIT}
+      />
+      <instancedMesh
+        ref={blobRef}
+        args={[contactShadowGeometry(), blobMaterial, COUNT]}
+        frustumCulled={false}
+        renderOrder={CONTACT_SHADOW_ORDER}
       />
     </>
   )

@@ -8,6 +8,13 @@ import { isPlaying, simDelta, world } from '../sim/world'
 import { scenarioOf } from '../sim/scenarios'
 import { buildHorseGeometry, buildRiderGeometry, buildStandardGeometry } from '../characters/riderGeometry'
 import { CHARGE_COLOR as CHARGE } from './palette'
+import { applyUnitShading, FLASH_TIME, flashAttribute } from './world/unitShading'
+import {
+  CONTACT_SHADOW_ORDER,
+  contactShadowGeometry,
+  contactShadowMaterial,
+  placeContactShadow,
+} from './world/contactShadow'
 import { VOLLEY_DEATH_TIME, fallState, volley } from './volleyPlan'
 
 // Simülasyon sırası: oyuncu (0) → düşmanlar (1) → yönetmen (2).
@@ -48,27 +55,43 @@ export function EnemySwarm() {
   const horseRef = useRef<InstancedMesh>(null)
   const riderRef = useRef<InstancedMesh>(null)
   const standardRef = useRef<Mesh>(null)
-  const horse = useMemo(() => buildHorseGeometry('enemy'), [])
-  const rider = useMemo(() => buildRiderGeometry('enemy'), [])
-  const standards = useMemo(
-    () => ({
+  const blobRef = useRef<InstancedMesh>(null)
+  // Vuruş parlaması: at ve binici aynı değeri okur, sancak imparatorunkini.
+  // Nitelik geometriyle aynı yerde kurulur: StrictMode useMemo'yu iki kez çağırır.
+  const [horse, rider, flashes] = useMemo(() => {
+    const h = buildHorseGeometry('enemy')
+    const r = buildRiderGeometry('enemy')
+    return [h, r, flashAttribute(ENEMY_CAPACITY, h, r)] as const
+  }, [])
+  const [standards, standardFlash] = useMemo(() => {
+    const all = {
       romanos: buildStandardGeometry('romanos'),
       manuel: buildStandardGeometry('manuel'),
       gaozu: buildStandardGeometry('gaozu'),
-    }),
-    [],
-  )
-  const horseMaterial = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), [])
-  const riderMaterial = useMemo(
-    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }),
-    [],
-  )
+    }
+    return [all, flashAttribute(1, all.romanos, all.manuel, all.gaozu)] as const
+  }, [])
+  const horseMaterial = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })
+    applyUnitShading(m, true)
+    return m
+  }, [])
+  const riderMaterial = useMemo(() => {
+    const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 })
+    applyUnitShading(m, true)
+    return m
+  }, [])
   // Matris/renk yazarken kullanılan tek seferlik yardımcılar.
   const dummy = useMemo(() => new Object3D(), [])
+  const blob = useMemo(() => new Object3D(), [])
   const color = useMemo(() => new Color(), [])
   // Yalnızca çizim durumu: her düşmanın son yönü ve ölümünden beri geçen süre.
   const headings = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
   const deathAge = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
+  /** Parlamanın kalan süresi (sn) ve bir önceki karede sağ mıydı. */
+  const flashLeft = useMemo(() => new Float32Array(ENEMY_CAPACITY), [])
+  const wasAlive = useMemo(() => new Uint8Array(ENEMY_CAPACITY), [])
+  const flashing = useRef(false)
   const lastWave = useRef<Enemy[] | null>(null)
   /** Yaylımdaki düşenin çizildiği yer (bkz. volleyPlan.fallState). */
   const fallAt = useMemo(() => ({ x: 0, z: 0 }), [])
@@ -87,7 +110,8 @@ export function EnemySwarm() {
     const horseMesh = horseRef.current
     const riderMesh = riderRef.current
     const standard = standardRef.current
-    if (!horseMesh || !riderMesh || !standard) return
+    const blobMesh = blobRef.current
+    if (!horseMesh || !riderMesh || !standard || !blobMesh) return
     const dt = simDelta(delta)
 
     // Sonuç ekranında sürü donar, ama çizim world'ü izlemeye devam eder:
@@ -103,6 +127,8 @@ export function EnemySwarm() {
       lastWave.current = world.enemies
       headings.fill(0)
       deathAge.fill(0)
+      flashLeft.fill(0)
+      wasAlive.fill(1)
     }
 
     // Dalgalar arasında düşman sayısı değişir; kapasiteyi (ENEMY_CAPACITY)
@@ -111,6 +137,8 @@ export function EnemySwarm() {
     const n = world.enemies.length
     horseMesh.count = n
     riderMesh.count = n
+    blobMesh.count = n
+    let anyFlash = false
     const time = world.animTime
     // Sancak imparatorla birlikte yürür, devrilir, kaybolur; imparator yoksa görünmez.
     standard.visible = false
@@ -132,11 +160,15 @@ export function EnemySwarm() {
         dummy.position.set(x, Math.abs(Math.sin(phase)) * GALLOP_BOB * gait, z)
         dummy.rotation.set(Math.sin(phase) * GALLOP_PITCH * gait, headings[i], 0)
         dummy.scale.setScalar(e.emperor ? EMPEROR_SCALE : 1)
+        placeContactShadow(blob, x, 0, z, headings[i], dummy.scale.x)
       } else if (e.fled) {
         // Savaş alanını terk eden düşmedi: devrilme yok, sahneden çıkar.
         dummy.position.set(0, -100, 0)
         dummy.scale.setScalar(0)
+        placeContactShadow(blob, 0, -100, 0, 0, 0)
       } else {
+        // Düştüğü kare: parlama gerçek zamanla söner, hitstop'ta da.
+        if (wasAlive[i]) flashLeft[i] = FLASH_TIME
         // dt hitstop'ta sıfır: vuruş anında dik durur, donma bitince devrilir.
         deathAge[i] += dt
         const age = deathAge[i]
@@ -145,6 +177,7 @@ export function EnemySwarm() {
           // Sahneden çıkarmanın en ucuz yolu: sıfır ölçek.
           dummy.position.set(0, -100, 0)
           dummy.scale.setScalar(0)
+          placeContactShadow(blob, 0, -100, 0, 0, 0)
         } else {
           const fall = Math.min(1, age / FALL_TIME)
           const sink = Math.max(0, (age - FALL_TIME) / (end - FALL_TIME))
@@ -154,8 +187,18 @@ export function EnemySwarm() {
           dummy.position.set(x, -sink * 1.2, z)
           dummy.rotation.set(0, headings[i], side * fall * fall * (Math.PI / 2))
           dummy.scale.setScalar(1)
+          // Gömülen atlının lekesi onunla birlikte söner.
+          placeContactShadow(blob, x, 0, z, headings[i], 1 - sink)
         }
       }
+      // Yaylımda düşen oku saplanana dek ayakta çizilir; parlama saplandığı karede.
+      wasAlive[i] = e.alive || shot === 'pending' ? 1 : 0
+      blobMesh.setMatrixAt(i, blob.matrix)
+      // İlk yarısı tam beyaz, ikinci yarısı söner.
+      flashLeft[i] = Math.max(0, flashLeft[i] - delta)
+      const flash = Math.min(1, (flashLeft[i] / FLASH_TIME) * 2)
+      flashes.setX(i, flash)
+      if (flash > 0) anyFlash = true
 
       dummy.updateMatrix()
       horseMesh.setMatrixAt(i, dummy.matrix)
@@ -165,6 +208,10 @@ export function EnemySwarm() {
         standard.rotation.copy(dummy.rotation)
         standard.scale.copy(dummy.scale)
         standard.visible = true
+        if (standardFlash.getX(0) !== flash) {
+          standardFlash.setX(0, flash)
+          standardFlash.needsUpdate = true
+        }
       }
 
       if (e.emperor) color.copy(EMPEROR_COLOR)
@@ -176,7 +223,11 @@ export function EnemySwarm() {
 
     horseMesh.instanceMatrix.needsUpdate = true
     riderMesh.instanceMatrix.needsUpdate = true
+    blobMesh.instanceMatrix.needsUpdate = true
     if (riderMesh.instanceColor) riderMesh.instanceColor.needsUpdate = true
+    // Son parlamanın sıfırı da yüklensin, sonra boşta yükleme yok.
+    if (anyFlash || flashing.current) flashes.needsUpdate = true
+    flashing.current = anyFlash
   }, ENEMY_PRIORITY)
 
   return (
@@ -201,6 +252,12 @@ export function EnemySwarm() {
         userData={UNIT}
       />
       <mesh ref={standardRef} material={horseMaterial} castShadow visible={false} userData={UNIT} />
+      <instancedMesh
+        ref={blobRef}
+        args={[contactShadowGeometry(), contactShadowMaterial(), ENEMY_CAPACITY]}
+        frustumCulled={false}
+        renderOrder={CONTACT_SHADOW_ORDER}
+      />
     </>
   )
 }

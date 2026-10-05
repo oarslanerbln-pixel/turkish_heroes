@@ -40,3 +40,4 @@ Grafik kalitesi FPS'e göre kendini ayarlar (düşük / orta / yüksek). Telefon
   sonuç ekranındaki VERİYİ KOPYALA savaş özetlerini panoya alır. Veri cihazdan çıkmaz.
 
 Mimari, fazların durumu ve sonraki adımlar için: [PLAN.md](./PLAN.md).
+Önerilen tasarım maddeleri (mantık, eğlence, klas, grafik) için: [TASARIM.md](./TASARIM.md).

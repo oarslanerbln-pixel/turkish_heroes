@@ -10,6 +10,7 @@ import { OutcomeScreen } from './OutcomeScreen'
 import { PauseScreen } from './PauseScreen'
 import { RotateOverlay } from './RotateOverlay'
 import { StartScreen } from './StartScreen'
+import { TitleScreen } from './TitleScreen'
 import { Ornament } from './Ornament'
 import { SettingsButtons } from './SettingsButtons'
 import { PERF_OVERLAY, QUALITY, SESSION_MULTISAMPLING, useQuality } from '../perf/quality'
@@ -73,10 +74,18 @@ export function HilalEnergyHUD() {
   const battle = useGameStore((s) => s.commander !== 'metehan')
   const pass = useGameStore((s) => s.commander === 'kilicarslan')
   const cinematic = useGameStore((s) => s.cinematic)
+  const title = useGameStore((s) => s.title)
   const [touch] = useState(isTouchDevice)
   const portrait = usePortraitPhone()
 
-  if (mode === 'menu') return <StartScreen touch={touch} />
+  // Giriş ekranı solarken menü altında kurulmuş olsun.
+  if (mode === 'menu')
+    return (
+      <>
+        {title !== 'open' && <StartScreen touch={touch} />}
+        {title !== 'closed' && <TitleScreen touch={touch} />}
+      </>
+    )
   // Savaş sürüyor (molada da): sonuç gelene kadar savaş arayüzü yerinde.
   const live = mode !== 'outcome'
   const paused = mode === 'paused'
