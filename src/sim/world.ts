@@ -13,6 +13,7 @@ import type { Debrief } from '../debrief/debrief'
 import type { LoreCard } from '../lore/lore'
 import type { Enemy, HilalPhase, StrikeRefusal, Vec2 } from '../mechanics/types'
 import { spawnWave, waveConfig } from '../mechanics/waves'
+import { createWhistle, type WhistleState } from '../mechanics/whistle'
 import { parseSeed } from '../mechanics/random'
 import { PLAYTEST } from '../playtest'
 import { loadBestScore } from './score'
@@ -91,6 +92,13 @@ export interface World {
   strikeFacing: number
   /** HUD veya klavye tarafından set edilir, GameDirector tüketir. */
   strikeRequested: boolean
+  /**
+   * Islıklı ok için işaretlenen nokta (bkz. whistle.ts). Girdi (fare, dokunuş)
+   * yazar, GameDirector tüketir; null = istek yok.
+   */
+  whistleRequested: Vec2 | null
+  /** Islıklı okun durumu; yalnız onu kullanan senaryoda (Metehan) işler. */
+  whistle: WhistleState
   /** Son vuruş isteği neden reddedildi — oyuncuya gösterilir. */
   refusal: StrikeRefusal
   /** Ret mesajının ekranda kalacağı süre. */
@@ -220,6 +228,8 @@ export function createWorld(commander: CommanderId, opts: WorldOptions = {}): Wo
     strikeOrigin: { x: 0, z: 0 },
     strikeFacing: Math.PI,
     strikeRequested: false,
+    whistleRequested: null,
+    whistle: createWhistle(),
     refusal: 'none',
     refusalTimer: 0,
     totalKills: 0,

@@ -262,6 +262,7 @@ function EnergyPanel({ touch }: { touch: boolean }) {
   const strikeReady = useGameStore((s) => s.strikeReady)
   const inCrescent = useGameStore((s) => s.inCrescent)
   const requestStrike = useGameStore((s) => s.requestStrike)
+  const whistleReady = useGameStore((s) => s.whistleReady)
 
   // Oyuncu basmadan önce durumu bilsin: şarj mı, menzil mi, yoksa hazır mı.
   const canStrike = strikeReady && inCrescent > 0
@@ -288,6 +289,16 @@ function EnergyPanel({ touch }: { touch: boolean }) {
       <div className="bar">
         <span style={{ width: `${energy}%` }} />
       </div>
+      {/* Islıklı ok (Metehan): hazırsa yere dokunmak yeter; değilse ne beklediği söylenir. */}
+      {whistleReady !== null && (
+        <div className={whistleReady ? 'whistle-pill is-ready' : 'whistle-pill'}>
+          {whistleReady
+            ? touch
+              ? 'Islıklı ok hazır — yere dokun'
+              : 'Islıklı ok hazır — yere tıkla'
+            : 'Islıklı ok — hilalden sonra'}
+        </div>
+      )}
       {/*
         Buton hiçbir zaman disabled değil: devre dışı buton tıklanınca hiçbir
         şey söylemez, oyuncu da bozuk sanır. Her tık ya vurur ya gerekçe verir.

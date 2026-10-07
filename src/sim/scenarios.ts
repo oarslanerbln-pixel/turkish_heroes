@@ -84,6 +84,8 @@ export interface Scenario {
   victoryBonus(w: World): number
   /** Taban puanı bu savaşın zorluğuna çevirir; bkz. waveScore. */
   points(w: World, base: number): number
+  /** Islıklı ok bu savaşta var mı (yalnız Metehan; bkz. whistle.ts). */
+  whistle?: boolean
 }
 
 /** Düşürülen (ya da teslim olan) düşman başına puan. */
@@ -184,6 +186,11 @@ const FILL_HINT_ENERGY = 30
 const STALL_HINT = 'Hilal dolmuyor: düşman düzenli — uzaklaş, peşine düşsün'
 const FILL_HINT = 'Peşine düşenin düzeni bozuldu — kümelendikçe hilal dolar'
 const READY_HINT = 'Hilal kuruldu — VUR, yaydakiler düşer'
+/**
+ * Islıklı ok (whistle.ts) ilk hilal vuruşundan sonra öğretilir: yeni fiil
+ * tek başına gelsin (TASARIM §8), enerji ipuçlarıyla aynı anda değil.
+ */
+const WHISTLE_HINT = 'Islıklı ok hazır — yere dokun ya da tıkla: bölük oraya yağdırır, peşindekiler durur'
 
 function teachEnergy(w: World, fx: StepEffects): void {
   if (countAlive(w) === 0) return
@@ -212,6 +219,7 @@ export interface WaveRules {
 /** Metehan: dört dalga halinde gelen, peşine takılınca kümelenen sürü. */
 export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }): Scenario {
   return {
+    whistle: true,
     assist: () => ladderScale(ladderStep()),
     contactDamage: (w) => COMBAT_CONFIG.damagePerEnemy * w.assist,
 
@@ -263,6 +271,9 @@ export function wavesScenario(rules: WaveRules = { rout: true, spawnAway: true }
       }
       if (stillPress(w.stillTime) > 0 && countAlive(w) > 0 && fx.hint('still')) announce(w, STILL_HINT)
       teachEnergy(w, fx)
+      if (w.totalKills > 0 && w.whistle.ready && countAlive(w) > 0 && fx.hint('whistle')) {
+        announce(w, WHISTLE_HINT)
+      }
       // alive yalnızca vuruşla azaldığı için vuruştan sonra, güncel sayıyla.
       const moreWaves = w.waveIndex < TOTAL_WAVES - 1
       if (countAlive(w) > 0 || !moreWaves) return

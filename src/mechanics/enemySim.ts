@@ -106,6 +106,10 @@ export function stepEnemies(
     }
 
     stepDiscipline(e, isPlayerRetreating, deltaTime, disciplineRecoveryMult)
+    if (e.pinned) {
+      stepPinned(e, deltaTime)
+      continue
+    }
 
     const speed = lerp(ENEMY_CONFIG.chaseSpeed, ENEMY_CONFIG.baseSpeed, e.discipline)
     const standoff = ENEMY_CONFIG.standoffDistance * e.discipline * (1 - press)
@@ -143,6 +147,20 @@ export function steerToward(
   e.pos.x += e.vel.x * deltaTime
   e.pos.z += e.vel.z * deltaTime
 
+  confineToArena(e)
+}
+
+/** Kalkan altındaki düşmanın frenlenmesi (1/sn): yarım saniyede neredeyse durur. */
+const PIN_BRAKE = 6
+
+/** Ok yağmuru altında: kalkan kaldırır, atını durdurur, yerinde kalır. */
+function stepPinned(e: Enemy, deltaTime: number): void {
+  e.pinned = Math.max(0, (e.pinned ?? 0) - deltaTime)
+  const k = Math.max(0, 1 - PIN_BRAKE * deltaTime)
+  e.vel.x *= k
+  e.vel.z *= k
+  e.pos.x += e.vel.x * deltaTime
+  e.pos.z += e.vel.z * deltaTime
   confineToArena(e)
 }
 

@@ -14,6 +14,7 @@ import { AlliedWings } from './AlliedWings'
 import { ChargeWarnings } from './ChargeWarnings'
 import { ArrowVolley } from './ArrowVolley'
 import { CrossbowVolleys } from './CrossbowVolleys'
+import { WhistleShot } from './WhistleShot'
 import { HunRing } from './HunRing'
 import { HilalVolley } from './HilalVolley'
 import { DustTrails } from './DustTrails'
@@ -176,6 +177,7 @@ export function Scene() {
             <>
               <HilalVolley />
               <CrossbowVolleys />
+              <WhistleShot />
               <HunRing />
             </>
           )}

@@ -23,6 +23,7 @@ import {
 } from '../mechanics/hilalSystem'
 import { confineToPass } from '../mechanics/pass'
 import type { Enemy, Vec2 } from '../mechanics/types'
+import { fireWhistle, rechargeWhistle, stepWhistle } from '../mechanics/whistle'
 import type { Refusal, TelemetryEvent } from '../telemetry/summary'
 import { stepHurt } from './hurt'
 import type { HintId } from './progress'
@@ -37,6 +38,8 @@ export interface StepInput {
   move: Vec2
   /** Bu adımda vuruş istendi. */
   strike: boolean
+  /** Islıklı okun işaretlendiği nokta; null ya da yoksa istek yok. */
+  whistle?: Vec2 | null
 }
 
 /** Adımın dünyadan dışarı uzanan yan etkileri. */
@@ -81,6 +84,7 @@ export function stepGame(
   movePlayer(w, input.move, dt)
   // Düşmanlar bir önceki adımın kaçış durumuyla (isRetreating) yürür.
   scenario.moveEnemies(w, dt)
+  if (scenario.whistle) whistleStep(w, input.whistle ?? null, dt, fx)
 
   const siege = scenario.siege(w)
   w.time += dt
@@ -207,6 +211,26 @@ function strike(w: World, aliveBefore: number, scenario: Scenario, fx: StepEffec
   w.energy = 0
   w.refusal = 'none'
   w.refusalTimer = 0
+  if (scenario.whistle) rechargeWhistle(w.whistle)
+}
+
+/**
+ * Islıklı ok: istek varsa atar, havadakini indirir. Düşmanlar yürüdükten
+ * sonra, kuşatma ölçülmeden önce: sarsılan düzen aynı adımda enerjiye yansır.
+ */
+function whistleStep(w: World, aim: Vec2 | null, dt: number, fx: StepEffects): void {
+  if (aim) {
+    const target = fireWhistle(w.whistle, w.player, aim)
+    if (target) {
+      w.events.push({ type: 'whistleFired', origin: { x: w.player.x, z: w.player.z }, target })
+      fx.play('whistle')
+      fx.track({ type: 'whistle' })
+    }
+  }
+  const hit = stepWhistle(w.whistle, w.enemies, dt)
+  if (hit < 0) return
+  w.events.push({ type: 'whistleLanded', x: w.whistle.target.x, z: w.whistle.target.z, hit })
+  fx.play('whistleRain', Math.min(1, hit / 8))
 }
 
 /** Savaş sonu kaydı; oyunda finishBattle, botlarda koşucu aynı biçimde yazar. */

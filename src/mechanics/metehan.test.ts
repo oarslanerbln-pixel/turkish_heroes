@@ -205,10 +205,12 @@ describe('Metehan — kurallar', () => {
     expect(idle.shown.get('stall')).toBeCloseTo(15, 1)
 
     // Kaçan oyuncu dolarken nedenini, kurunca ne yapacağını duyar; takılmadığı için "dolmuyor"u duymaz.
+    // Islıklı ok yeni fiil olarak tek başına, ilk hilal vuruşundan sonra öğretilir (whistle.ts).
     for (const skill of [SKILLS.expert, SKILLS.novice]) {
       const run = play(recordInputs(kiter(skill, 1)))
-      expect([...run.shown.keys()]).toEqual(['fill', 'ready'])
+      expect([...run.shown.keys()]).toEqual(['fill', 'ready', 'whistle'])
       expect(run.shown.get('ready')!).toBeLessThanOrEqual(run.firstStrike)
+      expect(run.shown.get('whistle')!).toBeGreaterThanOrEqual(run.firstStrike)
     }
   })
 
