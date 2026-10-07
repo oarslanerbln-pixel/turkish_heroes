@@ -23,6 +23,7 @@ export type HintId =
   | 'fill'
   | 'ready'
   | 'bait'
+  | 'whistle'
 
 interface Progress {
   /** Zafer kazanılan komutanlar. */

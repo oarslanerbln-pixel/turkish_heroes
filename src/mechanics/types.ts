@@ -32,6 +32,11 @@ export interface Enemy {
    * sınıra varınca kaçmış (fled) sayılır. Metehan'da dalganın son artığı.
    */
   routed?: boolean
+  /**
+   * Islıklı okun yağmuru altında kalkan kaldırdı: bu kadar saniye daha
+   * yerinde kalır (bkz. whistle.ts). Yoksa ya da 0'sa serbest.
+   */
+  pinned?: number
 }
 
 export type HilalPhase = 'idle' | 'retreat' | 'gather' | 'strike'

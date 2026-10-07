@@ -48,6 +48,8 @@ export interface HudSnapshot {
   inCrescent: number // yay şimdi tetiklense kaç düşman düşerdi
   refusal: StrikeRefusal // son vuruş isteği neden reddedildi
   strikeReady: boolean
+  /** Islıklı ok atılabilir mi; null: bu savaşta ıslıklı ok yok. */
+  whistleReady: boolean | null
   totalKills: number
   waveIndex: number // 0 tabanlı
   score: number
@@ -118,6 +120,8 @@ interface GameState extends HudSnapshot {
   /** Solma bitti: giriş ekranı kalkar. */
   closeTitle: () => void
   requestStrike: () => void
+  /** Islıklı ok: işaretlenen yer noktası (yalnız Metehan'da işler). */
+  requestWhistle: (at: { x: number; z: number }) => void
   /** Kolun emrini sıradakine çevirir: pusu → taciz → hücum → pusu. */
   cycleWing: (wing: number) => void
   /** Geçit: YOLU KES — oyuncunun bulunduğu yere kaya yığını (bir kez). */
@@ -161,6 +165,7 @@ const INITIAL_HUD: HudSnapshot = {
   inCrescent: 0,
   refusal: 'none',
   strikeReady: false,
+  whistleReady: null,
   totalKills: 0,
   waveIndex: 0,
   score: 0,
@@ -305,6 +310,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Molada basılan tuş birikip DEVAM'da kendiliğinden vurmasın.
   requestStrike: () => {
     if (world.mode !== 'paused') world.strikeRequested = true
+  },
+
+  // Vuruş gibi bayrak: GameDirector bir sonraki karede tüketir, molada birikmez.
+  requestWhistle: (at) => {
+    if (isPlaying()) world.whistleRequested = { x: at.x, z: at.z }
   },
 
   // Emir doğrudan simülasyona işlenir (kol bir sonraki adımda yola çıkar);

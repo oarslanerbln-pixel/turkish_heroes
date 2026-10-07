@@ -32,11 +32,15 @@ export interface WaveView {
   volleys: readonly Volley[]
   /** Baideng: dört renkli çemberin merkezi; çember kurulmadıysa null. */
   focus: Vec2 | null
+  /** Islıklı ok atılabilir (hazır ve havada ok yok). */
+  whistleReady: boolean
 }
 
 export interface WaveAction {
   move: Vec2
   strike: boolean
+  /** Islıklı okun işaretlendiği nokta (bkz. whistle.ts). */
+  whistle?: Vec2 | null
 }
 
 export type WaveBot = (view: WaveView) => WaveAction
@@ -97,6 +101,7 @@ export function runWaves(
     time: 0,
     volleys: [],
     focus: null,
+    whistleReady: true,
   }
 
   record?.(
@@ -120,12 +125,14 @@ export function runWaves(
     view.time = w.time
     view.volleys = w.baideng?.volleys ?? []
     view.focus = w.baideng?.ring?.center ?? null
+    view.whistleReady = w.whistle.ready && w.whistle.flight === 0
     const action = bot(view)
 
     // Botun hızı oyuncunun çubuğuna çevrilir (retreatSpeed = tam itiş).
     input.move.x = action.move.x / HILAL_CONFIG.retreatSpeed
     input.move.z = action.move.z / HILAL_CONFIG.retreatSpeed
     input.strike = action.strike
+    input.whistle = action.whistle ?? null
     stepGame(w, input, WAVE_BOT_DT, fx, scenario)
     // Oyunda karenin sonunda boşalır (EventFlush).
     w.events.length = 0
@@ -276,6 +283,69 @@ export function kiter(skill: KiterSkill, seed: number): WaveBot {
     }
     return { move, strike }
   }
+}
+
+/**
+ * Islıklı oku kullanan oyuncu: `bot` gibi oynar, ok hazırken ve hilal dolmamışken
+ * düzenini koruyan düşmanların ortasına (menzildeyse) ıslık atar. Fark etme
+ * gecikmesi becerinin tepkisinden. Hiç atmayan bot eski ölçümleri korur.
+ */
+export function whistler(
+  bot: WaveBot,
+  skill: KiterSkill,
+  seed: number,
+  aimAt: 'steady' | 'chasers' = 'chasers',
+): WaveBot {
+  const rand = mulberry32(seed ^ 0x5eed)
+  let readySince = -1
+  let delay = 0
+  return (v) => {
+    const action = bot(v)
+    if (!v.whistleReady || isStrikeReady(v.energy)) {
+      readySince = -1
+      return action
+    }
+    if (readySince < 0) {
+      readySince = v.time
+      delay = skill.reaction * (1 + 2 * rand())
+    }
+    if (v.time - readySince < delay) return action
+    const aim = aimAt === 'chasers' ? chaserCentroid(v.enemies, v.player) : steadyCentroid(v.enemies)
+    if (!aim) return action
+    readySince = -1
+    return { ...action, whistle: aim }
+  }
+}
+
+/** Peşteki atlılar: oyuncuya CHASER_RANGE'den yakın en az üç düşman varsa ortaları. */
+function chaserCentroid(enemies: readonly Enemy[], player: Vec2): Vec2 | null {
+  let x = 0
+  let z = 0
+  let n = 0
+  for (const e of enemies) {
+    if (!e.alive || e.routed || e.emperor || e.guard) continue
+    if (Math.hypot(e.pos.x - player.x, e.pos.z - player.z) > CHASER_RANGE) continue
+    x += e.pos.x
+    z += e.pos.z
+    n++
+  }
+  return n >= 3 ? { x: x / n, z: z / n } : null
+}
+
+const CHASER_RANGE = 10
+
+/** Düzenini koruyan (disiplini 0,5'ten yüksek) canlı düşmanların ortası. */
+function steadyCentroid(enemies: readonly Enemy[]): Vec2 | null {
+  let x = 0
+  let z = 0
+  let n = 0
+  for (const e of enemies) {
+    if (!e.alive || e.routed || e.emperor || e.guard || e.discipline <= 0.5) continue
+    x += e.pos.x
+    z += e.pos.z
+    n++
+  }
+  return n > 0 ? { x: x / n, z: z / n } : null
 }
 
 /** Çember kurulunca botun çember merkezine uzaklığı: yayın menzilinde. */

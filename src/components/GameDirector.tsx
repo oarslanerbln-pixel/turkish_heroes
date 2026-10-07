@@ -127,6 +127,7 @@ export function GameDirector() {
       }
       readMove(keys.current, touch, input.move)
       input.strike = world.strikeRequested
+      input.whistle = world.whistleRequested
       shotDriver.drive?.(world, input)
       const prevOutcome = world.outcome
       stepGame(world, input, dt, GAME_FX, scenario)
@@ -152,6 +153,7 @@ export function GameDirector() {
     // İstek her karede tüketilir: vuruş hazır değilken basılan tuş birikip
     // enerji dolar dolmaz kendiliğinden patlamasın.
     world.strikeRequested = false
+    world.whistleRequested = null
 
     // Donma ve hız bu karenin görsellerinde (simDelta) ve sonraki adımda geçerli.
     if (world.mode !== 'paused') stepTime(realDelta)
@@ -180,6 +182,7 @@ export function GameDirector() {
         inCrescent: world.inCrescent,
         refusal: world.refusalTimer > 0 ? world.refusal : 'none',
         strikeReady: isStrikeReady(world.energy),
+        whistleReady: scenario.whistle ? world.whistle.ready && world.whistle.flight === 0 : null,
         totalKills: world.totalKills,
         waveIndex: world.waveIndex,
         score: world.score,

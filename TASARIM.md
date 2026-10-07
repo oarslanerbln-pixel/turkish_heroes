@@ -81,6 +81,7 @@ Her maddede **etki** (yüksek, orta, düşük), **iş** (düşük, orta, yüksek
    - Oyunda bölük, işaretlenen yere ok yağdırsın. Tek tuşluk savaşa "nereye" kararı eklenir.
    - Talimin karanlık sonu (baba) anlatılmasın; tema disiplin olsun.
    - *Etki yüksek · iş orta · kaynak: kısmen doğrulandı (tek ve üsluplu bir Han kaynağı).*
+   - **Yapıldı (7 Ekim 2026):** yere dokun/tıkla → ok 0,6 sn uçar, 5 birimlik yağmur düşmanı 2 sn durdurur ve disiplinini 0,3 düşürür. Sayaç yok: her hilal vuruşu oku yeniler. Kural ve ayar tablosu `src/mechanics/whistle.ts`; orta bot 30 tohumda 8 → 17 zafer (peşindekilere atınca), hattın ortasına atınca fark yok.
 2. **Baideng'in tarihî sonu bir seçim olsun: köşeyi aç.** Shiji 110 ve 56'ya göre:
    - Kuşatma yedi gün sürdü; atlar yöne göre renkliydi.
    - Han tarafı hatuna rüşvet verdi. Gecikmeli müttefiklerinden kuşkulanan Mete bir köşeyi açtı; Han askerleri yaylarını dışa gererek çıktı.

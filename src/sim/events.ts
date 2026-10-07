@@ -35,6 +35,10 @@ export type WorldEvent =
   | { type: 'volleyHit'; x: number; z: number }
   /** Bir birlik hamleye kalktı; pos hamle edenlerin ortası. */
   | { type: 'charge'; corps: number; pos: Vec2 }
+  /** Islıklı ok atıldı; target okun ineceği nokta (bkz. whistle.ts). */
+  | { type: 'whistleFired'; origin: Vec2; target: Vec2 }
+  /** Islıklı okun yağmuru indi; hit düzeni sarsılan düşman sayısı. */
+  | { type: 'whistleLanded'; x: number; z: number; hit: number }
   /** Kırılan dalganın artığı kaçıyor. */
   | { type: 'rout'; count: number }
   /** Oyuncu yara aldı; amount bu tepkiye biriken hasar (bkz. hurt.ts). */

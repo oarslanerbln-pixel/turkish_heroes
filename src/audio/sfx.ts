@@ -27,6 +27,8 @@ export type Sfx =
   | 'rockslide'
   | 'hurt'
   | 'ui'
+  | 'whistle'
+  | 'whistleRain'
 
 const MUTE_KEY = 'hilal_muted'
 const HAPTICS_KEY = 'hilal_haptics'
@@ -215,6 +217,21 @@ export function play(sfx: Sfx, intensity = 1): void {
         sample('swish', t + 0.04, 0.1 + 0.15 * intensity, ARROW_RATE)
       } else {
         noise(t, 0.28, 5200, 2400, 0.12 + 0.12 * intensity)
+      }
+      break
+    case 'whistle':
+      // Islıklı ok: kemik başlıkta yükselip alçalan, uçuş boyu süren ıslık.
+      tone(t, 'sine', 1300, 2300, 0.32, 0.12, 4000)
+      tone(t + 0.3, 'sine', 2300, 1700, 0.3, 0.09, 4000)
+      sample('swish', t, 0.12, ARROW_RATE)
+      break
+    case 'whistleRain':
+      // Bölük ıslığın düştüğü yere boşaltır: kirişler ve yağan oklar.
+      sample('bow', t, 0.18 + 0.12 * intensity)
+      for (let i = 0; i < 3; i++) {
+        if (!sample('swish', t + 0.05 + i * 0.07, 0.08 + 0.1 * intensity, ARROW_RATE)) {
+          noise(t + i * 0.07, 0.22, 5200, 2400, 0.08 + 0.08 * intensity)
+        }
       }
       break
     case 'volleyHit':

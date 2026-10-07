@@ -36,6 +36,8 @@ export type TelemetryEvent =
   | { type: 'wave_clear'; wave: number; health: number }
   /** Metehan: vuruştan sonra dalganın artığı bozguna uğradı. */
   | { type: 'rout'; count: number }
+  /** Metehan: ıslıklı ok atıldı (bkz. whistle.ts). */
+  | { type: 'whistle' }
   /** Baideng: arbalet yaylımı indi. hit oyuncu halkadaydı; felled halkada düşen Han atlısı. */
   | { type: 'volley'; hit: boolean; felled: number }
   /**
@@ -106,6 +108,8 @@ export interface BattleSummary {
   refusals: Record<Refusal, number>
   waves: { wave: number; t: number; health: number }[]
   routs: { t: number; count: number }[]
+  /** Islıklı okun atıldığı anlar (sn). */
+  whistles: number[]
   /** Baideng'in arbalet yaylımları. */
   volleys: { t: number; hit: boolean; felled: number }[]
   /** Malazgirt: tutan pusular (yem bölük). */
@@ -151,6 +155,7 @@ export function startSummary(
     refusals: { notReady: 0, noTargets: 0, steady: 0 },
     waves: [],
     routs: [],
+    whistles: [],
     volleys: [],
     ambushes: [],
     blockade: null,
@@ -177,6 +182,9 @@ export function applyEvent(s: BattleSummary, e: Stamped): void {
       break
     case 'rout':
       s.routs.push({ t: e.t, count: e.count })
+      break
+    case 'whistle':
+      s.whistles.push(e.t)
       break
     case 'volley':
       s.volleys.push({ t: e.t, hit: e.hit, felled: e.felled })
